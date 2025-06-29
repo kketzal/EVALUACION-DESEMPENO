@@ -1,0 +1,99 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+const fs = require('fs');
+
+// Crear directorio de uploads si no existe
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Crear directorio de evidencia si no existe
+const evidenceDir = path.join(uploadsDir, 'evidence');
+if (!fs.existsSync(evidenceDir)) {
+    fs.mkdirSync(evidenceDir, { recursive: true });
+}
+
+const db = new Database(path.join(__dirname, 'evaluations.db'));
+
+// Crear tablas si no existen
+const createTables = () => {
+    // Tabla de trabajadores
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS workers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Tabla de evaluaciones
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS evaluations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_id TEXT NOT NULL,
+            period TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (worker_id) REFERENCES workers (id)
+        )
+    `);
+
+    // Tabla de criterios evaluados
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS criteria_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evaluation_id INTEGER NOT NULL,
+            conduct_id TEXT NOT NULL,
+            tramo TEXT NOT NULL,
+            criterion_index INTEGER NOT NULL,
+            is_checked BOOLEAN NOT NULL,
+            FOREIGN KEY (evaluation_id) REFERENCES evaluations (id)
+        )
+    `);
+
+    // Tabla de evidencia real
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS real_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evaluation_id INTEGER NOT NULL,
+            conduct_id TEXT NOT NULL,
+            evidence_text TEXT,
+            FOREIGN KEY (evaluation_id) REFERENCES evaluations (id)
+        )
+    `);
+
+    // Tabla de archivos de evidencia
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS evidence_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evaluation_id INTEGER NOT NULL,
+            competency_id TEXT NOT NULL,
+            conduct_id TEXT NOT NULL,
+            original_name TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            file_type TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (evaluation_id) REFERENCES evaluations (id)
+        )
+    `);
+
+    // Tabla de puntuaciones
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS scores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evaluation_id INTEGER NOT NULL,
+            conduct_id TEXT NOT NULL,
+            t1_score REAL,
+            t2_score REAL,
+            final_score REAL NOT NULL,
+            FOREIGN KEY (evaluation_id) REFERENCES evaluations (id)
+        )
+    `);
+};
+
+// Inicializar base de datos
+createTables();
+
+module.exports = { db, uploadsDir, evidenceDir }; 

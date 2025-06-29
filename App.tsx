@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { competencies } from './data/evaluationData';
 import { Header } from './components/Header';
@@ -8,10 +7,12 @@ import { Sidebar } from './components/Sidebar';
 import { SummaryPage } from './components/SummaryPage';
 import { AddWorkerModal } from './components/AddWorkerModal';
 import { UserPlusIcon } from './components/icons';
+import { EvidenceFile } from './services/api';
 
 function App() {
   const {
     evaluation,
+    isLoading,
     setWorkerId,
     setPeriod,
     updateCriteriaCheck,
@@ -25,14 +26,34 @@ function App() {
   const [activeCompetencyId, setActiveCompetencyId] = useState<string>('B');
   const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
 
-  const handleWorkerChange = (workerId: string) => {
-    setWorkerId(workerId);
+  const handleWorkerChange = async (workerId: string) => {
+    await setWorkerId(workerId);
     setActiveCompetencyId('B'); // Reset to the first competency
   };
 
-  const handleAddWorker = (name: string) => {
-    addWorker(name);
+  const handleAddWorker = async (name: string) => {
+    await addWorker(name);
     setAddWorkerModalOpen(false);
+  };
+
+  const handleExitApp = () => {
+    if (window.confirm('¿Está seguro de que desea salir de la aplicación? Los datos se guardarán automáticamente.')) {
+      // Limpiar el estado y regresar a la página inicial
+      setWorkerId(null);
+      setActiveCompetencyId('B');
+    }
+  };
+
+  const handleFilesUploaded = (conductId: string, files: EvidenceFile[]) => {
+    // Los archivos ya se han subido a través del EvidenceUploader
+    // Solo necesitamos actualizar el estado local si es necesario
+    console.log('Archivos subidos para conducta:', conductId, files);
+  };
+
+  const handleFileDeleted = (conductId: string, fileId: number) => {
+    // El archivo ya se ha eliminado a través del EvidenceUploader
+    // Solo necesitamos actualizar el estado local si es necesario
+    console.log('Archivo eliminado de conducta:', conductId, fileId);
   };
 
   const activeCompetency = useMemo(
@@ -40,7 +61,8 @@ function App() {
     [activeCompetencyId]
   );
   
-  if (evaluation.workers.length === 0) {
+  // Mostrar página inicial si no hay trabajadores o si no hay trabajador seleccionado
+  if (evaluation.workers.length === 0 || evaluation.workerId === null) {
     return (
       <>
         <AddWorkerModal
@@ -54,24 +76,36 @@ function App() {
               Bienvenido/a a la Herramienta de Evaluación
             </h1>
             <p className="mt-4 text-base sm:text-lg text-gray-600">
-              Para comenzar, por favor, añada el primer perfil de trabajador/a.
+              {evaluation.workers.length === 0 
+                ? 'Para comenzar, por favor, añada el primer perfil de trabajador/a.'
+                : 'Seleccione un trabajador/a para comenzar una evaluación o añada uno nuevo.'
+              }
             </p>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => setAddWorkerModalOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105"
               >
                 <UserPlusIcon className="h-6 w-6" />
-                <span>Añadir Primer Trabajador/a</span>
+                <span>Añadir Nuevo Trabajador/a</span>
               </button>
+              {evaluation.workers.length > 0 && (
+                <button
+                  onClick={() => setWorkerId(evaluation.workers[0].id)}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Seleccionar Trabajador Existente</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </>
     );
   }
-
-  const isFormActive = evaluation.workerId !== null;
 
   return (
     <>
@@ -95,10 +129,16 @@ function App() {
             period={evaluation.period}
             onPeriodChange={setPeriod}
             onAddWorkerClick={() => setAddWorkerModalOpen(true)}
+            onExitApp={handleExitApp}
           />
 
           <div className="flex-grow p-4 sm:p-6 lg:p-8">
-            {isFormActive ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <span className="ml-3 text-gray-600">Cargando evaluación...</span>
+              </div>
+            ) : (
               <div className="max-w-7xl mx-auto">
                 {activeCompetency ? (
                   <CompetencyBlock
@@ -107,8 +147,8 @@ function App() {
                     evaluation={evaluation}
                     onCriteriaChange={updateCriteriaCheck}
                     onEvidenceChange={updateRealEvidence}
-                    onFilesAdded={addFiles}
-                    onFileRemoved={removeFile}
+                    onFilesUploaded={(conductId, files) => handleFilesUploaded(conductId, files)}
+                    onFileDeleted={(conductId, fileId) => handleFileDeleted(conductId, fileId)}
                   />
                 ) : activeCompetencyId === 'summary' ? (
                   <SummaryPage 
@@ -116,13 +156,6 @@ function App() {
                     onSave={saveEvaluation}
                   />
                 ) : null}
-              </div>
-            ) : (
-              <div className="text-center max-w-4xl mx-auto mt-6">
-                <div className="bg-white shadow-md rounded-xl p-16">
-                  <h2 className="text-2xl font-semibold text-gray-700">Comenzar Evaluación</h2>
-                  <p className="mt-2 text-gray-500">Por favor, seleccione un trabajador/a del menú superior para comenzar o continuar una evaluación.</p>
-                </div>
               </div>
             )}
           </div>

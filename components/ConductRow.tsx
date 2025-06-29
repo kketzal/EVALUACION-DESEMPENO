@@ -40,7 +40,14 @@ const CriteriaList: React.FC<{
 );
 
 
-export const ConductRow: React.FC<ConductRowProps> = ({ conduct, score, criteriaChecks, realEvidence, onCriteriaChange, onEvidenceChange }) => {
+export const ConductRow: React.FC<ConductRowProps> = ({ 
+  conduct, 
+  score, 
+  criteriaChecks, 
+  realEvidence, 
+  onCriteriaChange, 
+  onEvidenceChange
+}) => {
 
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border border-gray-200">

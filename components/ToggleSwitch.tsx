@@ -9,15 +9,15 @@ interface ToggleSwitchProps {
 
 export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, id }) => {
   return (
-    <label htmlFor={id} className="inline-flex items-center cursor-pointer">
+    <button
+      type="button"
+      onClick={() => {
+        console.log('ToggleSwitch clicked:', id, 'current:', checked, 'new:', !checked);
+        onChange(!checked);
+      }}
+      className="inline-flex items-center cursor-pointer focus:outline-none"
+    >
       <span className="relative">
-        <input
-          id={id}
-          type="checkbox"
-          className="sr-only"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-        />
         <div className={clsx(
           "block w-10 h-6 rounded-full transition-colors",
           { "bg-indigo-600": checked, "bg-gray-300": !checked }
@@ -27,6 +27,6 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, i
           { "transform translate-x-4": checked }
         )}></div>
       </span>
-    </label>
+    </button>
   );
 };

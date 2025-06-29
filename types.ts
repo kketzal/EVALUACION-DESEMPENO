@@ -42,4 +42,5 @@ export interface EvaluationState {
   realEvidences: Record<string, string>;
   files: Record<string, EvidenceFile[]>;
   workers: Worker[];
+  evaluationId: number | null;
 }

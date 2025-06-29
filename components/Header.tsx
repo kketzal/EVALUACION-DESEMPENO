@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Worker } from '../types';
 import { UserPlusIcon } from './icons';
@@ -10,6 +9,7 @@ interface HeaderProps {
   period: string;
   onPeriodChange: (period: string) => void;
   onAddWorkerClick: () => void;
+  onExitApp: () => void;
 }
 
 const generateBiennialPeriods = (startYear: number, count: number): string[] => {
@@ -24,7 +24,7 @@ const generateBiennialPeriods = (startYear: number, count: number): string[] => 
 
 const basePeriods = generateBiennialPeriods(2023, 10); // Genera 10 periodos desde 2023-2024
 
-export const Header: React.FC<HeaderProps> = ({ workers, selectedWorkerId, onWorkerChange, period, onPeriodChange, onAddWorkerClick }) => {
+export const Header: React.FC<HeaderProps> = ({ workers, selectedWorkerId, onWorkerChange, period, onPeriodChange, onAddWorkerClick, onExitApp }) => {
   const periodOptions = [...basePeriods];
   if (!periodOptions.includes(period)) {
       periodOptions.unshift(period);
@@ -75,6 +75,18 @@ export const Header: React.FC<HeaderProps> = ({ workers, selectedWorkerId, onWor
               >
                 <UserPlusIcon className="h-5 w-5" />
                 <span>Nuevo Trabajador</span>
+              </button>
+           </div>
+           <div className="w-full sm:w-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-1 opacity-0 pointer-events-none">Salir</label>
+             <button
+                onClick={onExitApp}
+                className="mt-1 flex items-center justify-center gap-2 w-full px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Salir</span>
               </button>
            </div>
         </div>
