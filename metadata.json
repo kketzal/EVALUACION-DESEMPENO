@@ -1,0 +1,5 @@
+{
+  "name": "Evaluación de Desempeño por Competencias",
+  "description": "Una aplicación web para que los evaluadores califiquen el desempeño de los empleados en función de las competencias conductuales. Permite la puntuación por tramos, el registro de evidencias y la carga de archivos de apoyo.",
+  "requestFramePermissions": []
+}
