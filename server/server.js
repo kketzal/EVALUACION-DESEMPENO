@@ -20,7 +20,9 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + '-' + file.originalname);
+        // Usar solo la extensión del archivo original para evitar problemas con caracteres especiales
+        const extension = path.extname(file.originalname);
+        cb(null, uniqueSuffix + extension);
     }
 });
 
@@ -84,7 +86,7 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
         // Agregar URL a los archivos
         const evidenceFilesWithUrl = evidenceFiles.map(file => ({
             ...file,
-            url: `/uploads/evidence/${file.file_name}`
+            url: `http://localhost:3001/uploads/evidence/${file.file_name}`
         }));
         
         // Obtener puntuaciones
@@ -200,7 +202,7 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 file_type: file.mimetype,
                 file_size: file.size,
                 uploaded_at: new Date().toISOString(),
-                url: `/uploads/evidence/${file.filename}`
+                url: `http://localhost:3001/uploads/evidence/${file.filename}`
             });
         }
         

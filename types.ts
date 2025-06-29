@@ -43,4 +43,7 @@ export interface EvaluationState {
   files: Record<string, EvidenceFile[]>;
   workers: Worker[];
   evaluationId: number | null;
+  useT1SevenPoints: boolean;
+  isSaving: boolean;
+  lastSavedAt: string | null;
 }

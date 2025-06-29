@@ -1,6 +1,6 @@
 import React from 'react';
 import { Conduct, Score, CriteriaCheckState } from '../types';
-import { t1Criteria, t2Criteria } from '../data/criteriaData';
+import { t1Criteria, t1Criteria7Points, t2Criteria } from '../data/criteriaData';
 import { ToggleSwitch } from './ToggleSwitch';
 import { LightbulbIcon } from './icons';
 
@@ -11,6 +11,7 @@ interface ConductRowProps {
   realEvidence: string;
   onCriteriaChange: (tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => void;
   onEvidenceChange: (text: string) => void;
+  useT1SevenPoints?: boolean;
 }
 
 const CriteriaList: React.FC<{
@@ -21,7 +22,8 @@ const CriteriaList: React.FC<{
     tramo: 't1' | 't2';
     onCriteriaChange: (tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => void;
     titleColor: string;
-}> = ({ title, criteria, checks, conductId, tramo, onCriteriaChange, titleColor }) => (
+    useT1SevenPoints?: boolean;
+}> = ({ title, criteria, checks, conductId, tramo, onCriteriaChange, titleColor, useT1SevenPoints }) => (
     <div>
         <h4 className={`font-semibold text-base mb-3 ${titleColor}`}>{title}</h4>
         <ul className="space-y-3">
@@ -46,8 +48,14 @@ export const ConductRow: React.FC<ConductRowProps> = ({
   criteriaChecks, 
   realEvidence, 
   onCriteriaChange, 
-  onEvidenceChange
+  onEvidenceChange,
+  useT1SevenPoints = false
 }) => {
+    // Siempre usar los 4 criterios originales para mostrar
+    const t1CriteriaToUse = t1Criteria;
+    
+    // Usar los checks tal como están, sin forzar el 4º criterio a false
+    const t1Checks = criteriaChecks.t1;
 
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border border-gray-200">
@@ -66,12 +74,13 @@ export const ConductRow: React.FC<ConductRowProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-4">
                 <CriteriaList
                     title="TRAMO 1 (NOTA 5-8)"
-                    criteria={t1Criteria}
-                    checks={criteriaChecks.t1}
+                    criteria={t1CriteriaToUse}
+                    checks={t1Checks}
                     conductId={conduct.id}
                     tramo="t1"
                     onCriteriaChange={onCriteriaChange}
                     titleColor="text-indigo-700"
+                    useT1SevenPoints={useT1SevenPoints}
                 />
                  <CriteriaList
                     title="TRAMO 2 (NOTA 9-10)"

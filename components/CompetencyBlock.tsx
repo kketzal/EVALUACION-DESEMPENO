@@ -45,13 +45,18 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
     const exportData: ExportRow[] = blockConducts.map(conduct => {
         const score = evaluation.scores[conduct.id] || { t1: null, t2: null, final: 0 };
         const evidence = evaluation.realEvidences[conduct.id] || '';
+        const conductFiles = evaluation.files[conduct.id] || [];
+        const fileNames = conductFiles.map(f => f.name).join(', ');
+        
+        const fullEvidence = [evidence, fileNames ? `Archivos: ${fileNames}`: ''].filter(Boolean).join('\n\n');
+        
         return {
             'ID': conduct.id,
             'Descripción': conduct.description,
             'Nota T1': score.t1 ?? '',
             'Nota T2': score.t2 ?? '',
             'Nota Final': score.final,
-            'Evidencia Observada': evidence,
+            'Evidencia Observada': fullEvidence,
         };
     });
 
@@ -69,40 +74,6 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
         'Nota Final': averageScore > 0 ? parseFloat(averageScore.toFixed(2)) : 'N/A',
         'Evidencia Observada': '',
     });
-
-    // Obtener todos los archivos de todas las conductas de esta competencia
-    const allFiles: Array<{
-      id: number;
-      evaluation_id: number;
-      competency_id: string;
-      conduct_id: string;
-      original_name: string;
-      file_name: string;
-      file_type: string;
-      file_size: number;
-      uploaded_at: string;
-      url: string;
-    }> = [];
-    blockConducts.forEach(conduct => {
-      const conductFiles = evaluation.files[conduct.id] || [];
-      allFiles.push(...conductFiles.map(file => ({
-        id: parseInt(file.id),
-        evaluation_id: evaluation.evaluationId || 0,
-        competency_id: competency.id,
-        conduct_id: conduct.id,
-        original_name: file.name,
-        file_name: file.name,
-        file_type: file.type,
-        file_size: 0,
-        uploaded_at: new Date().toISOString(),
-        url: file.content,
-      })));
-    });
-
-    if(allFiles.length > 0) {
-        exportData.push({'ID': '', 'Descripción': '', 'Nota T1': '', 'Nota T2': '', 'Nota Final': '', 'Evidencia Observada': ''});
-        exportData.push({'ID': 'ARCHIVOS ADJUNTOS', 'Descripción': allFiles.map(f => f.original_name).join(', '), 'Nota T1': '', 'Nota T2': '', 'Nota Final': '', 'Evidencia Observada': ''});
-    }
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -136,6 +107,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
                 realEvidence={evaluation.realEvidences[conduct.id] || ''}
                 onCriteriaChange={(tramo, index, isChecked) => onCriteriaChange(conduct.id, tramo, index, isChecked)}
                 onEvidenceChange={(text) => onEvidenceChange(conduct.id, text)}
+                useT1SevenPoints={evaluation.useT1SevenPoints}
               />
               <div className="mt-4 border-t pt-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Archivos de Evidencia para esta Conducta</h4>

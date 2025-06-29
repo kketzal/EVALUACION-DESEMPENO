@@ -53,9 +53,10 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
       conductId,
       propFilesCount: propFiles?.length || 0,
       stateFilesCount: files.length,
-      stateFiles: files
+      stateFiles: files,
+      allEvaluationFiles: evaluation.files
     });
-  }, [evaluationId, competencyId, conductId, propFiles, files]);
+  }, [evaluationId, competencyId, conductId, propFiles, files, evaluation.files]);
 
   useEffect(() => {
     if (toast) {
@@ -134,6 +135,21 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
   return (
     <div className="space-y-4">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      
+      {/* Botón de debug temporal */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+        <p className="text-sm text-yellow-800 mb-2">Debug: Archivos cargados: {files.length}</p>
+        <button
+          onClick={() => {
+            console.log('Estado actual de archivos:', files);
+            console.log('Estado completo de evaluación:', evaluation);
+          }}
+          className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded hover:bg-yellow-300"
+        >
+          Ver logs de debug
+        </button>
+      </div>
+      
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-400 transition-colors">
         <input
           ref={fileInputRef}

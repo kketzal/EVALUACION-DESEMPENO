@@ -20,11 +20,13 @@ function App() {
     addFiles,
     removeFile,
     saveEvaluation,
-    addWorker
+    addWorker,
+    setUseT1SevenPoints
   } = useEvaluationState();
 
   const [activeCompetencyId, setActiveCompetencyId] = useState<string>('B');
   const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
+  const [hasJustExited, setHasJustExited] = useState(false);
 
   const handleWorkerChange = async (workerId: string) => {
     await setWorkerId(workerId);
@@ -38,7 +40,7 @@ function App() {
 
   const handleExitApp = () => {
     if (window.confirm('¿Está seguro de que desea salir de la aplicación? Los datos se guardarán automáticamente.')) {
-      // Limpiar el estado y regresar a la página inicial
+      setHasJustExited(true);
       setWorkerId(null);
       setActiveCompetencyId('B');
     }
@@ -61,6 +63,30 @@ function App() {
     [activeCompetencyId]
   );
   
+  // Debug logs
+  console.log('App render state:', {
+    workersLength: evaluation.workers.length,
+    workerId: evaluation.workerId,
+    isLoading,
+    shouldShowInitialPage: evaluation.workers.length === 0 || evaluation.workerId === null,
+    filesCount: Object.keys(evaluation.files).length,
+    files: evaluation.files
+  });
+  
+  // Selección automática de trabajador si solo hay uno y no se acaba de salir
+  React.useEffect(() => {
+    if (!hasJustExited && evaluation.workers.length === 1 && !evaluation.workerId) {
+      setWorkerId(evaluation.workers[0].id);
+    }
+  }, [evaluation.workers, evaluation.workerId, setWorkerId, hasJustExited]);
+
+  // Si el usuario selecciona manualmente un trabajador o añade uno, resetear hasJustExited
+  React.useEffect(() => {
+    if (evaluation.workerId && hasJustExited) {
+      setHasJustExited(false);
+    }
+  }, [evaluation.workerId, hasJustExited]);
+
   // Mostrar página inicial si no hay trabajadores o si no hay trabajador seleccionado
   if (evaluation.workers.length === 0 || evaluation.workerId === null) {
     return (
@@ -130,6 +156,10 @@ function App() {
             onPeriodChange={setPeriod}
             onAddWorkerClick={() => setAddWorkerModalOpen(true)}
             onExitApp={handleExitApp}
+            useT1SevenPoints={evaluation.useT1SevenPoints}
+            onT1SevenPointsChange={setUseT1SevenPoints}
+            isSaving={evaluation.isSaving}
+            lastSavedAt={evaluation.lastSavedAt}
           />
 
           <div className="flex-grow p-4 sm:p-6 lg:p-8">
@@ -147,8 +177,6 @@ function App() {
                     evaluation={evaluation}
                     onCriteriaChange={updateCriteriaCheck}
                     onEvidenceChange={updateRealEvidence}
-                    onFilesUploaded={(conductId, files) => handleFilesUploaded(conductId, files)}
-                    onFileDeleted={(conductId, fileId) => handleFileDeleted(conductId, fileId)}
                   />
                 ) : activeCompetencyId === 'summary' ? (
                   <SummaryPage 

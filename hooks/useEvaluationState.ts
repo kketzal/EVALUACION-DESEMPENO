@@ -1,15 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
 import { EvaluationState, Score, Worker, CriteriaCheckState, EvidenceFile } from '../types';
 import { competencies } from '../data/evaluationData';
-import { t1Criteria, t2Criteria } from '../data/criteriaData';
+import { t1Criteria, t1Criteria7Points, t2Criteria } from '../data/criteriaData';
 import { apiService, EvaluationData, EvidenceFile as ApiEvidenceFile } from '../services/api';
 
-const calculateScores = (checks: CriteriaCheckState): Score => {
+const calculateScores = (checks: CriteriaCheckState, useT1SevenPoints: boolean = false): Score => {
     const t1CheckedCount = checks.t1.filter(Boolean).length;
     const t2CheckedCount = checks.t2.filter(Boolean).length;
 
     let t1Score: number | null = null;
     if (t1CheckedCount > 0) {
+        // Siempre contar todos los criterios activos del TRAMO 1
+        // El modo 7 puntos solo afecta la puntuación inicial, no el cálculo
         t1Score = 4 + t1CheckedCount;
     }
 
@@ -26,7 +28,7 @@ const calculateScores = (checks: CriteriaCheckState): Score => {
 };
 
 const getInitialState = (): EvaluationState => {
-  return {
+  const initialState = {
     workerId: null,
     period: "2023-2024",
     scores: {},
@@ -35,7 +37,12 @@ const getInitialState = (): EvaluationState => {
     files: {},
     workers: [],
     evaluationId: null,
+    useT1SevenPoints: false, // Por defecto usar TRAMO 1 de 8 puntos
+    isSaving: false,
+    lastSavedAt: null,
   };
+  console.log('Initial state created:', initialState);
+  return initialState;
 };
 
 export const useEvaluationState = () => {
@@ -49,12 +56,15 @@ export const useEvaluationState = () => {
 
   const loadWorkers = useCallback(async () => {
     try {
+      console.log('Loading workers...');
       setIsLoading(true);
       const workers = await apiService.getWorkers();
+      console.log('Workers loaded:', workers);
       setEvaluation(prev => ({
         ...prev,
         workers: workers.map(w => ({ id: w.id, name: w.name }))
       }));
+      console.log('Workers state updated');
     } catch (error) {
       console.error('Error al cargar trabajadores:', error);
     } finally {
@@ -80,6 +90,15 @@ export const useEvaluationState = () => {
       setIsLoading(true);
       const evaluationData = await apiService.getEvaluation(workerId, evaluation.period);
       
+      console.log('Datos recibidos de la API:', {
+        evaluation: evaluationData.evaluation,
+        criteriaChecksCount: evaluationData.criteriaChecks.length,
+        realEvidenceCount: evaluationData.realEvidence.length,
+        evidenceFilesCount: evaluationData.evidenceFiles.length,
+        scoresCount: evaluationData.scores.length,
+        evidenceFiles: evaluationData.evidenceFiles
+      });
+      
       // Convertir datos de la API al formato interno
       const criteriaChecks: Record<string, CriteriaCheckState> = {};
       const realEvidences: Record<string, string> = {};
@@ -89,8 +108,9 @@ export const useEvaluationState = () => {
       // Procesar criterios
       evaluationData.criteriaChecks.forEach(check => {
         if (!criteriaChecks[check.conduct_id]) {
+          const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
           criteriaChecks[check.conduct_id] = {
-            t1: Array(t1Criteria.length).fill(false),
+            t1: Array(t1CriteriaToUse.length).fill(false),
             t2: Array(t2Criteria.length).fill(false),
           };
         }
@@ -101,15 +121,16 @@ export const useEvaluationState = () => {
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
           if (!criteriaChecks[conduct.id]) {
+            const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
             criteriaChecks[conduct.id] = {
-              t1: Array(t1Criteria.length).fill(true), // TRAMO 1 activado por defecto
+              t1: Array(t1CriteriaToUse.length).fill(true), // TRAMO 1 activado por defecto
               t2: Array(t2Criteria.length).fill(false),
             };
             // Calcular y guardar la puntuación inicial
-            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id]);
+            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
           } else {
             // Si ya hay criterios, también calcular la puntuación
-            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id]);
+            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
           }
         }
       }
@@ -129,40 +150,54 @@ export const useEvaluationState = () => {
       });
 
       // Procesar archivos por conducta
+      console.log('Procesando archivos de evidencia:', evaluationData.evidenceFiles);
       evaluationData.evidenceFiles.forEach(file => {
         if (!files[file.conduct_id]) {
           files[file.conduct_id] = [];
         }
-        files[file.conduct_id].push({
+        const fileObject = {
           id: file.id.toString(),
           name: file.original_name,
           type: file.file_type,
           content: file.url || '',
-        });
+        };
+        files[file.conduct_id].push(fileObject);
+        console.log('Archivo agregado al estado:', { conductId: file.conduct_id, file: fileObject });
       });
 
-      setEvaluation(prev => ({
-        ...prev,
-        workerId,
-        evaluationId: evaluationData.evaluation.id,
-        criteriaChecks,
-        realEvidences,
-        scores,
-        files,
-      }));
-      
-      console.log('Estado actualizado después de cargar evaluación:', {
-        workerId,
-        evaluationId: evaluationData.evaluation.id,
-        filesCount: Object.keys(files).length,
-        files
+      console.log('Estado final de archivos:', files);
+      console.log('Verificando archivos por conducta:');
+      Object.keys(files).forEach(conductId => {
+        console.log(`  ${conductId}: ${files[conductId].length} archivos`);
+      });
+
+      setEvaluation(prev => {
+        const newState = {
+          ...prev,
+          workerId,
+          evaluationId: evaluationData.evaluation.id,
+          criteriaChecks,
+          realEvidences,
+          scores,
+          files,
+        };
+        
+        console.log('Estado actualizado después de cargar evaluación:', {
+          workerId,
+          evaluationId: evaluationData.evaluation.id,
+          filesCount: Object.keys(files).length,
+          files,
+          newStateFiles: newState.files
+        });
+        
+        return newState;
       });
     } catch (error) {
       console.error('Error al cargar evaluación:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [evaluation.period]);
+  }, [evaluation.period, evaluation.useT1SevenPoints]);
 
   const setPeriod = useCallback(async (period: string) => {
     setEvaluation(prev => ({ ...prev, period }));
@@ -185,7 +220,7 @@ export const useEvaluationState = () => {
         
         // Obtener el estado actual de criterios para esta conducta
         const currentConductChecks = prev.criteriaChecks[conductId] || {
-          t1: Array(t1Criteria.length).fill(false),
+          t1: Array(evaluation.useT1SevenPoints ? t1Criteria7Points.length : t1Criteria.length).fill(false),
           t2: Array(t2Criteria.length).fill(false)
         };
         
@@ -201,7 +236,7 @@ export const useEvaluationState = () => {
         newCriteriaChecks[conductId] = newConductChecks;
         
         // Calcular nueva puntuación
-        const newScore = calculateScores(newConductChecks);
+        const newScore = calculateScores(newConductChecks, evaluation.useT1SevenPoints);
         const newScores = {
           ...prev.scores,
           [conductId]: newScore
@@ -235,7 +270,7 @@ export const useEvaluationState = () => {
             ...currentConductChecks[tramo].slice(criterionIndex + 1)
           ]
         };
-        const newScore = calculateScores(updatedConductChecks);
+        const newScore = calculateScores(updatedConductChecks, evaluation.useT1SevenPoints);
         
         await apiService.saveScore(evaluation.evaluationId, {
           conductId,
@@ -247,7 +282,7 @@ export const useEvaluationState = () => {
     } catch (error) {
       console.error('Error al guardar criterio:', error);
     }
-  }, [evaluation.evaluationId, evaluation.criteriaChecks]);
+  }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints]);
 
   const updateRealEvidence = useCallback(async (conductId: string, text: string) => {
     if (!evaluation.evaluationId) return;
@@ -384,11 +419,96 @@ export const useEvaluationState = () => {
     if (!evaluation.evaluationId) return;
 
     try {
+      // Marcar como guardando
+      setEvaluation(prev => ({
+        ...prev,
+        isSaving: true
+      }));
+
       await apiService.updateEvaluation(evaluation.evaluationId);
-      alert('Evaluación guardada exitosamente.');
+      
+      // Actualizar estado con timestamp de guardado
+      const now = new Date().toLocaleString('es-ES');
+      setEvaluation(prev => ({
+        ...prev,
+        isSaving: false,
+        lastSavedAt: now
+      }));
+
+      // No mostrar alert de éxito - ya tenemos la notificación visual
     } catch (error) {
       console.error('Error al guardar evaluación:', error);
+      
+      // Resetear estado de guardado en caso de error
+      setEvaluation(prev => ({
+        ...prev,
+        isSaving: false
+      }));
+      
       alert('Error al guardar la evaluación.');
+    }
+  }, [evaluation.evaluationId]);
+
+  const setUseT1SevenPoints = useCallback(async (useT1SevenPoints: boolean) => {
+    console.log('Cambiando opción TRAMO 1 de 7 puntos:', useT1SevenPoints);
+    
+    setEvaluation(prev => {
+      // Actualizar la opción
+      const newState = {
+        ...prev,
+        useT1SevenPoints
+      };
+
+      // Si se activa la opción de 7 puntos, desactivar automáticamente el 4º criterio de todas las conductas
+      // Si se desactiva la opción de 7 puntos, activar automáticamente todos los criterios del TRAMO 1
+      const newCriteriaChecks: Record<string, CriteriaCheckState> = {};
+      for (const competency of competencies) {
+        for (const conduct of competency.conducts) {
+          const currentChecks = prev.criteriaChecks[conduct.id];
+          if (currentChecks) {
+            if (useT1SevenPoints) {
+              // Desactivar automáticamente el 4º criterio (index 3) cuando se activa la opción de 7 puntos
+              newCriteriaChecks[conduct.id] = {
+                t1: [...currentChecks.t1.slice(0, 3), false, ...currentChecks.t1.slice(4)],
+                t2: [...currentChecks.t2]
+              };
+            } else {
+              // Activar automáticamente todos los criterios del TRAMO 1 cuando se desactiva la opción de 7 puntos
+              newCriteriaChecks[conduct.id] = {
+                t1: Array(t1Criteria.length).fill(true), // Todos los criterios del TRAMO 1 activados
+                t2: [...currentChecks.t2] // Mantener el estado del TRAMO 2
+              };
+            }
+          }
+        }
+      }
+
+      // Recalcular todas las puntuaciones con la nueva configuración
+      const newScores: Record<string, Score> = {};
+      for (const competency of competencies) {
+        for (const conduct of competency.conducts) {
+          const conductChecks = newCriteriaChecks[conduct.id] || prev.criteriaChecks[conduct.id];
+          if (conductChecks) {
+            newScores[conduct.id] = calculateScores(conductChecks, useT1SevenPoints);
+          }
+        }
+      }
+
+      return {
+        ...newState,
+        criteriaChecks: newCriteriaChecks,
+        scores: newScores
+      };
+    });
+
+    // Si hay una evaluación activa, guardar la nueva configuración en la base de datos
+    if (evaluation.evaluationId) {
+      try {
+        // Aquí podrías guardar la configuración en la base de datos si es necesario
+        console.log('Configuración de TRAMO 1 actualizada');
+      } catch (error) {
+        console.error('Error al guardar configuración:', error);
+      }
     }
   }, [evaluation.evaluationId]);
 
@@ -403,5 +523,6 @@ export const useEvaluationState = () => {
     removeFile,
     saveEvaluation,
     addWorker,
+    setUseT1SevenPoints,
   };
 };
