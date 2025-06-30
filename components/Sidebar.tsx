@@ -1,52 +1,51 @@
 import React from 'react';
-import clsx from 'clsx';
 import { Competency } from '../types';
-import { SaveIcon } from './icons';
 
 interface SidebarProps {
   competencies: Competency[];
-  activeId: string;
-  onSelect: (id: string) => void;
+  activeCompetencyId: string;
+  onCompetencyChange: (id: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeId, onSelect }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange }) => {
   return (
-    <aside className="fixed top-0 left-0 h-screen w-[280px] bg-gray-800 text-white flex-col p-4 shadow-lg z-20 hidden md:flex">
-      <h2 className="text-lg font-semibold mb-6 px-2">Competencias</h2>
-      <nav className="flex-grow overflow-y-auto pr-2">
-        <ul>
-          {competencies.map((c) => (
-            <li key={c.id}>
+    <aside className="w-72 bg-white shadow-lg rounded-lg p-4 h-fit">
+      <nav>
+        <ul className="space-y-2">
+          {competencies.map((competency) => (
+            <li key={competency.id}>
               <button
-                onClick={() => onSelect(c.id)}
-                className={clsx(
-                  'w-full text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors duration-150 flex items-center gap-3',
-                  {
-                    'bg-indigo-600 text-white': activeId === c.id,
-                    'text-gray-300 hover:bg-gray-700 hover:text-white': activeId !== c.id,
-                  }
-                )}
+                onClick={() => onCompetencyChange(competency.id)}
+                className={`w-full text-left px-4 py-2 rounded-md transition-colors ${
+                  activeCompetencyId === competency.id
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
               >
-                <span className="flex items-center justify-center w-6 h-6 rounded-md bg-gray-700 text-xs flex-shrink-0">{c.id}</span>
-                <span>{c.title.split('. ')[1]}</span>
+                {competency.title}
               </button>
             </li>
           ))}
+          <li>
+            <button
+              onClick={() => onCompetencyChange('summary')}
+              className={`w-full text-left px-4 py-2 rounded-md transition-colors ${
+                activeCompetencyId === 'summary'
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Resumen y Guardado
+            </button>
+          </li>
         </ul>
       </nav>
-      <div className="pt-4 border-t border-gray-700">
+      <div className="pt-6">
         <button
-          onClick={() => onSelect('summary')}
-          className={clsx(
-            'w-full text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors duration-150 flex items-center gap-3',
-            {
-              'bg-indigo-600 text-white': activeId === 'summary',
-              'text-gray-300 hover:bg-gray-700 hover:text-white': activeId !== 'summary',
-            }
-          )}
+          onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('open-manage-users'))}
+          className="w-full text-left px-4 py-2 rounded-md transition-colors text-gray-600 hover:bg-gray-50 mt-2 border-t border-gray-200"
         >
-          <SaveIcon className="h-5 w-5" />
-          <span>Resumen y Guardado</span>
+          Gestionar usuarios
         </button>
       </div>
     </aside>

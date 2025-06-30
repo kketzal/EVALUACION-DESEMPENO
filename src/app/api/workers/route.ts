@@ -24,28 +24,24 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, position, department } = await request.json();
-    
-    if (!name || !position || !department) {
-      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
+    const { id, name, worker_group } = await request.json();
+    if (!id || !name || !worker_group || !['GRUPO 1-2', 'GRUPO 3-4'].includes(worker_group)) {
+      return NextResponse.json({ error: 'Faltan campos requeridos o grupo inválido' }, { status: 400 });
     }
-
     const db = getDatabase();
-    
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO workers (name, position, department) VALUES (?, ?, ?)',
-        [name, position, department],
+        'INSERT INTO workers (id, name, worker_group) VALUES (?, ?, ?)',
+        [id, name, worker_group],
         function(this: sqlite3.RunResult, err: sqlite3.Error | null) {
           if (err) {
             console.error('Error al crear trabajador:', err);
             resolve(NextResponse.json({ error: 'Error al crear trabajador' }, { status: 500 }));
           } else {
             resolve(NextResponse.json({ 
-              id: this.lastID, 
+              id, 
               name, 
-              position, 
-              department 
+              worker_group
             }, { status: 201 }));
           }
         }

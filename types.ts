@@ -1,12 +1,13 @@
 export interface Worker {
   id: string;
   name: string;
+  worker_group: 'GRUPO 1-2' | 'GRUPO 3-4';
 }
 
 export interface Conduct {
   id: string;
   description: string;
-  exampleEvidence: string;
+  exampleEvidence?: string;
 }
 
 export interface Competency {

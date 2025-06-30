@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { db, uploadsDir, evidenceDir } = require('./database');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,41 +16,63 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Configuración de multer para subida de archivos
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, evidenceDir);
+    destination: function (req, file, cb) {
+        const dir = path.join(__dirname, 'uploads/evidence');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
     },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        // Usar solo la extensión del archivo original para evitar problemas con caracteres especiales
-        const extension = path.extname(file.originalname);
-        cb(null, uniqueSuffix + extension);
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
     }
 });
 
-const upload = multer({ 
-    storage: storage,
-    limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB límite
-    }
-});
+const upload = multer({ storage: storage });
 
 // Rutas para trabajadores
 app.get('/api/workers', (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM workers ORDER BY created_at DESC');
-        const workers = stmt.all();
-        res.json(workers);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        const rows = db.prepare('SELECT * FROM workers ORDER BY name').all();
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
 app.post('/api/workers', (req, res) => {
     try {
-        const { id, name } = req.body;
-        const stmt = db.prepare('INSERT INTO workers (id, name) VALUES (?, ?)');
-        stmt.run(id, name);
-        res.json({ id, name });
+        const { id, name, worker_group } = req.body;
+        if (!worker_group || !['GRUPO 1-2', 'GRUPO 3-4'].includes(worker_group)) {
+            res.status(400).json({ error: 'Grupo de trabajador inválido' });
+            return;
+        }
+        const stmt = db.prepare('INSERT INTO workers (id, name, worker_group) VALUES (?, ?, ?)');
+        stmt.run(id, name, worker_group);
+        res.json({ id, name, worker_group });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.patch('/api/workers/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { worker_group } = req.body;
+        
+        if (!worker_group || !['GRUPO 1-2', 'GRUPO 3-4'].includes(worker_group)) {
+            res.status(400).json({ error: 'Grupo de trabajador inválido' });
+            return;
+        }
+
+        const stmt = db.prepare('UPDATE workers SET worker_group = ? WHERE id = ?');
+        const result = stmt.run(worker_group, id);
+        if (result.changes === 0) {
+            res.status(404).json({ error: 'Trabajador no encontrado' });
+            return;
+        }
+        const row = db.prepare('SELECT * FROM workers WHERE id = ?').get(id);
+        res.json(row);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

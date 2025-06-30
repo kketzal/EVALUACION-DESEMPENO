@@ -3,6 +3,7 @@ const API_BASE_URL = 'http://localhost:3001/api';
 export interface Worker {
   id: string;
   name: string;
+  worker_group: 'GRUPO 1-2' | 'GRUPO 3-4';
   created_at: string;
 }
 
@@ -31,16 +32,16 @@ export interface RealEvidence {
 }
 
 export interface EvidenceFile {
-  id: number;
+  id: string | number;
+  name?: string;
+  original_name: string;
+  file_type: string;
+  file_size: number;
+  url?: string;
   evaluation_id: number;
   competency_id: string;
   conduct_id: string;
-  original_name: string;
-  file_name: string;
-  file_type: string;
-  file_size: number;
   uploaded_at: string;
-  url?: string;
 }
 
 export interface Score {
@@ -68,13 +69,23 @@ class ApiService {
     return response.json();
   }
 
-  async createWorker(worker: { id: string; name: string }): Promise<Worker> {
+  async createWorker(worker: { id: string; name: string; worker_group: 'GRUPO 1-2' | 'GRUPO 3-4' }): Promise<Worker> {
     const response = await fetch(`${API_BASE_URL}/workers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(worker),
     });
     if (!response.ok) throw new Error('Error al crear trabajador');
+    return response.json();
+  }
+
+  async updateWorkerGroup(workerId: string, group: 'GRUPO 1-2' | 'GRUPO 3-4'): Promise<Worker> {
+    const response = await fetch(`${API_BASE_URL}/workers/${workerId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ worker_group: group }),
+    });
+    if (!response.ok) throw new Error('Error al actualizar grupo del trabajador');
     return response.json();
   }
 

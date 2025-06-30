@@ -10,6 +10,8 @@ interface CompetencyBlockProps {
   evaluation: EvaluationState;
   onCriteriaChange: (conductId: string, tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => void;
   onEvidenceChange: (conductId: string, text: string) => void;
+  addFiles: Function;
+  removeFile: Function;
 }
 
 // Define an interface for the export data row to ensure type safety.
@@ -31,7 +33,9 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
   competency, 
   evaluation, 
   onCriteriaChange, 
-  onEvidenceChange 
+  onEvidenceChange, 
+  addFiles, 
+  removeFile 
 }) => {
   const emptyScore = { t1: null, t2: null, final: 0 };
   const emptyCriteriaChecks: CriteriaCheckState = { t1: [], t2: [] };
@@ -115,6 +119,9 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
                   evaluationId={evaluation.evaluationId || 0}
                   competencyId={competency.id}
                   conductId={conduct.id}
+                  evaluation={evaluation}
+                  addFiles={addFiles}
+                  removeFile={removeFile}
                 />
               </div>
             </div>

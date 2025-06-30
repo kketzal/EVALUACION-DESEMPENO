@@ -37,7 +37,7 @@ const getInitialState = (): EvaluationState => {
     files: {},
     workers: [],
     evaluationId: null,
-    useT1SevenPoints: false, // Por defecto usar TRAMO 1 de 8 puntos
+    useT1SevenPoints: true, // Por defecto usar TRAMO 1 de 7 puntos
     isSaving: false,
     lastSavedAt: null,
   };
@@ -45,9 +45,32 @@ const getInitialState = (): EvaluationState => {
   return initialState;
 };
 
+const getVisibleCompetencies = (workerGroup: 'GRUPO 1-2' | 'GRUPO 3-4' | null) => {
+  if (!workerGroup) return competencies;
+  
+  return competencies.filter(comp => {
+    if (workerGroup === 'GRUPO 1-2') {
+      return !['A', 'E'].includes(comp.id);
+    } else if (workerGroup === 'GRUPO 3-4') {
+      return !['B', 'D'].includes(comp.id);
+    }
+    return true;
+  });
+};
+
 export const useEvaluationState = () => {
   const [evaluation, setEvaluation] = useState<EvaluationState>(getInitialState);
   const [isLoading, setIsLoading] = useState(false);
+  const [workersLoaded, setWorkersLoaded] = useState(false);
+
+  // LOG de depuración para cada llamada a setEvaluation
+  const setEvaluationWithLog = (updater: (prev: EvaluationState) => EvaluationState) => {
+    setEvaluation((prev: EvaluationState) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      console.log('setEvaluation called:', { prev, next });
+      return next;
+    });
+  };
 
   // Cargar trabajadores al inicializar
   useEffect(() => {
@@ -60,10 +83,11 @@ export const useEvaluationState = () => {
       setIsLoading(true);
       const workers = await apiService.getWorkers();
       console.log('Workers loaded:', workers);
-      setEvaluation(prev => ({
+      setEvaluationWithLog(prev => ({
         ...prev,
-        workers: workers.map(w => ({ id: w.id, name: w.name }))
+        workers: workers // Guardar todos los campos
       }));
+      setWorkersLoaded(true);
       console.log('Workers state updated');
     } catch (error) {
       console.error('Error al cargar trabajadores:', error);
@@ -73,8 +97,12 @@ export const useEvaluationState = () => {
   }, []);
 
   const setWorkerId = useCallback(async (workerId: string | null) => {
+    if (!workersLoaded) {
+      console.warn('Intento de cargar evaluación antes de que los trabajadores estén listos.');
+      return;
+    }
     if (!workerId) {
-      setEvaluation(prev => ({
+      setEvaluationWithLog(prev => ({
         ...prev,
         workerId: null,
         evaluationId: null,
@@ -158,11 +186,26 @@ export const useEvaluationState = () => {
         const fileObject = {
           id: file.id.toString(),
           name: file.original_name,
-          type: file.file_type,
-          content: file.url || '',
+          original_name: file.original_name,
+          file_type: file.file_type,
+          file_size: file.file_size,
+          url: file.url || '',
+          evaluation_id: file.evaluation_id,
+          competency_id: file.competency_id,
+          conduct_id: file.conduct_id,
+          uploaded_at: file.uploaded_at
         };
         files[file.conduct_id].push(fileObject);
         console.log('Archivo agregado al estado:', { conductId: file.conduct_id, file: fileObject });
+      });
+
+      // Verificar que cada conducta tenga su array de archivos inicializado
+      competencies.forEach(competency => {
+        competency.conducts.forEach(conduct => {
+          if (!files[conduct.id]) {
+            files[conduct.id] = [];
+          }
+        });
       });
 
       console.log('Estado final de archivos:', files);
@@ -171,7 +214,7 @@ export const useEvaluationState = () => {
         console.log(`  ${conductId}: ${files[conductId].length} archivos`);
       });
 
-      setEvaluation(prev => {
+      setEvaluationWithLog(prev => {
         const newState = {
           ...prev,
           workerId,
@@ -197,10 +240,10 @@ export const useEvaluationState = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [evaluation.period, evaluation.useT1SevenPoints]);
+  }, [evaluation.period, evaluation.useT1SevenPoints, workersLoaded]);
 
   const setPeriod = useCallback(async (period: string) => {
-    setEvaluation(prev => ({ ...prev, period }));
+    setEvaluationWithLog(prev => ({ ...prev, period }));
     
     // Recargar evaluación si hay un trabajador seleccionado
     if (evaluation.workerId) {
@@ -215,7 +258,7 @@ export const useEvaluationState = () => {
 
     try {
       // Actualizar el estado inmediatamente para UI responsiva
-      setEvaluation(prev => {
+      setEvaluationWithLog(prev => {
         console.log('Updating state for:', conductId, 'tramo:', tramo, 'index:', criterionIndex, 'checked:', isChecked);
         
         // Obtener el estado actual de criterios para esta conducta
@@ -293,7 +336,7 @@ export const useEvaluationState = () => {
         evidenceText: text,
       });
 
-      setEvaluation(prev => ({
+      setEvaluationWithLog(prev => ({
         ...prev,
         realEvidences: {
           ...prev.realEvidences,
@@ -329,15 +372,21 @@ export const useEvaluationState = () => {
       console.log('Archivos subidos al servidor:', uploadedFiles);
 
       // Actualizar el estado con los archivos reales
-      setEvaluation(prev => {
+      setEvaluationWithLog(prev => {
         const currentFiles = prev.files[conductId] || [];
         
         // Convertir del formato de la API al formato interno
-        const newFilesList = uploadedFiles.map(file => ({
+        const newFilesList = uploadedFiles.map((file: any) => ({
           id: file.id.toString(),
           name: file.original_name,
-          type: file.file_type,
-          content: file.url || '',
+          original_name: file.original_name,
+          file_type: file.file_type,
+          file_size: file.file_size,
+          url: file.url || '',
+          evaluation_id: file.evaluation_id,
+          competency_id: file.competency_id,
+          conduct_id: file.conduct_id,
+          uploaded_at: file.uploaded_at
         }));
         
         console.log('Actualizando estado con archivos:', {
@@ -371,7 +420,7 @@ export const useEvaluationState = () => {
       await apiService.deleteFile(parseInt(fileIdToRemove));
       console.log('Archivo eliminado del servidor');
       
-      setEvaluation(prev => {
+      setEvaluationWithLog(prev => {
         const conductFiles = prev.files[conductId] || [];
         const updatedFiles = conductFiles.filter(file => file.id !== fileIdToRemove);
         
@@ -397,30 +446,46 @@ export const useEvaluationState = () => {
     }
   }, []);
 
-  const addWorker = useCallback(async (name: string) => {
+  const addWorker = useCallback(async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4') => {
     try {
       const newWorker = {
         id: new Date().getTime().toString(),
         name,
+        worker_group: group,
       };
-      
-      await apiService.createWorker(newWorker);
-      
-      setEvaluation(prev => ({
-        ...prev,
-        workers: [...prev.workers, newWorker]
-      }));
+      // Crear en backend y obtener el worker real (con ID real si lo asigna el backend)
+      const created = await apiService.createWorker(newWorker);
+      // Recargar lista de trabajadores
+      await loadWorkers();
+      // Devolver el ID real del trabajador creado
+      return created.id;
     } catch (error) {
       console.error('Error al crear trabajador:', error);
+      return null;
     }
-  }, []);
+  }, [loadWorkers]);
+
+  const updateWorkerGroup = useCallback(async (workerId: string, group: 'GRUPO 1-2' | 'GRUPO 3-4') => {
+    try {
+      const updatedWorker = await apiService.updateWorkerGroup(workerId, group);
+      
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workers: prev.workers.map(w => 
+          w.id === workerId ? { ...w, worker_group: group } : w
+        )
+      }));
+    } catch (error) {
+      console.error('Error al actualizar grupo del trabajador:', error);
+    }
+  }, [setEvaluationWithLog]);
 
   const saveEvaluation = useCallback(async () => {
     if (!evaluation.evaluationId) return;
 
     try {
       // Marcar como guardando
-      setEvaluation(prev => ({
+      setEvaluationWithLog(prev => ({
         ...prev,
         isSaving: true
       }));
@@ -429,7 +494,7 @@ export const useEvaluationState = () => {
       
       // Actualizar estado con timestamp de guardado
       const now = new Date().toLocaleString('es-ES');
-      setEvaluation(prev => ({
+      setEvaluationWithLog(prev => ({
         ...prev,
         isSaving: false,
         lastSavedAt: now
@@ -440,7 +505,7 @@ export const useEvaluationState = () => {
       console.error('Error al guardar evaluación:', error);
       
       // Resetear estado de guardado en caso de error
-      setEvaluation(prev => ({
+      setEvaluationWithLog(prev => ({
         ...prev,
         isSaving: false
       }));
@@ -452,7 +517,7 @@ export const useEvaluationState = () => {
   const setUseT1SevenPoints = useCallback(async (useT1SevenPoints: boolean) => {
     console.log('Cambiando opción TRAMO 1 de 7 puntos:', useT1SevenPoints);
     
-    setEvaluation(prev => {
+    setEvaluationWithLog(prev => {
       // Actualizar la opción
       const newState = {
         ...prev,
@@ -523,6 +588,11 @@ export const useEvaluationState = () => {
     removeFile,
     saveEvaluation,
     addWorker,
+    updateWorkerGroup,
     setUseT1SevenPoints,
+    getVisibleCompetencies: () => {
+      const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
+      return getVisibleCompetencies(worker?.worker_group || null);
+    }
   };
 };
