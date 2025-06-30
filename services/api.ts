@@ -89,6 +89,16 @@ class ApiService {
     return response.json();
   }
 
+  async updateWorker(workerId: string, name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4'): Promise<Worker> {
+    const response = await fetch(`${API_BASE_URL}/workers/${workerId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, worker_group: group }),
+    });
+    if (!response.ok) throw new Error('Error al actualizar trabajador');
+    return response.json();
+  }
+
   // Evaluaciones
   async getEvaluation(workerId: string, period: string): Promise<EvaluationData> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${workerId}/${period}`);

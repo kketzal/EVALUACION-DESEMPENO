@@ -58,15 +58,28 @@ app.post('/api/workers', (req, res) => {
 app.patch('/api/workers/:id', (req, res) => {
     try {
         const { id } = req.params;
-        const { worker_group } = req.body;
-        
-        if (!worker_group || !['GRUPO 1-2', 'GRUPO 3-4'].includes(worker_group)) {
-            res.status(400).json({ error: 'Grupo de trabajador inválido' });
+        const { name, worker_group } = req.body;
+        if (!name && !worker_group) {
+            res.status(400).json({ error: 'Faltan campos para actualizar' });
             return;
         }
-
-        const stmt = db.prepare('UPDATE workers SET worker_group = ? WHERE id = ?');
-        const result = stmt.run(worker_group, id);
+        let setClauses = [];
+        let values = [];
+        if (name) {
+            setClauses.push('name = ?');
+            values.push(name);
+        }
+        if (worker_group) {
+            if (!['GRUPO 1-2', 'GRUPO 3-4'].includes(worker_group)) {
+                res.status(400).json({ error: 'Grupo de trabajador inválido' });
+                return;
+            }
+            setClauses.push('worker_group = ?');
+            values.push(worker_group);
+        }
+        values.push(id);
+        const stmt = db.prepare(`UPDATE workers SET ${setClauses.join(', ')} WHERE id = ?`);
+        const result = stmt.run(...values);
         if (result.changes === 0) {
             res.status(404).json({ error: 'Trabajador no encontrado' });
             return;

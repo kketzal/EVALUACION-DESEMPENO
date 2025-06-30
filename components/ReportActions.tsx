@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { EvaluationState, Worker } from '../types';
 import { competencies } from '../data/evaluationData';
 import { SaveIcon } from './icons';
+import { getVisibleCompetencies } from '../hooks/useEvaluationState';
 
 interface ReportActionsProps {
   evaluation: EvaluationState;
@@ -21,7 +22,10 @@ export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
   const getExportData = () => {
-    return competencies.flatMap(competency =>
+    // Filtrar competencias según el grupo del trabajador
+    const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
+    const visibleCompetencies = getVisibleCompetencies(worker?.worker_group ?? null);
+    return visibleCompetencies.flatMap(competency =>
       competency.conducts.map(conduct => {
         const score = evaluation.scores[conduct.id] || { t1: null, t2: null, final: 0 };
         const evidence = evaluation.realEvidences[conduct.id] || '';

@@ -5,11 +5,19 @@ interface SidebarProps {
   competencies: Competency[];
   activeCompetencyId: string;
   onCompetencyChange: (id: string) => void;
+  compact?: boolean;
+  mobile?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false }) => {
   return (
-    <aside className="fixed left-0 top-[144px] h-[calc(100vh-144px)] w-80 overflow-y-auto bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none p-6 flex flex-col justify-between">
+    <aside
+      className={
+        `${mobile
+          ? 'h-full'
+          : 'fixed left-0 top-[144px] h-[calc(100vh-144px)]'} w-80 overflow-y-auto bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pt-2 pb-6 px-4' : 'p-6'} flex flex-col justify-between`
+      }
+    >
       {/* Lista de competencias */}
       <nav>
         <ul className="space-y-1">
@@ -83,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
           </span>
         </button>
         <button
-          onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('open-manage-users'))}
+          onClick={() => onCompetencyChange('manage-users')}
           className="group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:shadow-md"
         >
           <div className="w-7 h-7 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">

@@ -23,9 +23,19 @@ const createTables = () => {
         CREATE TABLE IF NOT EXISTS workers (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
+            worker_group TEXT CHECK(worker_group IN ('GRUPO 1-2', 'GRUPO 3-4')),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    // Migración: agregar worker_group si no existe
+    try {
+        db.exec(`ALTER TABLE workers ADD COLUMN worker_group TEXT CHECK(worker_group IN ('GRUPO 1-2', 'GRUPO 3-4'))`);
+        console.log('Campo worker_group agregado a la tabla workers');
+    } catch (error) {
+        // El campo ya existe, no hacer nada
+        console.log('Campo worker_group ya existe en la tabla workers');
+    }
 
     // Tabla de evaluaciones
     db.exec(`

@@ -6,6 +6,7 @@ interface HeaderProps {
   workers: Worker[];
   selectedWorkerId: string | null;
   onWorkerChange: (id: string) => void;
+  onChangeWorkerClick: () => void;
   period: string;
   onPeriodChange: (period: string) => void;
   onAddWorkerClick: () => void;
@@ -14,6 +15,7 @@ interface HeaderProps {
   onT1SevenPointsChange: (useT1SevenPoints: boolean) => void;
   isSaving?: boolean;
   lastSavedAt?: string | null;
+  onHamburgerClick?: () => void;
 }
 
 const generateBiennialPeriods = (startYear: number, count: number): string[] => {
@@ -32,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   workers, 
   selectedWorkerId, 
   onWorkerChange, 
+  onChangeWorkerClick, 
   period, 
   onPeriodChange, 
   onAddWorkerClick, 
@@ -39,7 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   useT1SevenPoints, 
   onT1SevenPointsChange,
   isSaving = false,
-  lastSavedAt = null
+  lastSavedAt = null,
+  onHamburgerClick
 }) => {
   const periodOptions = [...basePeriods];
   if (!periodOptions.includes(period)) {
@@ -47,20 +51,74 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-      {/* Barra superior con título y estado */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Evaluación de Desempeño
-            </h1>
-            
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10 w-full">
+      {/* Barra superior: móvil y desktop */}
+      <div className="px-4 py-3 border-b border-gray-100">
+        {/* MOBILE: Logos centrados arriba del título, menú, título, salir */}
+        <div className="lg:hidden">
+          <div className="flex justify-center items-center mb-2 gap-3">
+            <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-8 w-auto" />
+            <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-8 w-auto" />
+          </div>
+          <div className="flex items-center justify-between relative">
+            {/* Menú hamburguesa solo en móvil/tablet */}
+            {onHamburgerClick && (
+              <button
+                className="block lg:hidden p-2 rounded-md text-gray-700 hover:bg-gray-200 focus:outline-none"
+                onClick={onHamburgerClick}
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+            {/* Título centrado */}
+            <h1 className="text-lg font-bold text-gray-900 text-center flex-1">Evaluación de Desempeño</h1>
+            {/* Botones de acción en móvil */}
+            <div className="flex items-center gap-2 ml-2">
+              <button
+                type="button"
+                onClick={onChangeWorkerClick}
+                className="inline-flex items-center justify-center p-2 text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                aria-label="Cambiar trabajador"
+                title="Cambiar trabajador"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={onAddWorkerClick}
+                className="inline-flex items-center justify-center p-2 text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                aria-label="Nuevo Trabajador"
+                title="Añadir nuevo trabajador"
+              >
+                <UserPlusIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={onExitApp}
+                className="p-2 rounded-md text-gray-700 hover:bg-gray-200 focus:outline-none ml-2"
+                title="Salir de la aplicación"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* DESKTOP: Logos, título, estado, botones */}
+        <div className="hidden lg:flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Logos a la izquierda */}
+            <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-10 w-auto" />
+            <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-10 w-auto" />
+            <h1 className="text-2xl font-bold text-gray-900 ml-4">Evaluación de Desempeño</h1>
             {/* Indicador de estado de guardado */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-6">
               {isSaving ? (
                 <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full">
-                  <svg className="animate-spin h-4 w-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -83,20 +141,31 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
           </div>
-
-          {/* Botones de acción */}
+          {/* Botones de acción en desktop */}
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onChangeWorkerClick}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              title="Cambiar trabajador"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Cambiar trabajador
+            </button>
             <button
               onClick={onAddWorkerClick}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              title="Añadir nuevo trabajador"
             >
               <UserPlusIcon className="h-4 w-4" />
               <span>Nuevo Trabajador</span>
             </button>
-            
             <button
               onClick={onExitApp}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              title="Salir de la aplicación"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -108,31 +177,26 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Barra inferior con controles */}
-      <div className="px-6 py-4">
-        <div className="flex flex-wrap items-center gap-6">
-          {/* Selector de trabajador */}
-          <div className="flex-1 min-w-0 max-w-xs">
-            <label htmlFor="worker-select" className="block text-sm font-medium text-gray-700 mb-1">
-              Trabajador/a
-            </label>
-            <select
-              id="worker-select"
-              value={selectedWorkerId || ''}
-              onChange={(e) => onWorkerChange(e.target.value)}
-              disabled={workers.length === 0}
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-            >
-              <option value="" disabled>
-                {workers.length === 0 ? 'No hay trabajadores' : 'Seleccione un trabajador'}
-              </option>
-              {workers.map((worker) => (
-                <option key={worker.id} value={worker.id}>{worker.name}</option>
-              ))}
-            </select>
+      <div className="px-4 py-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Información del trabajador */}
+          <div className="flex-1 min-w-0 max-w-xs w-full flex flex-col justify-center">
+            {selectedWorkerId ? (
+              (() => {
+                const worker = workers.find(w => w.id === selectedWorkerId);
+                if (!worker) return null;
+                return (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 flex flex-col items-start">
+                    <span className="text-base font-semibold text-indigo-900 truncate">{worker.name}</span>
+                    <span className="text-xs text-indigo-700 mt-0.5">{worker.worker_group}</span>
+                  </div>
+                );
+              })()
+            ) : null}
           </div>
 
           {/* Selector de período */}
-          <div className="flex-1 min-w-0 max-w-xs">
+          <div className="flex-1 min-w-0 max-w-xs w-full">
             <label htmlFor="period-select" className="block text-sm font-medium text-gray-700 mb-1">
               Período
             </label>
@@ -149,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Toggle TRAMO 1 */}
-          <div className="flex-1 min-w-0 max-w-xs">
+          <div className="flex-1 min-w-0 max-w-xs w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Configuración TRAMO 1
             </label>

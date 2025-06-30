@@ -45,9 +45,9 @@ const getInitialState = (): EvaluationState => {
   return initialState;
 };
 
-const getVisibleCompetencies = (workerGroup: 'GRUPO 1-2' | 'GRUPO 3-4' | null) => {
+export const getVisibleCompetencies = (workerGroup: 'GRUPO 1-2' | 'GRUPO 3-4' | null) => {
   if (!workerGroup) return competencies;
-  
+  // Para grupo 1-2: oculta A y E. Para grupo 3-4: oculta B y D
   return competencies.filter(comp => {
     if (workerGroup === 'GRUPO 1-2') {
       return !['A', 'E'].includes(comp.id);
@@ -96,7 +96,7 @@ export const useEvaluationState = () => {
     }
   }, []);
 
-  const setWorkerId = useCallback(async (workerId: string | null) => {
+  const setWorkerId = useCallback(async (workerId: string | null, periodOverride?: string) => {
     if (!workersLoaded) {
       console.warn('Intento de cargar evaluación antes de que los trabajadores estén listos.');
       return;
@@ -116,7 +116,8 @@ export const useEvaluationState = () => {
 
     try {
       setIsLoading(true);
-      const evaluationData = await apiService.getEvaluation(workerId, evaluation.period);
+      const periodToUse = periodOverride ?? evaluation.period;
+      const evaluationData = await apiService.getEvaluation(workerId, periodToUse);
       
       console.log('Datos recibidos de la API:', {
         evaluation: evaluationData.evaluation,
@@ -223,6 +224,7 @@ export const useEvaluationState = () => {
           realEvidences,
           scores,
           files,
+          period: periodToUse,
         };
         
         console.log('Estado actualizado después de cargar evaluación:', {
@@ -577,6 +579,20 @@ export const useEvaluationState = () => {
     }
   }, [evaluation.evaluationId]);
 
+  const updateWorker = useCallback(async (workerId: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', name: string) => {
+    try {
+      const updatedWorker = await apiService.updateWorker(workerId, name, group);
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workers: prev.workers.map(w =>
+          w.id === workerId ? { ...w, name, worker_group: group } : w
+        )
+      }));
+    } catch (error) {
+      console.error('Error al actualizar trabajador:', error);
+    }
+  }, [setEvaluationWithLog]);
+
   return {
     evaluation,
     isLoading,
@@ -590,6 +606,7 @@ export const useEvaluationState = () => {
     addWorker,
     updateWorkerGroup,
     setUseT1SevenPoints,
+    updateWorker,
     getVisibleCompetencies: () => {
       const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
       return getVisibleCompetencies(worker?.worker_group || null);
