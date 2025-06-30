@@ -89,11 +89,13 @@ class ApiService {
     return response.json();
   }
 
-  async updateWorker(workerId: string, name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4'): Promise<Worker> {
+  async updateWorker(workerId: string, name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password?: string): Promise<Worker> {
+    const body: any = { name, worker_group: group };
+    if (password) body.password = password;
     const response = await fetch(`${API_BASE_URL}/workers/${workerId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, worker_group: group }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) throw new Error('Error al actualizar trabajador');
     return response.json();
@@ -202,6 +204,18 @@ class ApiService {
       method: 'PUT',
     });
     if (!response.ok) throw new Error('Error al actualizar evaluación');
+  }
+
+  async authenticateWorker(id: string, password: string): Promise<{ success: boolean; id?: string; name?: string; worker_group?: string }> {
+    const response = await fetch(`${API_BASE_URL}/workers/authenticate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, password }),
+    });
+    if (!response.ok) {
+      return { success: false };
+    }
+    return response.json();
   }
 }
 

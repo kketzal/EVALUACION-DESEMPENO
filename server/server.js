@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { db, uploadsDir, evidenceDir } = require('./database');
 const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,26 +41,30 @@ app.get('/api/workers', (req, res) => {
     }
 });
 
-app.post('/api/workers', (req, res) => {
+app.post('/api/workers', async (req, res) => {
     try {
-        const { id, name, worker_group } = req.body;
+        const { id, name, worker_group, password } = req.body;
         if (!worker_group || !['GRUPO 1-2', 'GRUPO 3-4'].includes(worker_group)) {
             res.status(400).json({ error: 'Grupo de trabajador inválido' });
             return;
         }
-        const stmt = db.prepare('INSERT INTO workers (id, name, worker_group) VALUES (?, ?, ?)');
-        stmt.run(id, name, worker_group);
+        let password_hash = null;
+        if (password) {
+            password_hash = await bcrypt.hash(password, 10);
+        }
+        const stmt = db.prepare('INSERT INTO workers (id, name, worker_group, password_hash) VALUES (?, ?, ?, ?)');
+        stmt.run(id, name, worker_group, password_hash);
         res.json({ id, name, worker_group });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.patch('/api/workers/:id', (req, res) => {
+app.patch('/api/workers/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, worker_group } = req.body;
-        if (!name && !worker_group) {
+        const { name, worker_group, password } = req.body;
+        if (!name && !worker_group && !password) {
             res.status(400).json({ error: 'Faltan campos para actualizar' });
             return;
         }
@@ -76,6 +81,11 @@ app.patch('/api/workers/:id', (req, res) => {
             }
             setClauses.push('worker_group = ?');
             values.push(worker_group);
+        }
+        if (password) {
+            const password_hash = await bcrypt.hash(password, 10);
+            setClauses.push('password_hash = ?');
+            values.push(password_hash);
         }
         values.push(id);
         const stmt = db.prepare(`UPDATE workers SET ${setClauses.join(', ')} WHERE id = ?`);
@@ -317,6 +327,30 @@ app.put('/api/evaluations/:evaluationId', (req, res) => {
         const stmt = db.prepare('UPDATE evaluations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?');
         stmt.run(evaluationId);
         res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Autenticación de usuario
+app.post('/api/workers/authenticate', async (req, res) => {
+    try {
+        const { id, password } = req.body;
+        if (!id || !password) {
+            res.status(400).json({ error: 'Faltan credenciales' });
+            return;
+        }
+        const worker = db.prepare('SELECT * FROM workers WHERE id = ?').get(id);
+        if (!worker || !worker.password_hash) {
+            res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+            return;
+        }
+        const valid = await bcrypt.compare(password, worker.password_hash);
+        if (!valid) {
+            res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+            return;
+        }
+        res.json({ success: true, id: worker.id, name: worker.name, worker_group: worker.worker_group });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

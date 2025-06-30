@@ -3,21 +3,23 @@ import React, { useState } from 'react';
 interface AddWorkerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4') => void;
+  onSave: (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => void;
 }
 
 export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose, onSave }) => {
   const [name, setName] = useState('');
   const [group, setGroup] = useState<'GRUPO 1-2' | 'GRUPO 3-4'>('GRUPO 1-2');
+  const [password, setPassword] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
-      onSave(name.trim(), group);
+    if (name.trim() && password.trim().length >= 4) {
+      onSave(name.trim(), group, password);
       setName('');
       setGroup('GRUPO 1-2');
+      setPassword('');
     }
   };
 
@@ -48,6 +50,21 @@ export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose,
                 placeholder="Ej: Juan Pérez"
                 required
                 autoFocus
+              />
+            </div>
+
+            <div>
+              <label htmlFor="worker-password" className="block text-sm font-medium text-gray-700">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="worker-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full rounded-md bg-white text-gray-900 border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder="Mínimo 4 caracteres"
+                required
               />
             </div>
 

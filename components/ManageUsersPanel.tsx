@@ -3,7 +3,11 @@ import { UserPlusIcon } from './icons';
 import { Worker } from '../types';
 import { apiService } from '../services/api';
 
-const ManageUsersPanel: React.FC = () => {
+interface ManageUsersPanelProps {
+  currentWorker: Worker | null;
+}
+
+const ManageUsersPanel: React.FC<ManageUsersPanelProps> = ({ currentWorker }) => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [search, setSearch] = useState('');
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
@@ -23,7 +27,11 @@ const ManageUsersPanel: React.FC = () => {
   const filteredWorkers = workers.filter(w => w.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleSelectWorker = (worker: Worker) => {
-    setPasswordRequired(true);
+    if (currentWorker && currentWorker.id === 'superadmin') {
+      setPasswordRequired(false);
+    } else {
+      setPasswordRequired(true);
+    }
     setSelectedWorker(worker);
     setEditName(worker.name);
     setEditGroup(worker.worker_group);
@@ -33,10 +41,17 @@ const ManageUsersPanel: React.FC = () => {
     setSuccess(false);
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedWorker) return;
     if (passwordInput.trim().length < 3) {
       setPasswordError('Contraseña incorrecta o demasiado corta.');
+      return;
+    }
+    // Validar contra backend
+    const result = await apiService.authenticateWorker(selectedWorker.id, passwordInput);
+    if (!result.success) {
+      setPasswordError('Contraseña incorrecta.');
       return;
     }
     setPasswordRequired(false);
@@ -46,13 +61,14 @@ const ManageUsersPanel: React.FC = () => {
   const handleSave = async () => {
     if (!selectedWorker) return;
     setSaving(true);
-    await apiService.updateWorker(selectedWorker.id, editName, editGroup);
+    await apiService.updateWorker(selectedWorker.id, editName, editGroup, editPassword.trim() ? editPassword : undefined);
     setSaving(false);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 1200);
     const updated = await apiService.getWorkers();
     setWorkers(updated);
     setSelectedWorker({ ...selectedWorker, name: editName, worker_group: editGroup });
+    setEditPassword('');
   };
 
   return (

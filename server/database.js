@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 // Crear directorio de uploads si no existe
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -24,6 +25,7 @@ const createTables = () => {
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             worker_group TEXT CHECK(worker_group IN ('GRUPO 1-2', 'GRUPO 3-4')),
+            password_hash TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -35,6 +37,15 @@ const createTables = () => {
     } catch (error) {
         // El campo ya existe, no hacer nada
         console.log('Campo worker_group ya existe en la tabla workers');
+    }
+
+    // Migración: agregar password_hash si no existe
+    try {
+        db.exec(`ALTER TABLE workers ADD COLUMN password_hash TEXT`);
+        console.log('Campo password_hash agregado a la tabla workers');
+    } catch (error) {
+        // El campo ya existe, no hacer nada
+        console.log('Campo password_hash ya existe en la tabla workers');
     }
 
     // Tabla de evaluaciones
@@ -103,7 +114,31 @@ const createTables = () => {
     `);
 };
 
+// Migrar usuarios antiguos: asignar password_hash por defecto si no tienen
+async function migrateUsersDefaultPassword() {
+    const users = db.prepare('SELECT id FROM workers WHERE password_hash IS NULL OR password_hash = ""').all();
+    if (users.length === 0) return;
+    const hash = await bcrypt.hash('1234', 10);
+    const stmt = db.prepare('UPDATE workers SET password_hash = ? WHERE id = ?');
+    for (const user of users) {
+        stmt.run(hash, user.id);
+    }
+    console.log(`Migrados ${users.length} usuarios con contraseña por defecto '1234'.`);
+}
+
+async function createSuperAdmin() {
+    const exists = db.prepare('SELECT id FROM workers WHERE id = ?').get('superadmin');
+    if (!exists) {
+        const hash = await bcrypt.hash('password123', 10);
+        db.prepare('INSERT INTO workers (id, name, worker_group, password_hash) VALUES (?, ?, ?, ?)')
+          .run('superadmin', 'Super Admin', 'GRUPO 1-2', hash);
+        console.log('Usuario Super Admin creado con clave password123');
+    }
+}
+
 // Inicializar base de datos
 createTables();
+// migrateUsersDefaultPassword();
+createSuperAdmin();
 
 module.exports = { db, uploadsDir, evidenceDir }; 

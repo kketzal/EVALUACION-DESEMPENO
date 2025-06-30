@@ -19,42 +19,150 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose }: {
   onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const filtered = workers.filter((w: Worker) => w.name.toLowerCase().includes(search.toLowerCase()));
+  
   if (!isOpen) return null;
+
+  const handleWorkerSelect = (worker: Worker) => {
+    setSelectedWorker(worker);
+    setPasswordInput('');
+    setPasswordError('');
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedWorker) return;
+    
+    if (passwordInput.trim().length < 3) {
+      setPasswordError('Contraseña incorrecta o demasiado corta.');
+      return;
+    }
+
+    setIsAuthenticating(true);
+    try {
+      const result = await fetch('/api/workers/authenticate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedWorker.id, password: passwordInput }),
+      });
+
+      if (!result.ok) {
+        setPasswordError('Contraseña incorrecta.');
+        return;
+      }
+
+      // Autenticación exitosa
+      onSelect(selectedWorker.id);
+      onClose();
+    } catch (error) {
+      setPasswordError('Error de conexión. Inténtalo de nuevo.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setSelectedWorker(null);
+    setPasswordInput('');
+    setPasswordError('');
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-gray-900">Seleccionar Trabajador/a</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            {selectedWorker ? 'Introduce tu contraseña' : 'Seleccionar Trabajador/a'}
+          </h3>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <input
-          type="text"
-          placeholder="Buscar trabajador/a..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="mb-4 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-        />
-        <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-          {filtered.length === 0 && <div className="py-4 text-gray-500 text-center">No hay resultados</div>}
-          {filtered.map((worker: Worker) => (
-            <button
-              key={worker.id}
-              onClick={() => { onSelect(worker.id); onClose(); }}
-              className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded transition-colors flex items-center gap-2"
-            >
-              <svg className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-              <div>
-                <span className="truncate block">{worker.name}</span>
-                <span className="text-sm text-gray-500">{worker.worker_group}</span>
+
+        {!selectedWorker ? (
+          <>
+            <input
+              type="text"
+              placeholder="Buscar trabajador/a..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="mb-4 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+            />
+            <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+              {filtered.length === 0 && <div className="py-4 text-gray-500 text-center">No hay resultados</div>}
+              {filtered.map((worker: Worker) => (
+                <button
+                  key={worker.id}
+                  onClick={() => handleWorkerSelect(worker)}
+                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded transition-colors flex items-center gap-2"
+                >
+                  <svg className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  <div>
+                    <span className="truncate block">{worker.name}</span>
+                    <span className="text-sm text-gray-500">{worker.worker_group}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div className="bg-indigo-50 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-3">
+                <svg className="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-indigo-900">{selectedWorker.name}</div>
+                  <div className="text-sm text-indigo-700">{selectedWorker.worker_group}</div>
+                </div>
               </div>
-            </button>
-          ))}
-        </div>
+            </div>
+            
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={passwordInput}
+                onChange={e => setPasswordInput(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                placeholder="Introduce tu contraseña"
+                autoFocus
+                required
+              />
+            </div>
+
+            {passwordError && (
+              <div className="text-red-600 text-sm">{passwordError}</div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isAuthenticating}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAuthenticating ? 'Verificando...' : 'Acceder'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -96,8 +204,8 @@ function App() {
     setWorkerSelectorOpen(false);
   };
 
-  const handleAddWorker = async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4') => {
-    const newWorkerId = await addWorker(name, group);
+  const handleAddWorker = async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => {
+    const newWorkerId = await addWorker(name, group, password);
     setAddWorkerModalOpen(false);
     if (newWorkerId) {
       await setWorkerId(newWorkerId);
@@ -238,7 +346,7 @@ function App() {
           )}
           {evaluation.workerId && (
             activeCompetencyId === 'manage-users' ? (
-              <ManageUsersPanel />
+              <ManageUsersPanel currentWorker={currentWorker ?? null} />
             ) : activeCompetency ? (
               <CompetencyBlock
                 competency={activeCompetency}

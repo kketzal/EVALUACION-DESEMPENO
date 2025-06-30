@@ -448,12 +448,13 @@ export const useEvaluationState = () => {
     }
   }, []);
 
-  const addWorker = useCallback(async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4') => {
+  const addWorker = useCallback(async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => {
     try {
       const newWorker = {
         id: new Date().getTime().toString(),
         name,
         worker_group: group,
+        password,
       };
       // Crear en backend y obtener el worker real (con ID real si lo asigna el backend)
       const created = await apiService.createWorker(newWorker);
