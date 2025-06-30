@@ -154,53 +154,51 @@ function App() {
         />
       )}
 
-      <div className="container mx-auto px-4 py-8">
-        {!evaluation.workerId && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Bienvenido/a al Sistema de Evaluación</h2>
-            <p className="text-gray-600 mb-8">Para comenzar, seleccione un trabajador existente o añada uno nuevo.</p>
-            <div className="flex flex-col gap-4 w-full max-w-xs">
-              <button
-                onClick={() => setWorkerSelectorOpen(true)}
-                className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Seleccionar Trabajador
-              </button>
-              <button
-                onClick={() => setAddWorkerModalOpen(true)}
-                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <UserPlusIcon className="h-5 w-5 mr-2 text-gray-500" />
-                Añadir Nuevo Trabajador
-              </button>
-            </div>
-          </div>
-        )}
-
+      <div className="flex flex-row" style={{ minHeight: 'calc(100vh - 112px)' }}>
         {evaluation.workerId && (
-          <div className="flex gap-6">
-            <Sidebar
-              competencies={visibleCompetencies}
-              activeCompetencyId={activeCompetencyId}
-              onCompetencyChange={setActiveCompetencyId}
-            />
-
-            <div className="flex-1">
-              {activeCompetency ? (
-                <CompetencyBlock
-                  competency={activeCompetency}
-                  evaluation={evaluation}
-                  onCriteriaChange={updateCriteriaCheck}
-                  onEvidenceChange={updateRealEvidence}
-                  addFiles={addFiles}
-                  removeFile={removeFile}
-                />
-              ) : (
-                <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
-              )}
-            </div>
-          </div>
+          <Sidebar
+            competencies={visibleCompetencies}
+            activeCompetencyId={activeCompetencyId}
+            onCompetencyChange={setActiveCompetencyId}
+          />
         )}
+        <main className="flex-1 h-full overflow-x-auto ml-80">
+          {!evaluation.workerId && (
+            <div className="flex flex-col items-center justify-center min-h-[60vh]">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Bienvenido/a al Sistema de Evaluación</h2>
+              <p className="text-gray-600 mb-8">Para comenzar, seleccione un trabajador existente o añada uno nuevo.</p>
+              <div className="flex flex-col gap-4 w-full max-w-xs">
+                <button
+                  onClick={() => setWorkerSelectorOpen(true)}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Seleccionar Trabajador
+                </button>
+                <button
+                  onClick={() => setAddWorkerModalOpen(true)}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <UserPlusIcon className="h-5 w-5 mr-2 text-gray-500" />
+                  Añadir Nuevo Trabajador
+                </button>
+              </div>
+            </div>
+          )}
+          {evaluation.workerId && (
+            activeCompetency ? (
+              <CompetencyBlock
+                competency={activeCompetency}
+                evaluation={evaluation}
+                onCriteriaChange={updateCriteriaCheck}
+                onEvidenceChange={updateRealEvidence}
+                addFiles={addFiles}
+                removeFile={removeFile}
+              />
+            ) : (
+              <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
+            )
+          )}
+        </main>
       </div>
 
       <AddWorkerModal
