@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { CompetencyBlock } from './components/CompetencyBlock';
 import { useEvaluationState, getVisibleCompetencies } from './hooks/useEvaluationState';
@@ -6,17 +6,19 @@ import { Sidebar } from './components/Sidebar';
 import { SummaryPage } from './components/SummaryPage';
 import { AddWorkerModal } from './components/AddWorkerModal';
 import { UserPlusIcon } from './components/icons';
-import { EvidenceFile } from './services/api';
+import { EvidenceFile, apiService } from './services/api';
 import { Worker } from './types';
 import { EvidenceUploader } from './components/EvidenceUploader';
 import ManageUsersModal from './components/ManageUsersModal';
 import ManageUsersPanel from './components/ManageUsersPanel';
+import LogoutConfirmModal from './components/LogoutConfirmModal';
 
-function WorkerSelectorModal({ workers, isOpen, onSelect, onClose }: {
+function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
   workers: Worker[];
   isOpen: boolean;
   onSelect: (id: string) => void;
   onClose: () => void;
+  setWorkerSession: (args: { workerId: string, token: string }) => void;
 }) {
   const [search, setSearch] = useState('');
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
@@ -36,26 +38,18 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose }: {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWorker) return;
-    
     if (passwordInput.trim().length < 3) {
       setPasswordError('Contraseña incorrecta o demasiado corta.');
       return;
     }
-
     setIsAuthenticating(true);
     try {
-      const result = await fetch('/api/workers/authenticate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedWorker.id, password: passwordInput }),
-      });
-
-      if (!result.ok) {
+      const result = await apiService.authenticateWorker(selectedWorker.id, passwordInput);
+      if (!result.success || !result.token) {
         setPasswordError('Contraseña incorrecta.');
         return;
       }
-
-      // Autenticación exitosa
+      setWorkerSession({ workerId: selectedWorker.id, token: result.token });
       onSelect(selectedWorker.id);
       onClose();
     } catch (error) {
@@ -173,6 +167,7 @@ function App() {
     evaluation,
     isLoading,
     setWorkerId,
+    setWorkerSession,
     setPeriod,
     updateCriteriaCheck,
     updateRealEvidence,
@@ -189,6 +184,8 @@ function App() {
   const [isManageUsersModalOpen, setManageUsersModalOpen] = useState(false);
   const [isWorkerSelectorOpen, setWorkerSelectorOpen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [loadingSession, setLoadingSession] = useState(true);
+  const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
 
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
@@ -218,11 +215,24 @@ function App() {
     }
   };
 
-  const handleExitApp = () => {
-    if (window.confirm('¿Está seguro de que desea salir de la aplicación? Los datos se guardarán automáticamente.')) {
-      setWorkerId(null);
-      setActiveCompetencyId('B');
+  const handleExitApp = async () => {
+    setLogoutModalOpen(true);
+  };
+
+  const confirmLogout = async () => {
+    const token = localStorage.getItem('sessionToken');
+    if (token) {
+      try {
+        await fetch('/api/session/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: token },
+        });
+      } catch (e) { /* ignorar error */ }
     }
+    localStorage.removeItem('sessionToken');
+    setWorkerSession({ workerId: null, token: null });
+    setActiveCompetencyId('B');
+    setLogoutModalOpen(false);
   };
 
   const handleFilesUploaded = (conductId: string, files: EvidenceFile[]) => {
@@ -259,6 +269,81 @@ function App() {
     window.addEventListener('open-manage-users', handler);
     return () => window.removeEventListener('open-manage-users', handler);
   }, []);
+
+  // Persistencia de sesión y timeout global
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutMinutes = 60;
+
+    const logoutByTimeout = () => {
+      localStorage.removeItem('sessionToken');
+      setWorkerId(null);
+      setActiveCompetencyId('B');
+      alert('Sesión cerrada por inactividad.');
+    };
+
+    const updateActivity = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logoutByTimeout();
+      }, timeoutMinutes * 60 * 1000);
+    };
+
+    // Al autenticar, guardar token y usuario
+    if (evaluation.workerId && evaluation.token) {
+      localStorage.setItem('sessionToken', evaluation.token);
+      updateActivity();
+      setLoadingSession(false);
+    }
+
+    // Restaurar sesión por token
+    const restoreSession = async () => {
+      const token = localStorage.getItem('sessionToken');
+      if (!token) {
+        setLoadingSession(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/session/validate', {
+          headers: { Authorization: token }
+        });
+        if (!res.ok) throw new Error('Sesión inválida');
+        const data = await res.json();
+        setWorkerSession({ workerId: data.id, token });
+        // Obtener timeout global
+        try {
+          const resTimeout = await fetch('/api/settings/session-timeout');
+          const dataTimeout = await resTimeout.json();
+          timeoutMinutes = dataTimeout.timeout || 60;
+        } catch {}
+        updateActivity();
+      } catch {
+        localStorage.removeItem('sessionToken');
+        setWorkerId(null);
+        setActiveCompetencyId('B');
+      }
+      setLoadingSession(false);
+    };
+    restoreSession();
+
+    // Escuchar actividad del usuario
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(ev => window.addEventListener(ev, updateActivity));
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(ev => window.removeEventListener(ev, updateActivity));
+    };
+    // eslint-disable-next-line
+  }, [evaluation.workerId, evaluation.token]);
+
+  if (loadingSession) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
+        <div className="text-lg text-gray-600 animate-pulse">Cargando sesión...</div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -359,6 +444,7 @@ function App() {
         isOpen={isWorkerSelectorOpen}
         onSelect={handleWorkerChange}
         onClose={() => setWorkerSelectorOpen(false)}
+        setWorkerSession={setWorkerSession}
       />
 
       <ManageUsersModal
@@ -367,6 +453,8 @@ function App() {
         workers={evaluation.workers}
         onUpdateWorker={updateWorker}
       />
+
+      <LogoutConfirmModal open={isLogoutModalOpen} onConfirm={confirmLogout} onCancel={() => setLogoutModalOpen(false)} />
     </>
   );
 }

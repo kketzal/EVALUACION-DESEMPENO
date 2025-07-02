@@ -594,10 +594,20 @@ export const useEvaluationState = () => {
     }
   }, [setEvaluationWithLog]);
 
+  // Nuevo método para guardar workerId y token juntos
+  const setWorkerSession = useCallback(({ workerId, token }: { workerId: string | null, token: string | null }) => {
+    setEvaluationWithLog(prev => ({
+      ...prev,
+      workerId,
+      token
+    }));
+  }, []);
+
   return {
     evaluation,
     isLoading,
     setWorkerId,
+    setWorkerSession,
     setPeriod,
     updateCriteriaCheck,
     updateRealEvidence,

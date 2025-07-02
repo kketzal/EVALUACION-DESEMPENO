@@ -112,6 +112,24 @@ const createTables = () => {
             FOREIGN KEY (evaluation_id) REFERENCES evaluations (id)
         )
     `);
+
+    // Tabla de configuración global
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    `);
+
+    // Tabla de sesiones persistentes
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            worker_id TEXT NOT NULL,
+            last_activity INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    `);
 };
 
 // Migrar usuarios antiguos: asignar password_hash por defecto si no tienen

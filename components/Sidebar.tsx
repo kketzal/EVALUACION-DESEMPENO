@@ -1,5 +1,6 @@
 import React from 'react';
 import { Competency } from '../types';
+import SessionTimeoutModal from './SessionTimeoutModal';
 
 interface SidebarProps {
   competencies: Competency[];
@@ -13,6 +14,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, className }) => {
+  const [isTimeoutModalOpen, setTimeoutModalOpen] = React.useState(false);
+
   return (
     <aside
       className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-3 pt-6'} flex flex-col fixed left-0 top-[160px] max-h-[calc(100vh-160px-56px)] overflow-y-auto z-30 ${className || ''}`}
@@ -104,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
           <span className="text-sm font-medium">Gestionar usuarios</span>
         </button>
         <button
-          onClick={onOpenSettings}
+          onClick={() => setTimeoutModalOpen(true)}
           className="group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-yellow-50 hover:shadow-md"
         >
           <div className="w-7 h-7 rounded-lg bg-yellow-100 group-hover:bg-yellow-200 flex items-center justify-center transition-colors">
@@ -136,6 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
           </div>
         </div>
       </div>
+      <SessionTimeoutModal open={isTimeoutModalOpen} onClose={() => setTimeoutModalOpen(false)} />
     </aside>
   );
 };

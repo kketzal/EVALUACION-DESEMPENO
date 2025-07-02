@@ -6,12 +6,19 @@ const fs = require('fs');
 const { db, uploadsDir, evidenceDir } = require('./database');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
+const SESSION_MAX_AGE_DAYS = 7;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+    origin: true,
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -350,10 +357,106 @@ app.post('/api/workers/authenticate', async (req, res) => {
             res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             return;
         }
-        res.json({ success: true, id: worker.id, name: worker.name, worker_group: worker.worker_group });
+        // Obtener timeout global
+        let timeout = 60;
+        try {
+            const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('session_timeout_minutes');
+            timeout = row ? parseInt(row.value, 10) : 60;
+        } catch {}
+        // Generar token de sesión
+        const token = uuidv4();
+        const now = Date.now();
+        db.prepare('INSERT INTO sessions (token, worker_id, last_activity, created_at) VALUES (?, ?, ?, ?)')
+          .run(token, worker.id, now, now);
+        res.json({ success: true, id: worker.id, name: worker.name, worker_group: worker.worker_group, token });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// Validar sesión por token
+app.get('/api/session/validate', (req, res) => {
+    try {
+        console.log('Authorization header:', req.headers['authorization']);
+        let token = req.headers['authorization'] || req.query.token;
+        if (token && token.startsWith('Bearer ')) {
+            token = token.slice(7);
+        }
+        if (!token) {
+            return res.status(401).json({ error: 'Sesión inválida' });
+        }
+        const session = db.prepare('SELECT * FROM sessions WHERE token = ?').get(token);
+        if (!session) {
+            return res.status(401).json({ error: 'Sesión inválida' });
+        }
+        // Obtener timeout global
+        let timeout = 60;
+        try {
+            const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('session_timeout_minutes');
+            timeout = row ? parseInt(row.value, 10) : 60;
+        } catch {}
+        const now = Date.now();
+        // Expiración por inactividad
+        if (now - session.last_activity > timeout * 60 * 1000) {
+            db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+            return res.status(401).json({ error: 'Sesión expirada por inactividad' });
+        }
+        // Expiración máxima absoluta (7 días)
+        if (now - session.created_at > SESSION_MAX_AGE_DAYS * 24 * 60 * 60 * 1000) {
+            db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+            return res.status(401).json({ error: 'Sesión expirada (máx. 7 días)' });
+        }
+        // Actualizar última actividad
+        db.prepare('UPDATE sessions SET last_activity = ? WHERE token = ?').run(now, token);
+        // Obtener datos del usuario
+        const worker = db.prepare('SELECT id, name, worker_group FROM workers WHERE id = ?').get(session.worker_id);
+        if (!worker) {
+            db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+            return res.status(401).json({ error: 'Usuario no encontrado' });
+        }
+        res.json({ success: true, ...worker });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint para obtener el timeout global de sesión
+app.get('/api/settings/session-timeout', (req, res) => {
+    try {
+        const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('session_timeout_minutes');
+        const value = row ? parseInt(row.value, 10) : 60;
+        res.json({ timeout: value });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint para actualizar el timeout global de sesión
+app.post('/api/settings/session-timeout', (req, res) => {
+    try {
+        const { timeout } = req.body;
+        if (!timeout || isNaN(timeout) || timeout < 1 || timeout > 1440) {
+            return res.status(400).json({ error: 'Valor de timeout inválido' });
+        }
+        db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+          .run('session_timeout_minutes', String(timeout));
+        res.json({ success: true, timeout });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Logout de sesión
+app.post('/api/session/logout', (req, res) => {
+    let token = req.headers['authorization'] || req.body?.token;
+    if (token && token.startsWith('Bearer ')) {
+        token = token.slice(7);
+    }
+    if (!token) {
+        return res.status(400).json({ error: 'Token requerido' });
+    }
+    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    res.json({ success: true });
 });
 
 app.listen(PORT, () => {

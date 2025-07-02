@@ -206,7 +206,7 @@ class ApiService {
     if (!response.ok) throw new Error('Error al actualizar evaluación');
   }
 
-  async authenticateWorker(id: string, password: string): Promise<{ success: boolean; id?: string; name?: string; worker_group?: string }> {
+  async authenticateWorker(id: string, password: string): Promise<{ success: boolean; id?: string; name?: string; worker_group?: string; token?: string }> {
     const response = await fetch(`${API_BASE_URL}/workers/authenticate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

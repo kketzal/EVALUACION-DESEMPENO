@@ -47,4 +47,5 @@ export interface EvaluationState {
   useT1SevenPoints: boolean;
   isSaving: boolean;
   lastSavedAt: string | null;
+  token?: string | null;
 }

@@ -205,7 +205,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
           <Accordion
             key={conduct.id}
             title={<span><span className="font-semibold">{conduct.id}.</span> {conduct.description}</span>}
-            open={idx === 0}
+            open={false}
             exampleEvidence={conduct.exampleEvidence}
           >
             <ConductRow
