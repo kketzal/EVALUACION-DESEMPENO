@@ -15,13 +15,13 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, className }) => {
   return (
     <aside
-      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pt-2 pb-6 px-4' : 'p-3'} flex flex-col fixed left-0 top-[88px] max-h-[calc(100vh-88px-56px)] overflow-y-auto z-30 ${className || ''}`}
+      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-3 pt-6'} flex flex-col fixed left-0 top-[160px] max-h-[calc(100vh-160px-56px)] overflow-y-auto z-30 ${className || ''}`}
     >
       {/* Lista de competencias */}
       <nav className="pr-1">
         <ul className="space-y-0.5">
-          {competencies.map((competency) => (
-            <li key={competency.id}>
+          {competencies.map((competency, idx) => (
+            <li key={competency.id} className={idx === 0 ? '!mt-0' : ''}>
               <button
                 onClick={() => onCompetencyChange(competency.id)}
                 className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
