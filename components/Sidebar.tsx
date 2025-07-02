@@ -7,25 +7,24 @@ interface SidebarProps {
   onCompetencyChange: (id: string) => void;
   compact?: boolean;
   mobile?: boolean;
+  fixedDesktop?: boolean;
+  onOpenSettings?: () => void;
+  className?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, className }) => {
   return (
     <aside
-      className={
-        `${mobile
-          ? 'h-full'
-          : 'fixed left-0 top-[144px] h-[calc(100vh-144px)]'} w-80 overflow-y-auto bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pt-2 pb-6 px-4' : 'p-6'} flex flex-col justify-between`
-      }
+      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pt-2 pb-6 px-4' : 'p-3'} flex flex-col fixed left-0 top-[88px] max-h-[calc(100vh-88px-56px)] overflow-y-auto z-30 ${className || ''}`}
     >
       {/* Lista de competencias */}
-      <nav>
-        <ul className="space-y-1">
+      <nav className="pr-1">
+        <ul className="space-y-0.5">
           {competencies.map((competency) => (
             <li key={competency.id}>
               <button
                 onClick={() => onCompetencyChange(competency.id)}
-                className={`group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
+                className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
                   activeCompetencyId === competency.id
                     ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25'
                     : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-indigo-50 hover:shadow-md'
@@ -50,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
                       ? 'text-white'
                       : 'text-slate-700'
                   }`}>
-                    {competency.title.replace(/^[A-Z]\.\s*/, '')}
+                    {competency.title.replace(/^[A-Z]\./, '')}
                   </span>
                 </div>
               </button>
@@ -59,11 +58,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </ul>
       </nav>
 
-      {/* Zona inferior: Resumen y Guardado + Gestionar usuarios */}
-      <div className="mt-8 flex flex-col gap-2 border-t border-slate-200 pt-6">
+      {/* Separador visual */}
+      <div className="my-6 border-t border-slate-200" />
+
+      {/* Bloque de opciones */}
+      <div className="flex flex-col gap-1">
         <button
           onClick={() => onCompetencyChange('summary')}
-          className={`group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
+          className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'summary'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
               : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-emerald-50 hover:shadow-md'
@@ -92,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </button>
         <button
           onClick={() => onCompetencyChange('manage-users')}
-          className="group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:shadow-md"
+          className="group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:shadow-md"
         >
           <div className="w-7 h-7 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
             <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,27 +103,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
           </div>
           <span className="text-sm font-medium">Gestionar usuarios</span>
         </button>
-      </div>
-
-      {/* Progress Indicator */}
-      <div className="mt-4 p-3 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-xl border border-slate-200/50">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-slate-700">Progreso</span>
-          <span className="text-xs text-slate-500">
-            {competencies.filter(c => c.id === activeCompetencyId).length > 0 ? 
-              `${competencies.findIndex(c => c.id === activeCompetencyId) + 1}/${competencies.length}` : 
-              'Completado'
-            }
-          </span>
-        </div>
-        <div className="w-full bg-slate-200 rounded-full h-1.5">
-          <div 
-            className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all duration-500"
-            style={{ 
-              width: activeCompetencyId === 'summary' ? '100%' : 
-                `${((competencies.findIndex(c => c.id === activeCompetencyId) + 1) / competencies.length) * 100}%`
-            }}
-          ></div>
+        <button
+          onClick={onOpenSettings}
+          className="group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-yellow-50 hover:shadow-md"
+        >
+          <div className="w-7 h-7 rounded-lg bg-yellow-100 group-hover:bg-yellow-200 flex items-center justify-center transition-colors">
+            <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium">Configuración</span>
+        </button>
+        {/* Progress Indicator */}
+        <div className="mt-4 p-3 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-xl border border-slate-200/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-slate-700">Progreso</span>
+            <span className="text-xs text-slate-500">
+              {competencies.filter(c => c.id === activeCompetencyId).length > 0 ? 
+                `${competencies.findIndex(c => c.id === activeCompetencyId) + 1}/${competencies.length}` : 
+                'Completado'
+              }
+            </span>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-1.5">
+            <div 
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all duration-500"
+              style={{ 
+                width: activeCompetencyId === 'summary' ? '100%' : 
+                  `${((competencies.findIndex(c => c.id === activeCompetencyId) + 1) / competencies.length) * 100}%`
+              }}
+            ></div>
+          </div>
         </div>
       </div>
     </aside>

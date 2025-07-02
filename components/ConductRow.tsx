@@ -12,6 +12,7 @@ interface ConductRowProps {
   onCriteriaChange: (tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => void;
   onEvidenceChange: (text: string) => void;
   useT1SevenPoints?: boolean;
+  hideDescription?: boolean;
 }
 
 const CriteriaList: React.FC<{
@@ -49,7 +50,8 @@ export const ConductRow: React.FC<ConductRowProps> = ({
   realEvidence, 
   onCriteriaChange, 
   onEvidenceChange,
-  useT1SevenPoints = false
+  useT1SevenPoints = false,
+  hideDescription = false
 }) => {
     // Siempre usar los 4 criterios originales para mostrar
     const t1CriteriaToUse = t1Criteria;
@@ -60,15 +62,19 @@ export const ConductRow: React.FC<ConductRowProps> = ({
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border border-gray-200">
             <div className="flex-grow mb-4 flex items-start gap-3">
-                <p className="font-semibold text-gray-800 flex-grow">{conduct.id}. {conduct.description}</p>
-                <div className="relative group flex-shrink-0">
-                    <LightbulbIcon className="h-6 w-6 text-yellow-400 cursor-pointer" />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                        <span className="font-bold block mb-1">Ejemplo de Evidencia:</span>
-                        {conduct.exampleEvidence}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-gray-900"></div>
-                    </div>
-                </div>
+                {!hideDescription && (
+                  <p className="font-semibold text-gray-800 flex-grow">{conduct.id}. {conduct.description}</p>
+                )}
+                {!hideDescription && (
+                  <div className="relative group flex-shrink-0">
+                      <LightbulbIcon className="h-6 w-6 text-yellow-400 cursor-pointer" />
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          <span className="font-bold block mb-1">Ejemplo de Evidencia:</span>
+                          {conduct.exampleEvidence}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-gray-900"></div>
+                      </div>
+                  </div>
+                )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-4">

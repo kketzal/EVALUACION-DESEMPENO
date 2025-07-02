@@ -261,109 +261,92 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {evaluation.workerId && (
-        <Header
-          workers={evaluation.workers}
-          selectedWorkerId={evaluation.workerId}
-          onWorkerChange={handleWorkerChange}
-          onChangeWorkerClick={() => setWorkerSelectorOpen(true)}
-          period={evaluation.period}
-          onPeriodChange={handlePeriodChange}
-          onAddWorkerClick={() => setAddWorkerModalOpen(true)}
-          onExitApp={handleExitApp}
-          useT1SevenPoints={evaluation.useT1SevenPoints}
-          onT1SevenPointsChange={setUseT1SevenPoints}
-          isSaving={evaluation.isSaving}
-          lastSavedAt={evaluation.lastSavedAt}
-          onHamburgerClick={() => setSidebarOpen(true)}
-        />
-      )}
-
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-black bg-opacity-40" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-72 max-w-full h-full bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 pt-2 pb-6 px-4 flex flex-col justify-between animate-slide-in-left">
-            <button
-              className="absolute left-2 top-2 z-10 text-gray-400 hover:text-gray-700 p-1"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <Sidebar
-              competencies={visibleCompetencies}
-              activeCompetencyId={activeCompetencyId}
-              onCompetencyChange={(id) => {
-                setActiveCompetencyId(id);
-                setSidebarOpen(false);
-              }}
-              compact={true}
-              mobile={true}
-            />
-          </aside>
+    <>
+      {/* Pantalla de login centrada, fuera del dashboard */}
+      {!evaluation.workerId && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center w-full max-w-md">
+            <div className="flex justify-center items-center gap-6 mb-6">
+              <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-14 w-auto" />
+              <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-14 w-auto" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Bienvenido/a al Sistema de Evaluación del Desempeño</h2>
+            <p className="text-gray-600 mb-8 text-center">Para comenzar, seleccione un trabajador existente o añada uno nuevo.</p>
+            <div className="flex flex-col gap-4 w-full">
+              <button
+                onClick={() => setWorkerSelectorOpen(true)}
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              >
+                Seleccionar Trabajador
+              </button>
+              <button
+                onClick={() => setAddWorkerModalOpen(true)}
+                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              >
+                <UserPlusIcon className="h-5 w-5 mr-2 text-gray-500" />
+                Añadir Nuevo Trabajador
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="flex flex-row" style={{ minHeight: 'calc(100vh - 112px)' }}>
-        {evaluation.workerId && (
-          <div className="hidden lg:flex">
+      {/* Dashboard layout solo si hay trabajador */}
+      {evaluation.workerId && (
+        <div className="flex flex-col min-h-screen bg-gray-100">
+          {/* Header fijo */}
+          <div className="fixed top-0 left-0 right-0 z-40">
+            <Header
+              workers={evaluation.workers}
+              selectedWorkerId={evaluation.workerId}
+              onWorkerChange={handleWorkerChange}
+              onChangeWorkerClick={() => setWorkerSelectorOpen(true)}
+              period={evaluation.period}
+              onPeriodChange={handlePeriodChange}
+              onAddWorkerClick={() => setAddWorkerModalOpen(true)}
+              onExitApp={handleExitApp}
+              useT1SevenPoints={evaluation.useT1SevenPoints}
+              onT1SevenPointsChange={setUseT1SevenPoints}
+              isSaving={evaluation.isSaving}
+              lastSavedAt={evaluation.lastSavedAt}
+              onHamburgerClick={() => setSidebarOpen(true)}
+            />
+          </div>
+          <div className="flex flex-row flex-1 min-h-0 w-full">
+            {/* Sidebar fijo */}
             <Sidebar
               competencies={visibleCompetencies}
               activeCompetencyId={activeCompetencyId}
               onCompetencyChange={setActiveCompetencyId}
+              fixedDesktop={true}
+              onOpenSettings={() => setManageUsersModalOpen(true)}
+              className="hidden lg:block fixed left-0 top-[140px] w-80 max-h-[calc(100vh-140px-56px)] overflow-y-auto z-30"
             />
+            {/* Main content */}
+            <main className="flex-1 min-h-0 lg:ml-80 pt-[160px] pb-[56px] overflow-y-auto">
+              {activeCompetencyId === 'manage-users' ? (
+                <ManageUsersPanel currentWorker={currentWorker ?? null} />
+              ) : activeCompetency ? (
+                <CompetencyBlock
+                  competency={activeCompetency}
+                  evaluation={evaluation}
+                  onCriteriaChange={updateCriteriaCheck}
+                  onEvidenceChange={updateRealEvidence}
+                  addFiles={addFiles}
+                  removeFile={removeFile}
+                />
+              ) : (
+                <div className="bg-white shadow-md rounded-xl p-6 mb-8">
+                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
+                </div>
+              )}
+            </main>
           </div>
-        )}
-        <main className={`flex-1 h-full ${evaluation.workerId ? 'ml-0 lg:ml-80' : ''} overflow-x-hidden`}>
-          {!evaluation.workerId && (
-            <div className="flex flex-col items-center justify-center min-h-screen w-full px-4">
-              <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center w-full max-w-md">
-                <div className="flex justify-center items-center gap-6 mb-6">
-                  <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-14 w-auto" />
-                  <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-14 w-auto" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Bienvenido/a al Sistema de Evaluación del Desempeño</h2>
-                <p className="text-gray-600 mb-8 text-center">Para comenzar, seleccione un trabajador existente o añada uno nuevo.</p>
-                <div className="flex flex-col gap-4 w-full">
-                  <button
-                    onClick={() => setWorkerSelectorOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                  >
-                    Seleccionar Trabajador
-                  </button>
-                  <button
-                    onClick={() => setAddWorkerModalOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                  >
-                    <UserPlusIcon className="h-5 w-5 mr-2 text-gray-500" />
-                    Añadir Nuevo Trabajador
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {evaluation.workerId && (
-            activeCompetencyId === 'manage-users' ? (
-              <ManageUsersPanel currentWorker={currentWorker ?? null} />
-            ) : activeCompetency ? (
-              <CompetencyBlock
-                competency={activeCompetency}
-                evaluation={evaluation}
-                onCriteriaChange={updateCriteriaCheck}
-                onEvidenceChange={updateRealEvidence}
-                addFiles={addFiles}
-                removeFile={removeFile}
-              />
-            ) : (
-              <div className="bg-white shadow-md rounded-xl p-6 mb-8">
-                <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
-              </div>
-            )
-          )}
-        </main>
-      </div>
+          {/* Footer fijo */}
+          <footer className="fixed bottom-0 left-0 right-0 z-40 w-full py-4 bg-gradient-to-r from-gray-50 to-indigo-50 border-t border-gray-200 text-center text-xs text-gray-500 shadow-inner">
+            © {new Date().getFullYear()} Desarrollado para el Servicio Central de Apoyo a la Investigación (SCAI) - Universidad de Córdoba. Todos los derechos reservados.
+          </footer>
+        </div>
+      )}
 
       <AddWorkerModal
         isOpen={isAddWorkerModalOpen}
@@ -384,7 +367,7 @@ function App() {
         workers={evaluation.workers}
         onUpdateWorker={updateWorker}
       />
-    </div>
+    </>
   );
 }
 
