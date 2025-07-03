@@ -721,6 +721,13 @@ export const useEvaluationState = () => {
     localStorage.setItem('openAccordions', JSON.stringify(evaluation.openAccordions));
   }, [evaluation.openAccordions]);
 
+  // Recargar trabajadores cuando se cierra sesión (workerId pasa a null)
+  useEffect(() => {
+    if (evaluation.workerId === null) {
+      loadWorkers();
+    }
+  }, [evaluation.workerId, loadWorkers]);
+
   return {
     evaluation,
     isLoading,

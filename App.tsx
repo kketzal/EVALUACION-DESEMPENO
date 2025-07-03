@@ -210,7 +210,7 @@ function App() {
   const [activePage, setActivePage] = useState<string>(getInitialActivePage());
   const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
   const [isManageUsersModalOpen, setManageUsersModalOpen] = useState(false);
-  const [isWorkerSelectorOpen, setWorkerSelectorOpen] = useState(false);
+  const [isWorkerSelectorOpen, setIsWorkerSelectorOpen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarClosing, setSidebarClosing] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -220,6 +220,7 @@ function App() {
   const [sessionTimeout, setSessionTimeout] = useState<number>(60);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [workerSelectorResetKey, setWorkerSelectorResetKey] = useState(0); // Para forzar reset del modal
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -276,7 +277,7 @@ function App() {
         setActiveCompetencyId(visibleCompetencies[0].id);
       }
     }
-    setWorkerSelectorOpen(false);
+    setIsWorkerSelectorOpen(false);
   };
 
   const handleAddWorker = async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => {
@@ -311,6 +312,7 @@ function App() {
     setWorkerSession({ workerId: null, token: null });
     setActiveCompetencyId('B');
     setLogoutModalOpen(false);
+    setWorkerSelectorResetKey(k => k + 1); // Forzar reset del modal
   };
 
   const handleFilesUploaded = (conductId: string, files: EvidenceFile[]) => {
@@ -713,7 +715,7 @@ function App() {
             <p className="text-gray-600 mb-8 text-center">Para comenzar, seleccione un trabajador existente o añada uno nuevo.</p>
             <div className="flex flex-col gap-4 w-full">
               <button
-                onClick={() => setWorkerSelectorOpen(true)}
+                onClick={() => setIsWorkerSelectorOpen(true)}
                 className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
               >
                 Seleccionar Trabajador
@@ -737,7 +739,7 @@ function App() {
             workers={evaluation.workers}
             selectedWorkerId={evaluation.workerId}
             onWorkerChange={handleWorkerChange}
-            onChangeWorkerClick={() => setWorkerSelectorOpen(true)}
+            onChangeWorkerClick={() => setIsWorkerSelectorOpen(true)}
             period={evaluation.period}
             onPeriodChange={handlePeriodChange}
             onAddWorkerClick={() => setAddWorkerModalOpen(true)}
@@ -870,10 +872,11 @@ function App() {
       />
 
       <WorkerSelectorModal
+        key={workerSelectorResetKey}
         workers={evaluation.workers}
         isOpen={isWorkerSelectorOpen}
         onSelect={handleWorkerChange}
-        onClose={() => setWorkerSelectorOpen(false)}
+        onClose={() => setIsWorkerSelectorOpen(false)}
         setWorkerSession={setWorkerSession}
       />
 
