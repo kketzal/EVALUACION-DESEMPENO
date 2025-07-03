@@ -178,6 +178,8 @@ function App() {
     addWorker,
     updateWorkerGroup,
     setUseT1SevenPoints,
+    setAutoSave,
+    toggleAccordion,
     updateWorker,
     getVisibleCompetencies,
     setEvaluation
@@ -318,6 +320,8 @@ function App() {
         if (!res.ok) throw new Error('Sesión inválida');
         const data = await res.json();
         setWorkerSession({ workerId: data.id, token });
+        // Cargar los datos de la evaluación después de restaurar la sesión
+        await setWorkerId(data.id);
         // Obtener timeout global
         try {
           const resTimeout = await fetch('/api/settings/session-timeout');
@@ -574,30 +578,39 @@ function App() {
             {/* Main content */}
             <main className="flex-1 min-h-0 pt-0 lg:pl-80 lg:pt-[96px] pb-[56px] overflow-y-auto">
               {activePage === 'settings' ? (
-                <SettingsPage
-                  sessionTimeout={sessionTimeout}
-                  onSessionTimeoutChange={setSessionTimeout}
-                  handleExportDB={handleExportDB}
-                  handleImportDB={handleImportDB}
-                  fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
-                  dbLoading={dbLoading}
-                  dbMessage={dbMessage}
-                  useT1SevenPoints={evaluation.useT1SevenPoints}
-                  onT1SevenPointsChange={setUseT1SevenPoints}
-                />
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                  <SettingsPage
+                    sessionTimeout={sessionTimeout}
+                    onSessionTimeoutChange={setSessionTimeout}
+                    handleExportDB={handleExportDB}
+                    handleImportDB={handleImportDB}
+                    fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
+                    dbLoading={dbLoading}
+                    dbMessage={dbMessage}
+                    useT1SevenPoints={evaluation.useT1SevenPoints}
+                    onT1SevenPointsChange={setUseT1SevenPoints}
+                    autoSave={evaluation.autoSave}
+                    onAutoSaveChange={setAutoSave}
+                  />
+                </div>
               ) : activeCompetencyId === 'manage-users' ? (
-                <ManageUsersPanel currentWorker={currentWorker ?? null} />
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                  <ManageUsersPanel currentWorker={currentWorker ?? null} />
+                </div>
               ) : activeCompetency ? (
-                <CompetencyBlock
-                  competency={activeCompetency}
-                  evaluation={evaluation}
-                  onCriteriaChange={(conductId, tramo, index, isChecked) => updateCriteriaCheck(conductId, tramo, index, isChecked)}
-                  onEvidenceChange={updateRealEvidence}
-                  addFiles={addFiles}
-                  removeFile={removeFile}
-                />
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                  <CompetencyBlock
+                    competency={activeCompetency}
+                    evaluation={evaluation}
+                    onCriteriaChange={(conductId, tramo, index, isChecked) => updateCriteriaCheck(conductId, tramo, index, isChecked)}
+                    onEvidenceChange={updateRealEvidence}
+                    addFiles={addFiles}
+                    removeFile={removeFile}
+                    onToggleAccordion={toggleAccordion}
+                  />
+                </div>
               ) : (
-                <div className="bg-white shadow-md rounded-xl p-6 mb-8">
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
                   <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
                 </div>
               )}

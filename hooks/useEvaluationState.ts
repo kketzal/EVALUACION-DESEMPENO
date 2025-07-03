@@ -38,6 +38,8 @@ const getInitialState = (): EvaluationState => {
     workers: [],
     evaluationId: null,
     useT1SevenPoints: true, // Por defecto usar TRAMO 1 de 7 puntos
+    autoSave: true, // Por defecto activar guardado automático
+    openAccordions: {}, // Estado de accordions abiertos
     isSaving: false,
     lastSavedAt: null,
   };
@@ -229,6 +231,7 @@ export const useEvaluationState = () => {
           files,
           period: periodToUse,
           useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
+          autoSave: Boolean(evaluationData.evaluation.autoSave),
         };
         
         console.log('Estado actualizado después de cargar evaluación:', {
@@ -256,6 +259,26 @@ export const useEvaluationState = () => {
       await setWorkerId(evaluation.workerId);
     }
   }, [evaluation.workerId, setWorkerId]);
+
+  // Función para guardado automático
+  const autoSaveEvaluation = useCallback(async () => {
+    if (!evaluation.evaluationId || !evaluation.autoSave) return;
+
+    try {
+      await apiService.updateEvaluation(evaluation.evaluationId);
+      
+      // Actualizar estado con timestamp de guardado automático
+      const now = new Date().toLocaleString('es-ES');
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        lastSavedAt: now
+      }));
+
+      console.log('Guardado automático realizado:', now);
+    } catch (error) {
+      console.error('Error en guardado automático:', error);
+    }
+  }, [evaluation.evaluationId, evaluation.autoSave]);
 
   const updateCriteriaCheck = useCallback(async (conductId: string, tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => {
     if (!evaluation.evaluationId) return;
@@ -323,7 +346,12 @@ export const useEvaluationState = () => {
         finalScore: newScore.final,
       });
     }
-  }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints]);
+
+    // Guardado automático si está habilitado
+    if (evaluation.autoSave) {
+      await autoSaveEvaluation();
+    }
+  }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints, evaluation.autoSave, autoSaveEvaluation]);
 
   const updateRealEvidence = useCallback(async (conductId: string, text: string) => {
     if (!evaluation.evaluationId) return;
@@ -341,10 +369,15 @@ export const useEvaluationState = () => {
           [conductId]: text,
         },
       }));
+
+      // Guardado automático si está habilitado
+      if (evaluation.autoSave) {
+        await autoSaveEvaluation();
+      }
     } catch (error) {
       console.error('Error al guardar evidencia:', error);
     }
-  }, [evaluation.evaluationId]);
+  }, [evaluation.evaluationId, evaluation.autoSave, autoSaveEvaluation]);
 
   const addFiles = useCallback(async ({ competencyId, conductId, fileCount, evaluationId, files }: {
     competencyId: string;
@@ -507,6 +540,33 @@ export const useEvaluationState = () => {
     }
   }, [evaluation.evaluationId]);
 
+  const setAutoSave = useCallback(async (autoSave: boolean) => {
+    setEvaluationWithLog(prev => ({
+      ...prev,
+      autoSave
+    }));
+
+    // Guardar en la API el valor de autoSave si hay evaluación activa
+    if (evaluation.evaluationId) {
+      try {
+        await apiService.updateEvaluationSettings(evaluation.evaluationId, { autoSave });
+        console.log('Configuración de guardado automático actualizada en la base de datos');
+      } catch (error) {
+        console.error('Error al guardar configuración de autoSave:', error);
+      }
+    }
+  }, [evaluation.evaluationId]);
+
+  const toggleAccordion = useCallback((conductId: string, isOpen: boolean) => {
+    setEvaluationWithLog(prev => ({
+      ...prev,
+      openAccordions: {
+        ...prev.openAccordions,
+        [conductId]: isOpen
+      }
+    }));
+  }, []);
+
   const setUseT1SevenPoints = useCallback(async (useT1SevenPoints: boolean) => {
     console.log('Cambiando opción TRAMO 1 de 7 puntos:', useT1SevenPoints);
     setEvaluationWithLog(prev => {
@@ -625,6 +685,8 @@ export const useEvaluationState = () => {
     addWorker,
     updateWorkerGroup,
     setUseT1SevenPoints,
+    setAutoSave,
+    toggleAccordion,
     updateWorker,
     getVisibleCompetencies: () => {
       const worker = evaluation.workers.find(w => w.id === evaluation.workerId);

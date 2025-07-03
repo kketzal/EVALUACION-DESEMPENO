@@ -14,6 +14,7 @@ export interface Evaluation {
   created_at: string;
   updated_at: string;
   useT1SevenPoints?: boolean;
+  autoSave?: boolean;
 }
 
 export interface CriteriaCheck {
@@ -219,7 +220,7 @@ class ApiService {
     return response.json();
   }
 
-  async updateEvaluationSettings(evaluationId: number, settings: { useT1SevenPoints: boolean }): Promise<void> {
+  async updateEvaluationSettings(evaluationId: number, settings: { useT1SevenPoints?: boolean; autoSave?: boolean }): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

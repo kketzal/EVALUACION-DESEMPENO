@@ -57,6 +57,7 @@ const createTables = () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             useT1SevenPoints BOOLEAN DEFAULT 1,
+            autoSave BOOLEAN DEFAULT 1,
             FOREIGN KEY (worker_id) REFERENCES workers (id)
         )
     `);
@@ -68,6 +69,15 @@ const createTables = () => {
     } catch (error) {
         // El campo ya existe, no hacer nada
         console.log('Campo useT1SevenPoints ya existe en la tabla evaluations');
+    }
+
+    // Migración: agregar autoSave si no existe
+    try {
+        db.exec(`ALTER TABLE evaluations ADD COLUMN autoSave BOOLEAN DEFAULT 1`);
+        console.log('Campo autoSave agregado a la tabla evaluations');
+    } catch (error) {
+        // El campo ya existe, no hacer nada
+        console.log('Campo autoSave ya existe en la tabla evaluations');
     }
 
     // Tabla de criterios evaluados

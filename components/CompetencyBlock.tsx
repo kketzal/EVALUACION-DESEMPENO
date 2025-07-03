@@ -13,6 +13,7 @@ interface CompetencyBlockProps {
   onEvidenceChange: (conductId: string, text: string) => void;
   addFiles: Function;
   removeFile: Function;
+  onToggleAccordion: (conductId: string, isOpen: boolean) => void;
 }
 
 // Define an interface for the export data row to ensure type safety.
@@ -70,10 +71,20 @@ const Tooltip: React.FC<{ content: React.ReactNode; anchorRef: React.RefObject<H
 };
 
 // Accordion mejorado con bombilla y tooltip
-const Accordion: React.FC<{ title: React.ReactNode; open?: boolean; children: React.ReactNode; exampleEvidence?: React.ReactNode }> = ({ title, open = false, children, exampleEvidence }) => {
-  const [isOpen, setIsOpen] = useState(open);
+const Accordion: React.FC<{ 
+  title: React.ReactNode; 
+  open?: boolean; 
+  children: React.ReactNode; 
+  exampleEvidence?: React.ReactNode;
+  onToggle?: (isOpen: boolean) => void;
+}> = ({ title, open = false, children, exampleEvidence, onToggle }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const bulbRef = useRef<HTMLButtonElement>(null);
+
+  const handleToggle = () => {
+    const newState = !open;
+    onToggle?.(newState);
+  };
 
   return (
     <div className="border rounded-lg mb-2 bg-gray-50">
@@ -81,8 +92,8 @@ const Accordion: React.FC<{ title: React.ReactNode; open?: boolean; children: Re
         <button
           type="button"
           className="flex-1 text-left"
-          onClick={() => setIsOpen((v) => !v)}
-          aria-expanded={isOpen}
+          onClick={handleToggle}
+          aria-expanded={open}
         >
           {title}
         </button>
@@ -110,12 +121,12 @@ const Accordion: React.FC<{ title: React.ReactNode; open?: boolean; children: Re
         <button
           type="button"
           className="ml-2"
-          onClick={() => setIsOpen((v) => !v)}
+          onClick={handleToggle}
           tabIndex={-1}
-          aria-label={isOpen ? 'Cerrar' : 'Abrir'}
+          aria-label={open ? 'Cerrar' : 'Abrir'}
         >
           <svg
-            className={`h-5 w-5 transform transition-transform ${isOpen ? 'rotate-90' : ''}`}
+            className={`h-5 w-5 transform transition-transform ${open ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -124,7 +135,13 @@ const Accordion: React.FC<{ title: React.ReactNode; open?: boolean; children: Re
           </svg>
         </button>
       </div>
-      {isOpen && <div className="px-4 pb-4">{children}</div>}
+      <div 
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          open ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="px-4 pb-4">{children}</div>
+      </div>
     </div>
   );
 };
@@ -135,10 +152,35 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
   onCriteriaChange, 
   onEvidenceChange, 
   addFiles, 
-  removeFile 
+  removeFile,
+  onToggleAccordion
 }) => {
   const emptyScore = { t1: null, t2: null, final: 0 };
   const emptyCriteriaChecks: CriteriaCheckState = { t1: [], t2: [] };
+  const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Calcular si todos los accordions están abiertos
+  const allAccordionsOpen = competency.conducts.every(conduct => 
+    evaluation.openAccordions[conduct.id] || false
+  );
+  
+  // Función para expandir/colapsar todos los accordions con animación
+  const handleToggleAllAccordions = () => {
+    const newState = !allAccordionsOpen;
+    setIsAnimating(true);
+    
+    // Aplicar cambios con un pequeño delay para crear efecto cascada
+    competency.conducts.forEach((conduct, index) => {
+      setTimeout(() => {
+        onToggleAccordion(conduct.id, newState);
+      }, index * 50); // 50ms de delay entre cada accordion
+    });
+    
+    // Resetear estado de animación después de completar
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, competency.conducts.length * 50 + 200);
+  };
   
   const handleExportBlock = () => {
     if (!evaluation.workerId) return;
@@ -186,27 +228,55 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
   };
 
   return (
-    <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+    <div>
       <div className="border-b border-gray-200 pb-4 mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">{competency.title}</h2>
           <p className="mt-1 text-sm text-gray-600 italic">{competency.description}</p>
         </div>
-        <button
-          onClick={handleExportBlock}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-        >
-          <DownloadIcon className="h-5 w-5" />
-          <span>Exportar Bloque</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Botón para expandir/colapsar todos los accordions */}
+          <button
+            onClick={handleToggleAllAccordions}
+            disabled={isAnimating}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 transform ${
+              isAnimating 
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 hover:scale-105'
+            }`}
+            title={allAccordionsOpen ? "Colapsar todos los accordions" : "Expandir todos los accordions"}
+          >
+            <svg
+              className={`h-5 w-5 transform transition-transform duration-200 ${
+                isAnimating ? 'animate-spin' : allAccordionsOpen ? 'rotate-180' : ''
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            <span>{isAnimating ? 'Procesando...' : (allAccordionsOpen ? 'Colapsar Todo' : 'Expandir Todo')}</span>
+          </button>
+          
+          {/* Botón de exportar */}
+          <button
+            onClick={handleExportBlock}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 transform hover:scale-105"
+          >
+            <DownloadIcon className="h-5 w-5" />
+            <span>Exportar Bloque</span>
+          </button>
+        </div>
       </div>
       <div className="space-y-2">
         {competency.conducts.map((conduct, idx) => (
           <Accordion
             key={conduct.id}
             title={<span><span className="font-semibold">{conduct.id}.</span> {conduct.description}</span>}
-            open={false}
+            open={evaluation.openAccordions[conduct.id] || false}
             exampleEvidence={conduct.exampleEvidence}
+            onToggle={(isOpen) => onToggleAccordion(conduct.id, isOpen)}
           >
             <ConductRow
               conduct={conduct}

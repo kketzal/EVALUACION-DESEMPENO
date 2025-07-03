@@ -45,6 +45,8 @@ export interface EvaluationState {
   workers: Worker[];
   evaluationId: number | null;
   useT1SevenPoints: boolean;
+  autoSave: boolean;
+  openAccordions: Record<string, boolean>;
   isSaving: boolean;
   lastSavedAt: string | null;
   token?: string | null;

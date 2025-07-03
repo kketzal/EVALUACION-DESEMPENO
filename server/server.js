@@ -149,7 +149,8 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
         res.json({
             evaluation: {
                 ...evaluation,
-                useT1SevenPoints: evaluation.useT1SevenPoints === undefined ? 1 : evaluation.useT1SevenPoints
+                useT1SevenPoints: evaluation.useT1SevenPoints === undefined ? 1 : evaluation.useT1SevenPoints,
+                autoSave: evaluation.autoSave === undefined ? 1 : evaluation.autoSave
             },
             criteriaChecks,
             realEvidence,
@@ -473,16 +474,32 @@ app.post('/api/import-db', upload.single('file'), (req, res) => {
   res.sendStatus(200);
 });
 
-// Guardar configuración de TRAMO 1 (useT1SevenPoints)
+// Guardar configuración de evaluación (useT1SevenPoints y autoSave)
 app.patch('/api/evaluations/:evaluationId/settings', (req, res) => {
     try {
         const { evaluationId } = req.params;
-        const { useT1SevenPoints } = req.body;
-        if (typeof useT1SevenPoints === 'undefined') {
-            return res.status(400).json({ error: 'Falta el campo useT1SevenPoints' });
+        const { useT1SevenPoints, autoSave } = req.body;
+        
+        let setClauses = [];
+        let values = [];
+        
+        if (typeof useT1SevenPoints !== 'undefined') {
+            setClauses.push('useT1SevenPoints = ?');
+            values.push(useT1SevenPoints ? 1 : 0);
         }
-        const stmt = db.prepare('UPDATE evaluations SET useT1SevenPoints = ? WHERE id = ?');
-        stmt.run(useT1SevenPoints ? 1 : 0, evaluationId);
+        
+        if (typeof autoSave !== 'undefined') {
+            setClauses.push('autoSave = ?');
+            values.push(autoSave ? 1 : 0);
+        }
+        
+        if (setClauses.length === 0) {
+            return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
+        }
+        
+        values.push(evaluationId);
+        const stmt = db.prepare(`UPDATE evaluations SET ${setClauses.join(', ')} WHERE id = ?`);
+        stmt.run(...values);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
