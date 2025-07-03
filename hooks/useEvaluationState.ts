@@ -148,7 +148,7 @@ export const useEvaluationState = () => {
             t2: Array(t2Criteria.length).fill(false),
           };
         }
-        criteriaChecks[check.conduct_id][check.tramo as 't1' | 't2'][check.criterion_index] = check.is_checked;
+        criteriaChecks[check.conduct_id][check.tramo as 't1' | 't2'][check.criterion_index] = !!check.is_checked;
       });
 
       // Si no hay criterios guardados, inicializar con TRAMO 1 activado por defecto y calcular puntuación
@@ -200,6 +200,7 @@ export const useEvaluationState = () => {
           name: file.original_name,
           type: file.file_type || '',
           content: '',
+          url: file.url || `/uploads/evidence/${file.name || file.original_name || file.file_name}`,
         };
         files[file.conduct_id].push(fileObject);
         console.log('Archivo agregado al estado:', { conductId: file.conduct_id, file: fileObject });
@@ -412,6 +413,7 @@ export const useEvaluationState = () => {
           name: file.original_name,
           type: file.file_type || '',
           content: '',
+          url: file.url || `/uploads/evidence/${file.name || file.original_name || file.file_name}`,
         }));
         
         console.log('Actualizando estado con archivos:', {

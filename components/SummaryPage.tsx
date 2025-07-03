@@ -1,17 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { EvaluationState, Competency } from '../types';
 import { ReportActions } from './ReportActions';
 import { competencies } from '../data/evaluationData';
-import { FileIcon } from './icons';
+import { FileIcon, TrashIcon } from './icons';
 
 interface SummaryPageProps {
   evaluation: EvaluationState;
   onSave: () => void;
+  onRemoveFile: (conductId: string, fileId: number) => void;
 }
 
-export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave }) => {
+export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, onRemoveFile }) => {
+  const [deleteTarget, setDeleteTarget] = useState<{conductId: string, file: any} | null>(null);
+  const [filesOnDisk, setFilesOnDisk] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/evidence-files-on-disk')
+      .then(res => res.json())
+      .then(data => {
+        setFilesOnDisk(data.files || []);
+      })
+      .catch(() => setFilesOnDisk([]));
+  }, []);
+
   // Contar el total de archivos
   const totalFiles = Object.values(evaluation.files).reduce((sum, files) => sum + files.length, 0);
+
+  // Encuentra archivos en disco que no están en la BD
+  const filesInBD = Object.values(evaluation.files).flat().map(f => (f as any).file_name || f.name);
+  const orphanFilesOnDisk = filesOnDisk.filter(fileName => !filesInBD.includes(fileName));
 
   return (
     <div>
@@ -60,28 +77,55 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave }) 
                             Conducta {conductId}: {conduct?.description}
                           </h5>
                           <ul className="space-y-2">
-                            {files.map(file => (
-                              <li key={file.id} className="flex items-center gap-3 bg-gray-50 p-2 rounded">
-                                <FileIcon className="h-5 w-5 text-gray-400" />
-                                <span className="text-sm text-gray-700 truncate flex-1">
-                                  {file.original_name || file.name}
-                                </span>
-                                {file.url && (
+                            {files.map(file => {
+                              const fileNameOnDisk = (file as any).file_name || file.name;
+                              const existsOnDisk = filesOnDisk.includes(fileNameOnDisk);
+                              const fileUrl = `/uploads/evidence/${fileNameOnDisk}`;
+                              return (
+                                <li key={file.id} className={`flex items-center gap-3 bg-gray-50 p-2 rounded ${!existsOnDisk ? 'opacity-70' : ''}`}>
+                                  <FileIcon className="h-5 w-5 text-gray-400" />
                                   <a
-                                    href={file.url}
+                                    href={existsOnDisk ? fileUrl : undefined}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-indigo-600 hover:text-indigo-800"
-                                    title="Ver archivo"
+                                    className={`text-sm truncate flex-1 ${existsOnDisk ? 'text-gray-700 hover:underline focus:underline' : 'text-red-500 line-through cursor-not-allowed'}`}
+                                    title={existsOnDisk ? 'Ver/Descargar archivo' : 'Archivo no encontrado en servidor'}
+                                    style={{ cursor: existsOnDisk ? 'pointer' : 'not-allowed' }}
+                                    tabIndex={existsOnDisk ? 0 : -1}
+                                    onClick={e => { if (!existsOnDisk) e.preventDefault(); }}
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                    </svg>
+                                    {(file as any).original_name || (file as any).file_name || file.name}
                                   </a>
-                                )}
-                              </li>
-                            ))}
+                                  <a
+                                    href={existsOnDisk ? fileUrl : undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`text-indigo-600 hover:text-indigo-800 relative group flex items-center justify-center ${!existsOnDisk ? 'pointer-events-none opacity-40' : ''}`}
+                                    title={existsOnDisk ? 'Ver/Descargar archivo' : 'Archivo no encontrado en servidor'}
+                                    style={{ minWidth: '2.5rem', cursor: existsOnDisk ? 'pointer' : 'not-allowed' }}
+                                    tabIndex={existsOnDisk ? 0 : -1}
+                                    onClick={e => { if (!existsOnDisk) e.preventDefault(); }}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 rounded bg-gray-900 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-50">{existsOnDisk ? 'Ver/Descargar archivo' : 'Archivo no encontrado en servidor'}</span>
+                                  </a>
+                                  {!existsOnDisk && (
+                                    <span className="text-xs text-red-500 font-semibold ml-2">Archivo no encontrado en servidor</span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="ml-2 text-red-500 hover:text-red-700 p-1 rounded transition"
+                                    title="Eliminar archivo"
+                                    onClick={() => setDeleteTarget({ conductId, file })}
+                                  >
+                                    <TrashIcon className="h-5 w-5" />
+                                  </button>
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       );
@@ -101,6 +145,58 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave }) 
         onSave={onSave}
         isSavable={evaluation.workerId !== null}
       />
+
+      {/* Modal de confirmación para eliminar archivo */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <h4 className="text-lg font-bold text-gray-800 mb-2">¿Eliminar archivo?</h4>
+            <p className="text-gray-600 mb-4">¿Seguro que quieres eliminar <span className='font-semibold'>{(deleteTarget.file as any).original_name || (deleteTarget.file as any).name}</span>?</p>
+            <div className="flex gap-4 justify-center mt-6">
+              <button
+                className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition"
+                onClick={() => setDeleteTarget(null)}
+              >Cancelar</button>
+              <button
+                className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition shadow"
+                onClick={() => {
+                  onRemoveFile(deleteTarget.conductId, deleteTarget.file.id);
+                  setDeleteTarget(null);
+                }}
+              >Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archivos en disco no registrados en la BD */}
+      {orphanFilesOnDisk.length > 0 && (
+        <div className="bg-white shadow-md rounded-xl p-6 mt-8">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Archivos huérfanos en el servidor</h3>
+          <p className="text-sm text-gray-600 mb-4">Estos archivos existen en el servidor pero no están registrados en la base de datos. Puedes eliminarlos físicamente si ya no los necesitas.</p>
+          <ul className="space-y-2">
+            {orphanFilesOnDisk.map(fileName => (
+              <li key={fileName} className="flex items-center gap-3 bg-yellow-50 p-2 rounded">
+                <FileIcon className="h-5 w-5 text-yellow-400" />
+                <span className="text-sm text-yellow-800 flex-1">{fileName}</span>
+                <button
+                  type="button"
+                  className="ml-2 text-red-500 hover:text-red-700 p-1 rounded transition"
+                  title="Eliminar archivo físicamente"
+                  onClick={async () => {
+                    if (window.confirm(`¿Seguro que quieres eliminar el archivo físico '${fileName}' del servidor?`)) {
+                      await fetch(`/api/evidence-files-on-disk?file=${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+                      setFilesOnDisk(filesOnDisk.filter(f => f !== fileName));
+                    }
+                  }}
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

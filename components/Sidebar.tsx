@@ -23,7 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
 
   return (
     <aside
-      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-6 pt-4'} flex flex-col lg:fixed lg:left-0 lg:top-[96px] lg:max-h-[calc(100vh-96px-56px)] lg:overflow-y-auto lg:z-10 ${className || ''}`}
+      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 lg:px-4' : 'lg:p-6 lg:pt-4'} flex flex-col lg:fixed lg:left-0 lg:top-[96px] lg:max-h-[calc(100vh-96px-56px)] lg:overflow-y-auto lg:z-10 ${className || ''}`}
     >
       {/* Título de competencias */}
       <div className="mb-6 px-2">
@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
             <li key={competency.id} className={idx === 0 ? '!mt-0' : ''}>
               <button
                 onClick={() => onCompetencyChange(competency.id)}
-                className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
+                className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
                   activeCompetencyId === competency.id
                     ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25'
                     : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-indigo-50 hover:shadow-md'
@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
       <div className="flex flex-col gap-1">
         <button
           onClick={() => onCompetencyChange('summary')}
-          className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
+          className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'summary'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
               : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-emerald-50 hover:shadow-md'
@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </button>
         <button
           onClick={() => onCompetencyChange('manage-users')}
-          className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
+          className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'manage-users'
               ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25'
               : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:shadow-md'
@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </button>
         <button
           onClick={() => onCompetencyChange('settings')}
-          className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
+          className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'settings'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25'
               : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-amber-50 hover:shadow-md'

@@ -16,6 +16,7 @@ if (!fs.existsSync(evidenceDir)) {
 }
 
 const db = new Database(path.join(__dirname, 'evaluations.db'));
+db.exec('PRAGMA foreign_keys = ON;'); // Activar claves foráneas
 
 // Crear tablas si no existen
 const createTables = () => {
@@ -80,7 +81,14 @@ const createTables = () => {
         console.log('Campo autoSave ya existe en la tabla evaluations');
     }
 
-    // Tabla de criterios evaluados
+    // Forzar recreación de la tabla criteria_checks con clave foránea correcta
+    try {
+        db.exec('DROP TABLE IF EXISTS criteria_checks;');
+        console.log('Tabla criteria_checks eliminada para recreación con clave foránea.');
+    } catch (error) {
+        console.log('No se pudo eliminar criteria_checks:', error);
+    }
+
     db.exec(`
         CREATE TABLE IF NOT EXISTS criteria_checks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

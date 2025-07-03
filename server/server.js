@@ -167,17 +167,36 @@ app.post('/api/evaluations/:evaluationId/criteria', (req, res) => {
     try {
         const { evaluationId } = req.params;
         const { conductId, tramo, criterionIndex, isChecked } = req.body;
-        
+
+        console.log('[CRITERIA SAVE]', { evaluationId, conductId, tramo, criterionIndex, isChecked });
+
         // Eliminar registro existente si existe
-        let stmt = db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ? AND conduct_id = ? AND tramo = ? AND criterion_index = ?');
-        stmt.run(evaluationId, conductId, tramo, criterionIndex);
-        
+        try {
+            let stmt = db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ? AND conduct_id = ? AND tramo = ? AND criterion_index = ?');
+            const delResult = stmt.run(evaluationId, conductId, tramo, criterionIndex);
+            console.log('[CRITERIA DELETE]', delResult);
+        } catch (err) {
+            console.error('[CRITERIA DELETE ERROR]', err);
+        }
+
         // Insertar nuevo registro
-        stmt = db.prepare('INSERT INTO criteria_checks (evaluation_id, conduct_id, tramo, criterion_index, is_checked) VALUES (?, ?, ?, ?, ?)');
-        stmt.run(evaluationId, conductId, tramo, criterionIndex, isChecked);
-        
+        try {
+            let stmt = db.prepare('INSERT INTO criteria_checks (evaluation_id, conduct_id, tramo, criterion_index, is_checked) VALUES (?, ?, ?, ?, ?)');
+            const insResult = stmt.run(
+                evaluationId,
+                conductId,
+                tramo,
+                criterionIndex,
+                isChecked ? 1 : 0
+            );
+            console.log('[CRITERIA INSERT]', insResult);
+        } catch (err) {
+            console.error('[CRITERIA INSERT ERROR]', err);
+        }
+
         res.json({ success: true });
     } catch (error) {
+        console.error('[CRITERIA ERROR]', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -565,6 +584,30 @@ app.patch('/api/evaluations/:evaluationId/settings', (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// Endpoint para listar archivos realmente presentes en disco
+app.get('/api/evidence-files-on-disk', (req, res) => {
+  const evidencePath = path.join(__dirname, 'uploads/evidence');
+  fs.readdir(evidencePath, (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: 'No se pudo leer la carpeta de evidencia.' });
+    }
+    res.json({ files });
+  });
+});
+
+// Endpoint para eliminar un archivo físico huérfano
+app.delete('/api/evidence-files-on-disk', (req, res) => {
+  const fileName = req.query.file;
+  if (!fileName) return res.status(400).json({ error: 'Falta el parámetro file' });
+  const filePath = path.join(__dirname, 'uploads/evidence', fileName);
+  fs.unlink(filePath, err => {
+    if (err) {
+      return res.status(404).json({ error: 'No se pudo eliminar el archivo (¿ya no existe?)' });
+    }
+    res.json({ success: true });
+  });
 });
 
 app.listen(PORT, () => {

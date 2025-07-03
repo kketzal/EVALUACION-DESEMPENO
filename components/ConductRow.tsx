@@ -76,7 +76,7 @@ export const ConductRow: React.FC<ConductRowProps> = ({
                   </div>
                 )}
             </div>
-            
+            <div className="max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-4">
                 <CriteriaList
                     title="TRAMO 1 (NOTA 5-8)"
@@ -98,7 +98,6 @@ export const ConductRow: React.FC<ConductRowProps> = ({
                     titleColor="text-teal-700"
                 />
             </div>
-            
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t pt-4">
                  <div>
                     <label htmlFor={`t1-${conduct.id}`} className="block text-sm font-medium text-indigo-700">Nota T1 (Calculada)</label>
@@ -131,7 +130,6 @@ export const ConductRow: React.FC<ConductRowProps> = ({
                     />
                 </div>
             </div>
-
             <div className="mt-4">
                  <label htmlFor={`evidence-${conduct.id}`} className="block text-sm font-medium text-gray-700">Evidencias Reales Observadas</label>
                 <textarea
@@ -139,9 +137,10 @@ export const ConductRow: React.FC<ConductRowProps> = ({
                     rows={2}
                     value={realEvidence}
                     onChange={(e) => onEvidenceChange(e.target.value)}
-                    className="mt-1 block w-full rounded-md bg-white text-gray-900 border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    className="mt-1 block w-full rounded-md bg-white text-gray-900 border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3"
                     placeholder="Describa aquí las conductas observadas..."
                 />
+            </div>
             </div>
         </div>
     );

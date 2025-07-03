@@ -27,6 +27,7 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const filtered = workers.filter((w: Worker) => w.name.toLowerCase().includes(search.toLowerCase()));
   
   if (!isOpen) return null;
@@ -125,16 +126,31 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Contraseña
               </label>
-              <input
-                type="password"
-                id="password"
-                value={passwordInput}
-                onChange={e => setPasswordInput(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                placeholder="Introduce tu contraseña"
-                autoFocus
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  value={passwordInput}
+                  onChange={e => setPasswordInput(e.target.value)}
+                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 px-4 text-base shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition placeholder-gray-400 pr-12"
+                  placeholder="Introduce tu contraseña"
+                  autoFocus
+                  required
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 focus:outline-none"
+                  onClick={() => setShowPassword(s => !s)}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.402-3.22 1.125-4.575m1.664-2.13A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 2.21-.715 4.25-1.925 5.925M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18M9.88 9.88A3 3 0 0112 9c1.657 0 3 1.343 3 3 0 .53-.138 1.03-.38 1.46M6.1 6.1A9.956 9.956 0 002 12c0 5.523 4.477 10 10 10 1.657 0 3.22-.402 4.575-1.125m2.13-1.664A9.956 9.956 0 0022 12c0-2.21-.715-4.25-1.925-5.925" /></svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             {passwordError && (
@@ -191,6 +207,7 @@ function App() {
   const [isManageUsersModalOpen, setManageUsersModalOpen] = useState(false);
   const [isWorkerSelectorOpen, setWorkerSelectorOpen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarClosing, setSidebarClosing] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
   const [dbLoading, setDbLoading] = React.useState(false);
@@ -198,6 +215,7 @@ function App() {
   const [activePage, setActivePage] = useState<string>('competency');
   const [sessionTimeout, setSessionTimeout] = useState<number>(60);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -614,10 +632,16 @@ function App() {
     event.target.value = '';
   };
 
-  // Cambia la función de cambio de competencia para actualizar activePage
+  const closeSidebar = () => {
+    setSidebarClosing(true);
+    setTimeout(() => {
+      setSidebarOpen(false);
+      setSidebarClosing(false);
+    }, 220); // Duración de la animación
+  };
+
   const handleSidebarChange = (id: string) => {
-    console.log('handleSidebarChange llamado con:', id);
-    
+    if (isSidebarOpen) closeSidebar();
     if (id === 'settings') {
       setActivePage('settings');
       setActiveCompetencyId('settings');
@@ -689,7 +713,7 @@ function App() {
       )}
       {/* Dashboard layout solo si hay trabajador */}
       {evaluation.workerId && (
-        <div className="min-h-screen bg-gray-100 flex flex-col">
+        <div className="min-h-screen bg-gray-100 flex flex-col w-full overflow-x-hidden">
           {/* Header fijo */}
           <Header
             workers={evaluation.workers}
@@ -709,11 +733,11 @@ function App() {
           {/* Sidebar móvil */}
           {isSidebarOpen && (
             <>
-              <div className="fixed inset-0 z-50 bg-black bg-opacity-40" onClick={() => setSidebarOpen(false)} />
-              <aside className="fixed top-0 left-0 z-50 w-64 h-full bg-white shadow-xl flex flex-col animate-slideIn">
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-40" onClick={closeSidebar} />
+              <aside className={`fixed top-0 left-0 z-50 w-64 h-full bg-white shadow-xl flex flex-col ${isSidebarClosing ? 'animate-slideOutFade' : 'animate-slideIn'}`}>
                 <button
                   className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-200"
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={closeSidebar}
                   aria-label="Cerrar menú"
                 >
                   <svg className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -725,7 +749,7 @@ function App() {
                   activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activeCompetencyId}
                   onCompetencyChange={handleSidebarChange}
                   fixedDesktop={false}
-                  onOpenSettings={() => { setManageUsersModalOpen(true); setSidebarOpen(false); }}
+                  onOpenSettings={() => { setManageUsersModalOpen(true); closeSidebar(); }}
                   className="block lg:hidden h-full overflow-y-auto pt-16"
                   handleExportDB={handleExportDB}
                   handleImportDB={handleImportDB}
@@ -735,12 +759,14 @@ function App() {
                 />
               </aside>
               <style>{`
-                @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-                .animate-slideIn { animation: slideIn 0.2s ease; }
+                @keyframes slideIn { from { transform: translateX(-100%); opacity: 0.7; } to { transform: translateX(0); opacity: 1; } }
+                @keyframes slideOutFade { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-100%); opacity: 0; } }
+                .animate-slideIn { animation: slideIn 0.22s cubic-bezier(0.4,0,0.2,1); }
+                .animate-slideOutFade { animation: slideOutFade 0.22s cubic-bezier(0.4,0,0.2,1); }
               `}</style>
             </>
           )}
-          <div className="flex flex-col lg:flex-row flex-1 min-h-0 w-full">
+          <div className="flex flex-col lg:flex-row flex-1 w-full pt-[96px]">
             {/* Sidebar fijo desktop */}
             <Sidebar
               competencies={visibleCompetencies}
@@ -748,7 +774,7 @@ function App() {
               onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
               onOpenSettings={() => setManageUsersModalOpen(true)}
-              className="hidden lg:block lg:fixed lg:left-0 lg:top-[64px] lg:w-80 lg:max-h-[calc(100vh-64px-56px)] lg:overflow-y-auto lg:z-30"
+              className="hidden lg:block lg:fixed lg:left-0 lg:top-[64px] lg:bottom-[56px] lg:w-80 lg:h-auto lg:z-30"
               handleExportDB={handleExportDB}
               handleImportDB={handleImportDB}
               fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
@@ -756,7 +782,7 @@ function App() {
               dbMessage={dbMessage}
             />
             {/* Main content */}
-            <main className="flex-1 min-h-0 pt-0 lg:pl-80 lg:pt-[96px] pb-[56px] overflow-y-auto">
+            <main className="flex-1 w-full pt-0 lg:pl-80 lg:pt-[96px] pb-56">
               {activePage === 'settings' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
                   <SettingsPage
@@ -775,7 +801,7 @@ function App() {
                 </div>
               ) : activePage === 'summary' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
-                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
+                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} onRemoveFile={removeFile} />
                 </div>
               ) : activePage === 'manage-users' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
@@ -812,8 +838,8 @@ function App() {
               )}
             </main>
           </div>
-          {/* Footer fijo */}
-          <footer className="fixed bottom-0 left-0 right-0 z-40 w-full py-4 bg-gradient-to-r from-gray-50 to-indigo-50 border-t border-gray-200 text-center text-xs text-gray-500 shadow-inner">
+          {/* Footer fijo solo en escritorio, estático en móvil */}
+          <footer className="w-full py-4 bg-gradient-to-r from-gray-50 to-indigo-50 border-t border-gray-200 text-center text-xs text-gray-500 shadow-inner lg:fixed lg:bottom-0 lg:left-0 lg:right-0 lg:z-40">
             © {new Date().getFullYear()} Desarrollado para el Servicio Central de Apoyo a la Investigación (SCAI) - Universidad de Córdoba. Todos los derechos reservados.
           </footer>
         </div>

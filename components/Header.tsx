@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 w-full lg:sticky lg:top-0 lg:z-10">
+    <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm border-b border-gray-200">
       {/* MOBILE: Rediseño completo */}
       <div className="lg:hidden px-4 py-3 border-b border-gray-100">
         {/* Fila 1: Logos y título a la izquierda */}
@@ -75,14 +75,6 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={onAddWorkerClick}
-              className="inline-flex items-center justify-center p-2 text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-              aria-label="Nuevo Trabajador"
-              title="Añadir nuevo trabajador"
-            >
-              <UserPlusIcon className="h-5 w-5" />
-            </button>
             <button
               type="button"
               onClick={onChangeWorkerClick}
@@ -200,14 +192,6 @@ export const Header: React.FC<HeaderProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Cambiar trabajador
-          </button>
-          <button
-            onClick={onAddWorkerClick}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-            title="Añadir nuevo trabajador"
-          >
-            <UserPlusIcon className="h-4 w-4" />
-            <span>Nuevo Trabajador</span>
           </button>
           <button
             onClick={onExitApp}
