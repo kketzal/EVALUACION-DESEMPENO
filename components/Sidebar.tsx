@@ -23,7 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
 
   return (
     <aside
-      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-6 pt-10'} flex flex-col lg:fixed lg:left-0 lg:top-[96px] lg:max-h-[calc(100vh-96px-56px)] lg:overflow-y-auto lg:z-10 ${className || ''}`}
+      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-6 pt-4'} flex flex-col lg:fixed lg:left-0 lg:top-[96px] lg:max-h-[calc(100vh-96px-56px)] lg:overflow-y-auto lg:z-10 ${className || ''}`}
     >
       {/* Título de competencias */}
       <div className="mb-6 px-2">
@@ -106,32 +106,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </button>
         <button
           onClick={() => onCompetencyChange('manage-users')}
-          className="group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:shadow-md"
+          className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
+            activeCompetencyId === 'manage-users'
+              ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25'
+              : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-blue-50 hover:shadow-md'
+          }`}
         >
-          <div className="w-7 h-7 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
-            <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+            activeCompetencyId === 'manage-users'
+              ? 'bg-white/20'
+              : 'bg-blue-100 group-hover:bg-blue-200'
+          }`}>
+            <svg className={`w-3.5 h-3.5 ${
+              activeCompetencyId === 'manage-users'
+                ? 'text-white'
+                : 'text-blue-600'
+            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
             </svg>
           </div>
-          <span className="text-sm font-medium">Gestionar usuarios</span>
+          <span className={`text-sm font-medium ${
+            activeCompetencyId === 'manage-users'
+              ? 'text-white'
+              : 'text-slate-700'
+          }`}>
+            Gestionar usuarios
+          </span>
         </button>
         <button
           onClick={() => onCompetencyChange('settings')}
           className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'settings'
-              ? 'bg-gradient-to-r from-yellow-400 to-yellow-200 text-white shadow-lg shadow-yellow-400/25'
-              : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-yellow-50 hover:shadow-md'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25'
+              : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-amber-50 hover:shadow-md'
           }`}
         >
           <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
             activeCompetencyId === 'settings'
               ? 'bg-white/20'
-              : 'bg-yellow-100 group-hover:bg-yellow-200'
+              : 'bg-amber-100 group-hover:bg-amber-200'
           }`}>
             <svg className={`w-4 h-4 ${
               activeCompetencyId === 'settings'
                 ? 'text-white'
-                : 'text-yellow-600'
+                : 'text-amber-600'
             }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
