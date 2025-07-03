@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10 w-full">
+    <header className="bg-white shadow-sm border-b border-gray-200 w-full lg:sticky lg:top-0 lg:z-10">
       {/* MOBILE: Rediseño completo */}
       <div className="lg:hidden px-4 py-3 border-b border-gray-100">
         {/* Fila 1: Logos y título a la izquierda */}

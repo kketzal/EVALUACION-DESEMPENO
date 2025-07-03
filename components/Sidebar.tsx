@@ -23,7 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
 
   return (
     <aside
-      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-6 pt-10'} flex flex-col fixed left-0 top-[64px] max-h-[calc(100vh-64px-56px)] overflow-y-auto z-30 ${className || ''}`}
+      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-6 pt-10'} flex flex-col lg:fixed lg:left-0 lg:top-[96px] lg:max-h-[calc(100vh-96px-56px)] lg:overflow-y-auto lg:z-10 ${className || ''}`}
     >
       {/* Título de competencias */}
       <div className="mb-6 px-2">

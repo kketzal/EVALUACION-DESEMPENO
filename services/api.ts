@@ -13,6 +13,7 @@ export interface Evaluation {
   period: string;
   created_at: string;
   updated_at: string;
+  useT1SevenPoints?: boolean;
 }
 
 export interface CriteriaCheck {
@@ -216,6 +217,15 @@ class ApiService {
       return { success: false };
     }
     return response.json();
+  }
+
+  async updateEvaluationSettings(evaluationId: number, settings: { useT1SevenPoints: boolean }): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) throw new Error('Error al guardar configuración de evaluación');
   }
 }
 

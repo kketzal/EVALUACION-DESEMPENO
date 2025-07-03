@@ -121,7 +121,7 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
             // Crear nueva evaluación si no existe
             stmt = db.prepare('INSERT INTO evaluations (worker_id, period) VALUES (?, ?)');
             const result = stmt.run(workerId, period);
-            evaluation = { id: result.lastInsertRowid, worker_id: workerId, period };
+            evaluation = { id: result.lastInsertRowid, worker_id: workerId, period, useT1SevenPoints: 1 };
         }
         
         // Obtener criterios
@@ -147,7 +147,10 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
         const scores = stmt.all(evaluation.id);
         
         res.json({
-            evaluation,
+            evaluation: {
+                ...evaluation,
+                useT1SevenPoints: evaluation.useT1SevenPoints === undefined ? 1 : evaluation.useT1SevenPoints
+            },
             criteriaChecks,
             realEvidence,
             evidenceFiles: evidenceFilesWithUrl,
@@ -468,6 +471,22 @@ app.get('/api/export-db', (req, res) => {
 app.post('/api/import-db', upload.single('file'), (req, res) => {
   fs.copyFileSync(req.file.path, path.join(__dirname, 'uploads', 'database.sqlite'));
   res.sendStatus(200);
+});
+
+// Guardar configuración de TRAMO 1 (useT1SevenPoints)
+app.patch('/api/evaluations/:evaluationId/settings', (req, res) => {
+    try {
+        const { evaluationId } = req.params;
+        const { useT1SevenPoints } = req.body;
+        if (typeof useT1SevenPoints === 'undefined') {
+            return res.status(400).json({ error: 'Falta el campo useT1SevenPoints' });
+        }
+        const stmt = db.prepare('UPDATE evaluations SET useT1SevenPoints = ? WHERE id = ?');
+        stmt.run(useT1SevenPoints ? 1 : 0, evaluationId);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(PORT, () => {

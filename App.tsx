@@ -505,25 +505,23 @@ function App() {
       )}
       {/* Dashboard layout solo si hay trabajador */}
       {evaluation.workerId && (
-        <div className="flex flex-col min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-100 flex flex-col">
           {/* Header fijo */}
-          <div className="fixed top-0 left-0 right-0 z-40">
-            <Header
-              workers={evaluation.workers}
-              selectedWorkerId={evaluation.workerId}
-              onWorkerChange={handleWorkerChange}
-              onChangeWorkerClick={() => setWorkerSelectorOpen(true)}
-              period={evaluation.period}
-              onPeriodChange={handlePeriodChange}
-              onAddWorkerClick={() => setAddWorkerModalOpen(true)}
-              onExitApp={handleExitApp}
-              useT1SevenPoints={evaluation.useT1SevenPoints}
-              onT1SevenPointsChange={setUseT1SevenPoints}
-              isSaving={evaluation.isSaving}
-              lastSavedAt={evaluation.lastSavedAt}
-              onHamburgerClick={() => setSidebarOpen(true)}
-            />
-          </div>
+          <Header
+            workers={evaluation.workers}
+            selectedWorkerId={evaluation.workerId}
+            onWorkerChange={handleWorkerChange}
+            onChangeWorkerClick={() => setWorkerSelectorOpen(true)}
+            period={evaluation.period}
+            onPeriodChange={handlePeriodChange}
+            onAddWorkerClick={() => setAddWorkerModalOpen(true)}
+            onExitApp={handleExitApp}
+            useT1SevenPoints={evaluation.useT1SevenPoints}
+            onT1SevenPointsChange={setUseT1SevenPoints}
+            isSaving={evaluation.isSaving}
+            lastSavedAt={evaluation.lastSavedAt}
+            onHamburgerClick={() => setSidebarOpen(true)}
+          />
           {/* Sidebar móvil */}
           {isSidebarOpen && (
             <>
@@ -558,7 +556,7 @@ function App() {
               `}</style>
             </>
           )}
-          <div className="flex flex-row flex-1 min-h-0 w-full">
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0 w-full">
             {/* Sidebar fijo desktop */}
             <Sidebar
               competencies={visibleCompetencies}
@@ -566,7 +564,7 @@ function App() {
               onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
               onOpenSettings={() => setManageUsersModalOpen(true)}
-              className="hidden lg:block fixed left-0 top-[64px] w-80 max-h-[calc(100vh-64px-56px)] overflow-y-auto z-30"
+              className="hidden lg:block lg:fixed lg:left-0 lg:top-[64px] lg:w-80 lg:max-h-[calc(100vh-64px-56px)] lg:overflow-y-auto lg:z-30"
               handleExportDB={handleExportDB}
               handleImportDB={handleImportDB}
               fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
@@ -574,7 +572,7 @@ function App() {
               dbMessage={dbMessage}
             />
             {/* Main content */}
-            <main className="flex-1 min-h-0 pt-14 lg:ml-80 lg:pt-[112px] pb-[56px] overflow-y-auto">
+            <main className="flex-1 min-h-0 pt-0 lg:pl-80 lg:pt-[96px] pb-[56px] overflow-y-auto">
               {activePage === 'settings' ? (
                 <SettingsPage
                   sessionTimeout={sessionTimeout}
@@ -593,7 +591,7 @@ function App() {
                 <CompetencyBlock
                   competency={activeCompetency}
                   evaluation={evaluation}
-                  onCriteriaChange={updateCriteriaCheck}
+                  onCriteriaChange={(conductId, tramo, index, isChecked) => updateCriteriaCheck(conductId, tramo, index, isChecked)}
                   onEvidenceChange={updateRealEvidence}
                   addFiles={addFiles}
                   removeFile={removeFile}

@@ -56,9 +56,19 @@ const createTables = () => {
             period TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            useT1SevenPoints BOOLEAN DEFAULT 1,
             FOREIGN KEY (worker_id) REFERENCES workers (id)
         )
     `);
+
+    // Migración: agregar useT1SevenPoints si no existe
+    try {
+        db.exec(`ALTER TABLE evaluations ADD COLUMN useT1SevenPoints BOOLEAN DEFAULT 1`);
+        console.log('Campo useT1SevenPoints agregado a la tabla evaluations');
+    } catch (error) {
+        // El campo ya existe, no hacer nada
+        console.log('Campo useT1SevenPoints ya existe en la tabla evaluations');
+    }
 
     // Tabla de criterios evaluados
     db.exec(`

@@ -186,7 +186,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
   };
 
   return (
-    <div className="bg-white shadow-md rounded-xl p-6 mb-8">
+    <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
       <div className="border-b border-gray-200 pb-4 mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">{competency.title}</h2>

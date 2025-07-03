@@ -67,8 +67,11 @@ export const useEvaluationState = () => {
   const setEvaluationWithLog = (updater: (prev: EvaluationState) => EvaluationState) => {
     setEvaluation((prev: EvaluationState) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      console.log('setEvaluation called:', { prev, next });
-      return next;
+      // Clon profundo de criteriaChecks para forzar re-render
+      const deepClonedCriteriaChecks = JSON.parse(JSON.stringify(next.criteriaChecks));
+      const nextWithClone = { ...next, criteriaChecks: deepClonedCriteriaChecks };
+      console.log('setEvaluation called:', { prev, next: nextWithClone });
+      return nextWithClone;
     });
   };
 
@@ -150,11 +153,17 @@ export const useEvaluationState = () => {
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
           if (!criteriaChecks[conduct.id]) {
-            const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
-            criteriaChecks[conduct.id] = {
-              t1: Array(t1CriteriaToUse.length).fill(true), // TRAMO 1 activado por defecto
-              t2: Array(t2Criteria.length).fill(false),
-            };
+            if (evaluation.useT1SevenPoints) {
+              criteriaChecks[conduct.id] = {
+                t1: [true, true, true, false],
+                t2: Array(t2Criteria.length).fill(false),
+              };
+            } else {
+              criteriaChecks[conduct.id] = {
+                t1: Array(t1Criteria.length).fill(true),
+                t2: Array(t2Criteria.length).fill(false),
+              };
+            }
             // Calcular y guardar la puntuación inicial
             scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
           } else {
@@ -219,6 +228,7 @@ export const useEvaluationState = () => {
           scores,
           files,
           period: periodToUse,
+          useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
         };
         
         console.log('Estado actualizado después de cargar evaluación:', {
@@ -249,77 +259,69 @@ export const useEvaluationState = () => {
 
   const updateCriteriaCheck = useCallback(async (conductId: string, tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => {
     if (!evaluation.evaluationId) return;
-
     console.log('updateCriteriaCheck called:', { conductId, tramo, criterionIndex, isChecked });
+    setEvaluationWithLog(prev => {
+      console.log('Antes de updateCriteriaCheck, criteriaChecks:', JSON.stringify(prev.criteriaChecks));
+      // Obtener el estado actual de criterios para esta conducta
+      const currentConductChecks = prev.criteriaChecks[conductId] || {
+        t1: Array(evaluation.useT1SevenPoints ? t1Criteria7Points.length : t1Criteria.length).fill(false),
+        t2: Array(t2Criteria.length).fill(false)
+      };
+      
+      // Crear una copia profunda del estado
+      const newCriteriaChecks = { ...prev.criteriaChecks };
+      const newConductChecks = {
+        t1: [...currentConductChecks.t1],
+        t2: [...currentConductChecks.t2]
+      };
+      
+      // Actualizar el criterio específico
+      newConductChecks[tramo][criterionIndex] = isChecked;
+      newCriteriaChecks[conductId] = newConductChecks;
+      
+      // Calcular nueva puntuación
+      const newScore = calculateScores(newConductChecks, evaluation.useT1SevenPoints);
+      const newScores = {
+        ...prev.scores,
+        [conductId]: newScore
+      };
+      
+      console.log('Después de updateCriteriaCheck, criteriaChecks:', JSON.stringify(newCriteriaChecks));
+      
+      return {
+        ...prev,
+        criteriaChecks: newCriteriaChecks,
+        scores: newScores
+      };
+    });
 
-    try {
-      // Actualizar el estado inmediatamente para UI responsiva
-      setEvaluationWithLog(prev => {
-        console.log('Updating state for:', conductId, 'tramo:', tramo, 'index:', criterionIndex, 'checked:', isChecked);
-        
-        // Obtener el estado actual de criterios para esta conducta
-        const currentConductChecks = prev.criteriaChecks[conductId] || {
-          t1: Array(evaluation.useT1SevenPoints ? t1Criteria7Points.length : t1Criteria.length).fill(false),
-          t2: Array(t2Criteria.length).fill(false)
-        };
-        
-        // Crear una copia profunda del estado
-        const newCriteriaChecks = { ...prev.criteriaChecks };
-        const newConductChecks = {
-          t1: [...currentConductChecks.t1],
-          t2: [...currentConductChecks.t2]
-        };
-        
-        // Actualizar el criterio específico
-        newConductChecks[tramo][criterionIndex] = isChecked;
-        newCriteriaChecks[conductId] = newConductChecks;
-        
-        // Calcular nueva puntuación
-        const newScore = calculateScores(newConductChecks, evaluation.useT1SevenPoints);
-        const newScores = {
-          ...prev.scores,
-          [conductId]: newScore
-        };
-        
-        console.log('New state calculated:', { newConductChecks, newScore });
-        
-        return {
-          ...prev,
-          criteriaChecks: newCriteriaChecks,
-          scores: newScores
-        };
-      });
+    // Guardar en la API de forma asíncrona
+    await apiService.saveCriteria(evaluation.evaluationId, {
+      conductId,
+      tramo,
+      criterionIndex,
+      isChecked,
+    });
 
-      // Guardar en la API de forma asíncrona
-      await apiService.saveCriteria(evaluation.evaluationId, {
+    // Guardar puntuación actualizada
+    const currentConductChecks = evaluation.criteriaChecks[conductId];
+    if (currentConductChecks) {
+      const updatedConductChecks = {
+        ...currentConductChecks,
+        [tramo]: [
+          ...currentConductChecks[tramo].slice(0, criterionIndex),
+          isChecked,
+          ...currentConductChecks[tramo].slice(criterionIndex + 1)
+        ]
+      };
+      const newScore = calculateScores(updatedConductChecks, evaluation.useT1SevenPoints);
+      
+      await apiService.saveScore(evaluation.evaluationId, {
         conductId,
-        tramo,
-        criterionIndex,
-        isChecked,
+        t1Score: newScore.t1,
+        t2Score: newScore.t2,
+        finalScore: newScore.final,
       });
-
-      // Guardar puntuación actualizada
-      const currentConductChecks = evaluation.criteriaChecks[conductId];
-      if (currentConductChecks) {
-        const updatedConductChecks = {
-          ...currentConductChecks,
-          [tramo]: [
-            ...currentConductChecks[tramo].slice(0, criterionIndex),
-            isChecked,
-            ...currentConductChecks[tramo].slice(criterionIndex + 1)
-          ]
-        };
-        const newScore = calculateScores(updatedConductChecks, evaluation.useT1SevenPoints);
-        
-        await apiService.saveScore(evaluation.evaluationId, {
-          conductId,
-          t1Score: newScore.t1,
-          t2Score: newScore.t2,
-          finalScore: newScore.final,
-        });
-      }
-    } catch (error) {
-      console.error('Error al guardar criterio:', error);
     }
   }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints]);
 
@@ -507,32 +509,45 @@ export const useEvaluationState = () => {
 
   const setUseT1SevenPoints = useCallback(async (useT1SevenPoints: boolean) => {
     console.log('Cambiando opción TRAMO 1 de 7 puntos:', useT1SevenPoints);
-    
     setEvaluationWithLog(prev => {
+      console.log('Antes de cambiar TRAMO 1, criteriaChecks:', JSON.stringify(prev.criteriaChecks));
       // Actualizar la opción
       const newState = {
         ...prev,
         useT1SevenPoints
       };
 
-      // Si se activa la opción de 7 puntos, desactivar automáticamente el 4º criterio de todas las conductas
-      // Si se desactiva la opción de 7 puntos, activar automáticamente todos los criterios del TRAMO 1
+      // Si se activa la opción de 7 puntos, activar los tres primeros criterios y desactivar el cuarto de todas las conductas
+      // Si se desactiva la opción de 7 puntos, activar todos los criterios del TRAMO 1
       const newCriteriaChecks: Record<string, CriteriaCheckState> = {};
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
           const currentChecks = prev.criteriaChecks[conduct.id];
           if (currentChecks) {
             if (useT1SevenPoints) {
-              // Desactivar automáticamente el 4º criterio (index 3) cuando se activa la opción de 7 puntos
+              // Activar los tres primeros criterios, desactivar el cuarto
               newCriteriaChecks[conduct.id] = {
-                t1: [...currentChecks.t1.slice(0, 3), false, ...currentChecks.t1.slice(4)],
+                t1: [true, true, true, false],
                 t2: [...currentChecks.t2]
               };
             } else {
-              // Activar automáticamente todos los criterios del TRAMO 1 cuando se desactiva la opción de 7 puntos
+              // Activar todos los criterios del TRAMO 1
               newCriteriaChecks[conduct.id] = {
-                t1: Array(t1Criteria.length).fill(true), // Todos los criterios del TRAMO 1 activados
-                t2: [...currentChecks.t2] // Mantener el estado del TRAMO 2
+                t1: Array(t1Criteria.length).fill(true),
+                t2: [...currentChecks.t2]
+              };
+            }
+          } else {
+            // Si no hay estado previo, inicializar según la opción
+            if (useT1SevenPoints) {
+              newCriteriaChecks[conduct.id] = {
+                t1: [true, true, true, false],
+                t2: Array(t2Criteria.length).fill(false)
+              };
+            } else {
+              newCriteriaChecks[conduct.id] = {
+                t1: Array(t1Criteria.length).fill(true),
+                t2: Array(t2Criteria.length).fill(false)
               };
             }
           }
@@ -550,6 +565,7 @@ export const useEvaluationState = () => {
         }
       }
 
+      console.log('Después de cambiar TRAMO 1, criteriaChecks:', JSON.stringify(newCriteriaChecks));
       return {
         ...newState,
         criteriaChecks: newCriteriaChecks,
@@ -557,11 +573,11 @@ export const useEvaluationState = () => {
       };
     });
 
-    // Si hay una evaluación activa, guardar la nueva configuración en la base de datos
+    // Guardar en la API el valor de useT1SevenPoints si hay evaluación activa
     if (evaluation.evaluationId) {
       try {
-        // Aquí podrías guardar la configuración en la base de datos si es necesario
-        console.log('Configuración de TRAMO 1 actualizada');
+        await apiService.updateEvaluationSettings(evaluation.evaluationId, { useT1SevenPoints });
+        console.log('Configuración de TRAMO 1 actualizada en la base de datos');
       } catch (error) {
         console.error('Error al guardar configuración:', error);
       }

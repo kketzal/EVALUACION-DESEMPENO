@@ -55,9 +55,9 @@ export const ConductRow: React.FC<ConductRowProps> = ({
 }) => {
     // Siempre usar los 4 criterios originales para mostrar
     const t1CriteriaToUse = t1Criteria;
-    
-    // Usar los checks tal como están, sin forzar el 4º criterio a false
-    const t1Checks = criteriaChecks.t1;
+    // Asegura que t1Checks y t2Checks sean arrays de longitud correcta y sin undefined
+    const t1Checks = Array(4).fill(false).map((_, i) => criteriaChecks.t1 && typeof criteriaChecks.t1[i] === 'boolean' ? criteriaChecks.t1[i] : false);
+    const t2Checks = Array(3).fill(false).map((_, i) => criteriaChecks.t2 && typeof criteriaChecks.t2[i] === 'boolean' ? criteriaChecks.t2[i] : false);
 
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border border-gray-200">
@@ -91,7 +91,7 @@ export const ConductRow: React.FC<ConductRowProps> = ({
                  <CriteriaList
                     title="TRAMO 2 (NOTA 9-10)"
                     criteria={t2Criteria}
-                    checks={criteriaChecks.t2}
+                    checks={t2Checks}
                     conductId={conduct.id}
                     tramo="t2"
                     onCriteriaChange={onCriteriaChange}
