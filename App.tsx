@@ -199,6 +199,50 @@ function App() {
   const [sessionTimeout, setSessionTimeout] = useState<number>(60);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+  // Sincronizar timeout con el servidor
+  useEffect(() => {
+    const fetchTimeout = async () => {
+      try {
+        const res = await fetch('/api/settings/session-timeout');
+        const data = await res.json();
+        setSessionTimeout(data.timeout || 60);
+      } catch (error) {
+        console.error('Error al obtener timeout:', error);
+      }
+    };
+    fetchTimeout();
+  }, []);
+
+  // Establecer la primera competencia activa cuando se carguen los workers
+  useEffect(() => {
+    console.log('Efecto de inicialización:', {
+      workerId: evaluation.workerId,
+      workersLength: evaluation.workers.length,
+      activeCompetencyId,
+      activePage,
+      loadingSession
+    });
+    
+    // Solo ejecutar si hay un trabajador seleccionado, workers cargados, no estamos cargando la sesión, y no estamos en una página especial
+    if (evaluation.workerId && evaluation.workers.length > 0 && !loadingSession && 
+        activePage !== 'settings' && activePage !== 'summary' && activePage !== 'manage-users') {
+      const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
+      console.log('Worker encontrado:', worker);
+      
+      if (worker) {
+        const visibleCompetencies = getVisibleCompetencies(worker.worker_group ?? null);
+        console.log('Competencias visibles:', visibleCompetencies);
+        
+        // Si no hay competencia activa válida, establecer la primera
+        if (visibleCompetencies.length > 0 && (!activeCompetencyId || activeCompetencyId === 'B' || !visibleCompetencies.find(c => c.id === activeCompetencyId))) {
+          console.log('Estableciendo primera competencia:', visibleCompetencies[0].id);
+          setActiveCompetencyId(visibleCompetencies[0].id);
+          setActivePage('competency');
+        }
+      }
+    }
+  }, [evaluation.workerId, evaluation.workers, loadingSession, activeCompetencyId, activePage]);
+
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
     await setWorkerId(workerId);
@@ -259,14 +303,45 @@ function App() {
   const currentWorker = evaluation.workers.find(w => w.id === evaluation.workerId);
 
   const visibleCompetencies = useMemo(() => {
-    console.log('currentWorker:', currentWorker);
-    console.log('currentWorker.worker_group:', currentWorker?.worker_group);
-    return getVisibleCompetencies(currentWorker?.worker_group ?? null);
+    console.log('Calculando competencias visibles:', {
+      currentWorker,
+      workerGroup: currentWorker?.worker_group,
+      evaluationWorkerId: evaluation.workerId,
+      workersLength: evaluation.workers.length
+    });
+    const competencies = getVisibleCompetencies(currentWorker?.worker_group ?? null);
+    console.log('Competencias visibles resultantes:', competencies);
+    return competencies;
   }, [evaluation.workerId, evaluation.workers]);
-  const activeCompetency = useMemo(
-    () => visibleCompetencies.find(c => c.id === activeCompetencyId),
-    [activeCompetencyId, visibleCompetencies]
-  );
+  
+  const activeCompetency = useMemo(() => {
+    console.log('Calculando competencia activa:', {
+      activeCompetencyId,
+      activePage,
+      visibleCompetencies: visibleCompetencies.map(c => c.id),
+      found: visibleCompetencies.find(c => c.id === activeCompetencyId)
+    });
+    
+    // Si estamos en una página especial, no buscar competencias
+    if (activePage === 'settings' || activePage === 'summary' || activePage === 'manage-users') {
+      console.log('En página especial, no estableciendo competencia activa');
+      return undefined;
+    }
+    
+    // Si no hay competencia activa válida y hay competencias visibles, usar la primera
+    const found = visibleCompetencies.find(c => c.id === activeCompetencyId);
+    if (!found && visibleCompetencies.length > 0 && evaluation.workerId && !loadingSession && activePage === 'competency') {
+      console.log('No se encontró competencia activa, usando la primera:', visibleCompetencies[0].id);
+      // Usar setTimeout para evitar actualizaciones durante el render
+      setTimeout(() => {
+        setActiveCompetencyId(visibleCompetencies[0].id);
+        setActivePage('competency');
+      }, 0);
+      return visibleCompetencies[0];
+    }
+    
+    return found;
+  }, [activeCompetencyId, activePage, visibleCompetencies, evaluation.workerId, loadingSession]);
 
   // Cambiar periodo y recargar evaluación
   const handlePeriodChange = async (newPeriod: string) => {
@@ -286,12 +361,27 @@ function App() {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
     let timeoutMinutes = 60;
+    let isLoggingOut = false;
 
     const logoutByTimeout = () => {
+      if (isLoggingOut) return; // Evitar múltiples logout
+      isLoggingOut = true;
+      
       localStorage.removeItem('sessionToken');
-      setWorkerId(null);
+      setWorkerSession({ workerId: null, token: null });
       setActiveCompetencyId('B');
-      alert('Sesión cerrada por inactividad.');
+      
+      // Mostrar mensaje más elegante en lugar de alert
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded shadow-lg text-white bg-red-600 animate-fade-in-up';
+      messageDiv.textContent = 'Sesión cerrada por inactividad';
+      document.body.appendChild(messageDiv);
+      
+      setTimeout(() => {
+        if (messageDiv.parentNode) {
+          messageDiv.parentNode.removeChild(messageDiv);
+        }
+      }, 3000);
     };
 
     const updateActivity = () => {
@@ -333,7 +423,7 @@ function App() {
         updateActivity();
       } catch {
         localStorage.removeItem('sessionToken');
-        setWorkerId(null);
+        setWorkerSession({ workerId: null, token: null });
         setActiveCompetencyId('B');
       }
       setLoadingSession(false);
@@ -526,11 +616,36 @@ function App() {
 
   // Cambia la función de cambio de competencia para actualizar activePage
   const handleSidebarChange = (id: string) => {
+    console.log('handleSidebarChange llamado con:', id);
+    
     if (id === 'settings') {
       setActivePage('settings');
+      setActiveCompetencyId('settings');
+    } else if (id === 'summary') {
+      setActivePage('summary');
+      setActiveCompetencyId('summary');
+    } else if (id === 'manage-users') {
+      setActivePage('manage-users');
+      setActiveCompetencyId('manage-users');
     } else {
       setActivePage('competency');
       setActiveCompetencyId(id);
+    }
+  };
+
+  // Función para actualizar el timeout de sesión
+  const handleSessionTimeoutChange = async (timeout: number) => {
+    try {
+      const response = await fetch('/api/settings/session-timeout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeout })
+      });
+      if (response.ok) {
+        setSessionTimeout(timeout);
+      }
+    } catch (error) {
+      console.error('Error al actualizar timeout:', error);
     }
   };
 
@@ -607,7 +722,7 @@ function App() {
                 </button>
                 <Sidebar
                   competencies={visibleCompetencies}
-                  activeCompetencyId={activeCompetencyId}
+                  activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activeCompetencyId}
                   onCompetencyChange={handleSidebarChange}
                   fixedDesktop={false}
                   onOpenSettings={() => { setManageUsersModalOpen(true); setSidebarOpen(false); }}
@@ -629,7 +744,7 @@ function App() {
             {/* Sidebar fijo desktop */}
             <Sidebar
               competencies={visibleCompetencies}
-              activeCompetencyId={activePage === 'settings' ? 'settings' : activeCompetencyId}
+              activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activeCompetencyId}
               onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
               onOpenSettings={() => setManageUsersModalOpen(true)}
@@ -646,7 +761,7 @@ function App() {
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
                   <SettingsPage
                     sessionTimeout={sessionTimeout}
-                    onSessionTimeoutChange={setSessionTimeout}
+                    onSessionTimeoutChange={handleSessionTimeoutChange}
                     handleExportDB={handleExportDB}
                     handleImportDB={handleImportDB}
                     fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
@@ -658,7 +773,11 @@ function App() {
                     onAutoSaveChange={setAutoSave}
                   />
                 </div>
-              ) : activeCompetencyId === 'manage-users' ? (
+              ) : activePage === 'summary' ? (
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
+                </div>
+              ) : activePage === 'manage-users' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
                   <ManageUsersPanel currentWorker={currentWorker ?? null} />
                 </div>
@@ -675,8 +794,20 @@ function App() {
                   />
                 </div>
               ) : (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
-                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} />
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px] flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">
+                      Cargando competencias... 
+                      <br />
+                      <span className="text-xs text-gray-400">
+                        Worker: {evaluation.workerId} | 
+                        Active: {activeCompetencyId} | 
+                        Page: {activePage} |
+                        Visible: {visibleCompetencies.length}
+                      </span>
+                    </p>
+                  </div>
                 </div>
               )}
             </main>
