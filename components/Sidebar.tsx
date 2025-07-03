@@ -11,15 +11,24 @@ interface SidebarProps {
   fixedDesktop?: boolean;
   onOpenSettings?: () => void;
   className?: string;
+  handleExportDB: () => void;
+  handleImportDB: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  dbLoading?: boolean;
+  dbMessage?: string | null;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, className }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, className, handleExportDB, handleImportDB, fileInputRef, dbLoading = false, dbMessage }) => {
   const [isTimeoutModalOpen, setTimeoutModalOpen] = React.useState(false);
 
   return (
     <aside
-      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-3 pt-6'} flex flex-col fixed left-0 top-[160px] max-h-[calc(100vh-160px-56px)] overflow-y-auto z-30 ${className || ''}`}
+      className={`w-80 bg-gradient-to-b from-slate-50 to-white shadow-xl border-r border-slate-200 rounded-none ${compact ? 'pb-6 px-4' : 'p-6 pt-10'} flex flex-col fixed left-0 top-[64px] max-h-[calc(100vh-64px-56px)] overflow-y-auto z-30 ${className || ''}`}
     >
+      {/* Título de competencias */}
+      <div className="mb-6 px-2">
+        <h2 className="text-2xl font-extrabold text-indigo-900 tracking-tight border-b-2 border-indigo-100 pb-2">Competencias</h2>
+      </div>
       {/* Lista de competencias */}
       <nav className="pr-1">
         <ul className="space-y-0.5">
@@ -107,37 +116,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
           <span className="text-sm font-medium">Gestionar usuarios</span>
         </button>
         <button
-          onClick={() => setTimeoutModalOpen(true)}
-          className="group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-yellow-50 hover:shadow-md"
+          onClick={() => onCompetencyChange('settings')}
+          className={`group w-full text-left px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
+            activeCompetencyId === 'settings'
+              ? 'bg-gradient-to-r from-yellow-400 to-yellow-200 text-white shadow-lg shadow-yellow-400/25'
+              : 'text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-yellow-50 hover:shadow-md'
+          }`}
         >
-          <div className="w-7 h-7 rounded-lg bg-yellow-100 group-hover:bg-yellow-200 flex items-center justify-center transition-colors">
-            <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+            activeCompetencyId === 'settings'
+              ? 'bg-white/20'
+              : 'bg-yellow-100 group-hover:bg-yellow-200'
+          }`}>
+            <svg className={`w-4 h-4 ${
+              activeCompetencyId === 'settings'
+                ? 'text-white'
+                : 'text-yellow-600'
+            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <span className="text-sm font-medium">Configuración</span>
         </button>
-        {/* Progress Indicator */}
-        <div className="mt-4 p-3 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-xl border border-slate-200/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-slate-700">Progreso</span>
-            <span className="text-xs text-slate-500">
-              {competencies.filter(c => c.id === activeCompetencyId).length > 0 ? 
-                `${competencies.findIndex(c => c.id === activeCompetencyId) + 1}/${competencies.length}` : 
-                'Completado'
-              }
-            </span>
-          </div>
-          <div className="w-full bg-slate-200 rounded-full h-1.5">
-            <div 
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all duration-500"
-              style={{ 
-                width: activeCompetencyId === 'summary' ? '100%' : 
-                  `${((competencies.findIndex(c => c.id === activeCompetencyId) + 1) / competencies.length) * 100}%`
-              }}
-            ></div>
-          </div>
-        </div>
       </div>
       <SessionTimeoutModal open={isTimeoutModalOpen} onClose={() => setTimeoutModalOpen(false)} />
     </aside>

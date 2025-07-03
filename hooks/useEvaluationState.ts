@@ -613,6 +613,7 @@ export const useEvaluationState = () => {
     getVisibleCompetencies: () => {
       const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
       return getVisibleCompetencies(worker?.worker_group || null);
-    }
+    },
+    setEvaluation
   };
 };

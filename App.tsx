@@ -12,6 +12,7 @@ import { EvidenceUploader } from './components/EvidenceUploader';
 import ManageUsersModal from './components/ManageUsersModal';
 import ManageUsersPanel from './components/ManageUsersPanel';
 import LogoutConfirmModal from './components/LogoutConfirmModal';
+import { SettingsPage } from './components/SettingsPage';
 
 function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
   workers: Worker[];
@@ -175,8 +176,11 @@ function App() {
     removeFile,
     saveEvaluation,
     addWorker,
-    updateWorker,
+    updateWorkerGroup,
     setUseT1SevenPoints,
+    updateWorker,
+    getVisibleCompetencies,
+    setEvaluation
   } = useEvaluationState();
 
   const [activeCompetencyId, setActiveCompetencyId] = useState<string>('B');
@@ -186,6 +190,10 @@ function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [dbLoading, setDbLoading] = React.useState(false);
+  const [dbMessage, setDbMessage] = React.useState<string | null>(null);
+  const [activePage, setActivePage] = useState<string>('competency');
+  const [sessionTimeout, setSessionTimeout] = useState<number>(60);
 
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
@@ -337,6 +345,126 @@ function App() {
     // eslint-disable-next-line
   }, [evaluation.workerId, evaluation.token]);
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Detecta si estamos en Electron
+  const isElectron = Boolean((window as any).electronAPI);
+
+  // Exportar BD: descarga el estado de evaluación como JSON o la base de datos SQLite
+  const handleExportDB = async () => {
+    if (dbLoading) return;
+    setDbMessage(null);
+    const format = window.confirm('¿Quieres exportar la base de datos completa (SQLite) en vez del backup JSON?') ? 'sqlite' : 'json';
+    setDbLoading(true);
+    try {
+      if (format === 'json') {
+        const dataStr = JSON.stringify(evaluation, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `evaluacion-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setDbMessage('Backup JSON exportado correctamente.');
+      } else {
+        if (isElectron) {
+          await (window as any).electronAPI.exportSQLite();
+          setDbMessage('Base de datos SQLite exportada correctamente.');
+        } else {
+          const response = await fetch('/api/export-db');
+          if (!response.ok) throw new Error('No se pudo exportar la base de datos');
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `evaluacion.sqlite`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          setDbMessage('Base de datos SQLite exportada correctamente.');
+        }
+      }
+    } catch (err) {
+      setDbMessage('Error al exportar la base de datos.');
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  // Importar BD: lee un archivo JSON o SQLite y lo carga en el estado o reemplaza la BD
+  const handleImportDB = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (dbLoading) return;
+    setDbMessage(null);
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'json') {
+      if (!window.confirm('¿Seguro que quieres importar este backup JSON? Se sobrescribirá el estado actual.')) {
+        event.target.value = '';
+        return;
+      }
+      setDbLoading(true);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const json = JSON.parse(e.target?.result as string);
+          if (json && typeof json === 'object' && 'workerId' in json && 'scores' in json) {
+            setEvaluation(json);
+            setDbMessage('Backup JSON importado correctamente.');
+          } else {
+            setDbMessage('El archivo no tiene el formato esperado.');
+          }
+        } catch {
+          setDbMessage('Error al leer el archivo.');
+        } finally {
+          setDbLoading(false);
+        }
+      };
+      reader.readAsText(file);
+    } else if (ext === 'sqlite' || ext === 'db') {
+      if (!window.confirm('¿Seguro que quieres importar esta base de datos SQLite? Se sobrescribirá la base de datos actual.')) {
+        event.target.value = '';
+        return;
+      }
+      setDbLoading(true);
+      try {
+        if (isElectron) {
+          await (window as any).electronAPI.importSQLite(file.path || file.name);
+          setDbMessage('Base de datos SQLite importada correctamente. La aplicación se recargará.');
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          const formData = new FormData();
+          formData.append('file', file);
+          const response = await fetch('/api/import-db', { method: 'POST', body: formData });
+          if (!response.ok) throw new Error('No se pudo importar la base de datos');
+          setDbMessage('Base de datos SQLite importada correctamente. La aplicación se recargará.');
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      } catch (err) {
+        setDbMessage('Error al importar la base de datos SQLite.');
+      } finally {
+        setDbLoading(false);
+      }
+    } else {
+      setDbMessage('Formato de archivo no soportado. Usa .json o .sqlite');
+    }
+    event.target.value = '';
+  };
+
+  // Cambia la función de cambio de competencia para actualizar activePage
+  const handleSidebarChange = (id: string) => {
+    if (id === 'settings') {
+      setActivePage('settings');
+    } else {
+      setActivePage('competency');
+      setActiveCompetencyId(id);
+    }
+  };
+
   if (loadingSession) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
@@ -396,19 +524,70 @@ function App() {
               onHamburgerClick={() => setSidebarOpen(true)}
             />
           </div>
+          {/* Sidebar móvil */}
+          {isSidebarOpen && (
+            <>
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-40" onClick={() => setSidebarOpen(false)} />
+              <aside className="fixed top-0 left-0 z-50 w-64 h-full bg-white shadow-xl flex flex-col animate-slideIn">
+                <button
+                  className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-200"
+                  onClick={() => setSidebarOpen(false)}
+                  aria-label="Cerrar menú"
+                >
+                  <svg className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <Sidebar
+                  competencies={visibleCompetencies}
+                  activeCompetencyId={activeCompetencyId}
+                  onCompetencyChange={handleSidebarChange}
+                  fixedDesktop={false}
+                  onOpenSettings={() => { setManageUsersModalOpen(true); setSidebarOpen(false); }}
+                  className="block lg:hidden h-full overflow-y-auto pt-16"
+                  handleExportDB={handleExportDB}
+                  handleImportDB={handleImportDB}
+                  fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
+                  dbLoading={dbLoading}
+                  dbMessage={dbMessage}
+                />
+              </aside>
+              <style>{`
+                @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+                .animate-slideIn { animation: slideIn 0.2s ease; }
+              `}</style>
+            </>
+          )}
           <div className="flex flex-row flex-1 min-h-0 w-full">
-            {/* Sidebar fijo */}
+            {/* Sidebar fijo desktop */}
             <Sidebar
               competencies={visibleCompetencies}
-              activeCompetencyId={activeCompetencyId}
-              onCompetencyChange={setActiveCompetencyId}
+              activeCompetencyId={activePage === 'settings' ? 'settings' : activeCompetencyId}
+              onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
               onOpenSettings={() => setManageUsersModalOpen(true)}
-              className="hidden lg:block fixed left-0 top-[140px] w-80 max-h-[calc(100vh-140px-56px)] overflow-y-auto z-30"
+              className="hidden lg:block fixed left-0 top-[64px] w-80 max-h-[calc(100vh-64px-56px)] overflow-y-auto z-30"
+              handleExportDB={handleExportDB}
+              handleImportDB={handleImportDB}
+              fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
+              dbLoading={dbLoading}
+              dbMessage={dbMessage}
             />
             {/* Main content */}
-            <main className="flex-1 min-h-0 lg:ml-80 pt-[160px] pb-[56px] overflow-y-auto">
-              {activeCompetencyId === 'manage-users' ? (
+            <main className="flex-1 min-h-0 pt-14 lg:ml-80 lg:pt-[112px] pb-[56px] overflow-y-auto">
+              {activePage === 'settings' ? (
+                <SettingsPage
+                  sessionTimeout={sessionTimeout}
+                  onSessionTimeoutChange={setSessionTimeout}
+                  handleExportDB={handleExportDB}
+                  handleImportDB={handleImportDB}
+                  fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
+                  dbLoading={dbLoading}
+                  dbMessage={dbMessage}
+                  useT1SevenPoints={evaluation.useT1SevenPoints}
+                  onT1SevenPointsChange={setUseT1SevenPoints}
+                />
+              ) : activeCompetencyId === 'manage-users' ? (
                 <ManageUsersPanel currentWorker={currentWorker ?? null} />
               ) : activeCompetency ? (
                 <CompetencyBlock
@@ -455,6 +634,12 @@ function App() {
       />
 
       <LogoutConfirmModal open={isLogoutModalOpen} onConfirm={confirmLogout} onCancel={() => setLogoutModalOpen(false)} />
+
+      {dbMessage && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded shadow-lg text-white bg-indigo-600 animate-fade-in-up">
+          {dbMessage}
+        </div>
+      )}
     </>
   );
 }

@@ -1,10 +1,14 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
 let serverProcess;
+
+// Ajusta la ruta a tu base de datos real
+const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
 
 // Función para crear la ventana principal
 function createWindow() {
@@ -184,4 +188,14 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Promesa rechazada no manejada:', reason);
+});
+
+ipcMain.handle('export-sqlite', async () => {
+  const { filePath } = await dialog.showSaveDialog({ defaultPath: 'evaluacion.sqlite' });
+  if (filePath) fs.copyFileSync(dbPath, filePath);
+});
+
+ipcMain.handle('import-sqlite', async (event, importPath) => {
+  if (importPath) fs.copyFileSync(importPath, dbPath);
+  // Opcional: puedes recargar la app aquí si quieres forzar la recarga de datos
 }); 

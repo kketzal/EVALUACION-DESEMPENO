@@ -459,6 +459,17 @@ app.post('/api/session/logout', (req, res) => {
     res.json({ success: true });
 });
 
+// Exportar la base de datos
+app.get('/api/export-db', (req, res) => {
+  res.download(path.join(__dirname, 'uploads', 'database.sqlite'), 'evaluacion.sqlite');
+});
+
+// Importar la base de datos
+app.post('/api/import-db', upload.single('file'), (req, res) => {
+  fs.copyFileSync(req.file.path, path.join(__dirname, 'uploads', 'database.sqlite'));
+  res.sendStatus(200);
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
 }); 
