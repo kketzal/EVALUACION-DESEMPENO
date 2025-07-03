@@ -36,12 +36,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Configuración</h2>
       {/* Accordion: Session Timeout */}
       <div className="mb-4 border rounded-lg bg-white shadow">
-        <button className="w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none" onClick={() => setOpen(open === 'timeout' ? null : 'timeout')}>
+        <button 
+          className={`w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none transition-colors duration-200 ${
+            open === 'timeout' 
+              ? 'bg-indigo-50 text-indigo-800' 
+              : 'hover:bg-gray-50'
+          }`} 
+          onClick={() => setOpen(open === 'timeout' ? null : 'timeout')}
+        >
           Tiempo de sesión
           <span>{open === 'timeout' ? '▲' : '▼'}</span>
         </button>
         {open === 'timeout' && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 pt-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Minutos de inactividad antes de cerrar sesión:</label>
             <select
               value={sessionTimeout}
@@ -57,12 +64,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
       {/* Accordion: Importar/Exportar BD */}
       <div className="mb-4 border rounded-lg bg-white shadow">
-        <button className="w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none" onClick={() => setOpen(open === 'db' ? null : 'db')}>
+        <button 
+          className={`w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none transition-colors duration-200 ${
+            open === 'db' 
+              ? 'bg-indigo-50 text-indigo-800' 
+              : 'hover:bg-gray-50'
+          }`} 
+          onClick={() => setOpen(open === 'db' ? null : 'db')}
+        >
           Importar / Exportar Base de Datos
           <span>{open === 'db' ? '▲' : '▼'}</span>
         </button>
         {open === 'db' && (
-          <div className="px-4 pb-4 flex flex-col gap-3">
+          <div className="px-4 pb-4 pt-2 flex flex-col gap-3">
             <button
               onClick={handleExportDB}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
@@ -81,7 +95,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               type="file"
               ref={fileInputRef}
               style={{ display: 'none' }}
-              accept=".sqlite,.db,.json"
+              accept=".sqlite,.db,.json,.zip"
               onChange={handleImportDB}
             />
             {dbMessage && <div className="text-sm text-indigo-700 mt-2">{dbMessage}</div>}
@@ -90,12 +104,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
       {/* Accordion: Configuración TRAMO 1 */}
       <div className="mb-4 border rounded-lg bg-white shadow">
-        <button className="w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none" onClick={() => setOpen(open === 'tramo' ? null : 'tramo')}>
+        <button 
+          className={`w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none transition-colors duration-200 ${
+            open === 'tramo' 
+              ? 'bg-indigo-50 text-indigo-800' 
+              : 'hover:bg-gray-50'
+          }`} 
+          onClick={() => setOpen(open === 'tramo' ? null : 'tramo')}
+        >
           Configuración TRAMO 1
           <span>{open === 'tramo' ? '▲' : '▼'}</span>
         </button>
         {open === 'tramo' && (
-          <div className="px-4 pb-4 flex items-center gap-4">
+          <div className="px-4 pb-4 pt-2 flex items-center gap-4">
             <span className="text-sm">Modo:</span>
             <button
               onClick={() => onT1SevenPointsChange(!useT1SevenPoints)}
@@ -113,12 +134,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
       {/* Accordion: Guardado Automático */}
       <div className="mb-4 border rounded-lg bg-white shadow">
-        <button className="w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none" onClick={() => setOpen(open === 'autosave' ? null : 'autosave')}>
+        <button 
+          className={`w-full flex justify-between items-center px-4 py-3 text-lg font-medium text-gray-800 focus:outline-none transition-colors duration-200 ${
+            open === 'autosave' 
+              ? 'bg-indigo-50 text-indigo-800' 
+              : 'hover:bg-gray-50'
+          }`} 
+          onClick={() => setOpen(open === 'autosave' ? null : 'autosave')}
+        >
           Guardado Automático
           <span>{open === 'autosave' ? '▲' : '▼'}</span>
         </button>
         {open === 'autosave' && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 pt-2">
             <div className="flex items-center gap-4 mb-3">
               <span className="text-sm">Guardar automáticamente cambios:</span>
               <button

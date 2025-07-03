@@ -468,10 +468,71 @@ app.get('/api/export-db', (req, res) => {
   res.download(path.join(__dirname, 'uploads', 'database.sqlite'), 'evaluacion.sqlite');
 });
 
+// Exportar ZIP completo con BD y archivos de evidencia
+app.get('/api/export-zip', (req, res) => {
+  const archiver = require('archiver');
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  
+  res.attachment(`evaluacion-completa-${new Date().toISOString().slice(0, 10)}.zip`);
+  archive.pipe(res);
+
+  // Agregar la base de datos
+  archive.file(path.join(__dirname, 'uploads', 'database.sqlite'), { name: 'database.sqlite' });
+
+  // Agregar todos los archivos de evidencia
+  const evidenceDir = path.join(__dirname, 'uploads', 'evidence');
+  if (fs.existsSync(evidenceDir)) {
+    archive.directory(evidenceDir, 'evidence');
+  }
+
+  archive.finalize();
+});
+
 // Importar la base de datos
 app.post('/api/import-db', upload.single('file'), (req, res) => {
   fs.copyFileSync(req.file.path, path.join(__dirname, 'uploads', 'database.sqlite'));
   res.sendStatus(200);
+});
+
+// Importar ZIP completo
+app.post('/api/import-zip', upload.single('file'), (req, res) => {
+  const archiver = require('archiver');
+  const extract = require('extract-zip');
+  const zipPath = req.file.path;
+  const extractPath = path.join(__dirname, 'uploads');
+  
+  extract(zipPath, { dir: extractPath })
+    .then(() => {
+      // Verificar que se extrajo la base de datos
+      const dbPath = path.join(extractPath, 'database.sqlite');
+      if (!fs.existsSync(dbPath)) {
+        return res.status(400).json({ error: 'El ZIP no contiene una base de datos válida' });
+      }
+      
+      // Mover la base de datos a la ubicación correcta si es necesario
+      const targetDbPath = path.join(__dirname, 'uploads', 'database.sqlite');
+      if (dbPath !== targetDbPath) {
+        fs.copyFileSync(dbPath, targetDbPath);
+        fs.unlinkSync(dbPath);
+      }
+      
+      // Verificar que se extrajo la carpeta de evidencia
+      const evidencePath = path.join(extractPath, 'evidence');
+      if (fs.existsSync(evidencePath)) {
+        // Mover archivos de evidencia a la ubicación correcta
+        const targetEvidencePath = path.join(__dirname, 'uploads', 'evidence');
+        if (fs.existsSync(targetEvidencePath)) {
+          fs.rmSync(targetEvidencePath, { recursive: true, force: true });
+        }
+        fs.renameSync(evidencePath, targetEvidencePath);
+      }
+      
+      res.sendStatus(200);
+    })
+    .catch((err) => {
+      console.error('Error al extraer ZIP:', err);
+      res.status(500).json({ error: 'Error al procesar el archivo ZIP' });
+    });
 });
 
 // Guardar configuración de evaluación (useT1SevenPoints y autoSave)

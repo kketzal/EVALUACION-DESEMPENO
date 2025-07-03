@@ -13,6 +13,7 @@ import ManageUsersModal from './components/ManageUsersModal';
 import ManageUsersPanel from './components/ManageUsersPanel';
 import LogoutConfirmModal from './components/LogoutConfirmModal';
 import { SettingsPage } from './components/SettingsPage';
+import { ExportModal } from './components/ExportModal';
 
 function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
   workers: Worker[];
@@ -196,6 +197,7 @@ function App() {
   const [dbMessage, setDbMessage] = React.useState<string | null>(null);
   const [activePage, setActivePage] = useState<string>('competency');
   const [sessionTimeout, setSessionTimeout] = useState<number>(60);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
@@ -354,46 +356,88 @@ function App() {
   // Detecta si estamos en Electron
   const isElectron = Boolean((window as any).electronAPI);
 
-  // Exportar BD: descarga el estado de evaluación como JSON o la base de datos SQLite
-  const handleExportDB = async () => {
+  // Función para abrir el modal de exportación
+  const handleExportDB = () => {
+    setIsExportModalOpen(true);
+  };
+
+  // Exportar como JSON
+  const handleExportJSON = async () => {
     if (dbLoading) return;
     setDbMessage(null);
-    const format = window.confirm('¿Quieres exportar la base de datos completa (SQLite) en vez del backup JSON?') ? 'sqlite' : 'json';
     setDbLoading(true);
     try {
-      if (format === 'json') {
-        const dataStr = JSON.stringify(evaluation, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
+      const dataStr = JSON.stringify(evaluation, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `evaluacion-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDbMessage('Backup JSON exportado correctamente.');
+      setIsExportModalOpen(false);
+    } catch (err) {
+      setDbMessage('Error al exportar el backup JSON.');
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  // Exportar como SQLite
+  const handleExportSQLite = async () => {
+    if (dbLoading) return;
+    setDbMessage(null);
+    setDbLoading(true);
+    try {
+      if (isElectron) {
+        await (window as any).electronAPI.exportSQLite();
+        setDbMessage('Base de datos SQLite exportada correctamente.');
+      } else {
+        const response = await fetch('/api/export-db');
+        if (!response.ok) throw new Error('No se pudo exportar la base de datos');
+        const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `evaluacion-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `evaluacion.sqlite`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        setDbMessage('Backup JSON exportado correctamente.');
-      } else {
-        if (isElectron) {
-          await (window as any).electronAPI.exportSQLite();
-          setDbMessage('Base de datos SQLite exportada correctamente.');
-        } else {
-          const response = await fetch('/api/export-db');
-          if (!response.ok) throw new Error('No se pudo exportar la base de datos');
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `evaluacion.sqlite`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          setDbMessage('Base de datos SQLite exportada correctamente.');
-        }
+        setDbMessage('Base de datos SQLite exportada correctamente.');
       }
+      setIsExportModalOpen(false);
     } catch (err) {
-      setDbMessage('Error al exportar la base de datos.');
+      setDbMessage('Error al exportar la base de datos SQLite.');
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  // Exportar como ZIP completo
+  const handleExportZIP = async () => {
+    if (dbLoading) return;
+    setDbMessage(null);
+    setDbLoading(true);
+    try {
+      const response = await fetch('/api/export-zip');
+      if (!response.ok) throw new Error('No se pudo exportar el ZIP completo');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `evaluacion-completa-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDbMessage('ZIP completo exportado correctamente.');
+      setIsExportModalOpen(false);
+    } catch (err) {
+      setDbMessage('Error al exportar el ZIP completo.');
     } finally {
       setDbLoading(false);
     }
@@ -405,7 +449,10 @@ function App() {
     setDbMessage(null);
     const file = event.target.files?.[0];
     if (!file) return;
+    
     const ext = file.name.split('.').pop()?.toLowerCase();
+    
+    // Detectar tipo de archivo por extensión
     if (ext === 'json') {
       if (!window.confirm('¿Seguro que quieres importar este backup JSON? Se sobrescribirá el estado actual.')) {
         event.target.value = '';
@@ -423,7 +470,7 @@ function App() {
             setDbMessage('El archivo no tiene el formato esperado.');
           }
         } catch {
-          setDbMessage('Error al leer el archivo.');
+          setDbMessage('Error al leer el archivo JSON.');
         } finally {
           setDbLoading(false);
         }
@@ -453,8 +500,26 @@ function App() {
       } finally {
         setDbLoading(false);
       }
+    } else if (ext === 'zip') {
+      if (!window.confirm('¿Seguro que quieres importar este ZIP completo? Se sobrescribirá la base de datos y archivos actuales.')) {
+        event.target.value = '';
+        return;
+      }
+      setDbLoading(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch('/api/import-zip', { method: 'POST', body: formData });
+        if (!response.ok) throw new Error('No se pudo importar el ZIP');
+        setDbMessage('ZIP completo importado correctamente. La aplicación se recargará.');
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        setDbMessage('Error al importar el ZIP completo.');
+      } finally {
+        setDbLoading(false);
+      }
     } else {
-      setDbMessage('Formato de archivo no soportado. Usa .json o .sqlite');
+      setDbMessage('Formato de archivo no soportado. Usa .json, .sqlite, .db o .zip');
     }
     event.target.value = '';
   };
@@ -645,6 +710,15 @@ function App() {
       />
 
       <LogoutConfirmModal open={isLogoutModalOpen} onConfirm={confirmLogout} onCancel={() => setLogoutModalOpen(false)} />
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExportJSON={handleExportJSON}
+        onExportSQLite={handleExportSQLite}
+        onExportZIP={handleExportZIP}
+        loading={dbLoading}
+      />
 
       {dbMessage && (
         <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded shadow-lg text-white bg-indigo-600 animate-fade-in-up">
