@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
                       ? 'text-white'
                       : 'text-slate-700'
                   }`}>
-                    {competency.title.replace(/^[A-Z]\./, '')}
+                    {competency.title.replace(/^[A-Z]\.\s*/, '')}
                   </span>
                 </div>
               </button>
