@@ -202,7 +202,12 @@ function App() {
     setEvaluation
   } = useEvaluationState();
 
-  const [activeCompetencyId, setActiveCompetencyId] = useState<string>('B');
+  // Leer valores iniciales de localStorage
+  const getInitialActivePage = () => localStorage.getItem('activePage') || 'competency';
+  const getInitialActiveCompetencyId = () => localStorage.getItem('activeCompetencyId') || 'B';
+
+  const [activeCompetencyId, setActiveCompetencyId] = useState<string>(getInitialActiveCompetencyId());
+  const [activePage, setActivePage] = useState<string>(getInitialActivePage());
   const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
   const [isManageUsersModalOpen, setManageUsersModalOpen] = useState(false);
   const [isWorkerSelectorOpen, setWorkerSelectorOpen] = useState(false);
@@ -212,7 +217,6 @@ function App() {
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
   const [dbLoading, setDbLoading] = React.useState(false);
   const [dbMessage, setDbMessage] = React.useState<string | null>(null);
-  const [activePage, setActivePage] = useState<string>('competency');
   const [sessionTimeout, setSessionTimeout] = useState<number>(60);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -677,6 +681,15 @@ function App() {
   const handleRemoveFileFromSummary = (conductId: string, fileId: number | string) => {
     removeFile('', conductId, fileId.toString());
   };
+
+  // Guardar en localStorage cada vez que cambian
+  useEffect(() => {
+    localStorage.setItem('activePage', activePage);
+  }, [activePage]);
+
+  useEffect(() => {
+    localStorage.setItem('activeCompetencyId', activeCompetencyId);
+  }, [activeCompetencyId]);
 
   if (loadingSession) {
     return (

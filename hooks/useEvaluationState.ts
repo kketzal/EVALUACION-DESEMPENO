@@ -27,6 +27,15 @@ const calculateScores = (checks: CriteriaCheckState, useT1SevenPoints: boolean =
     return { t1: t1Score, t2: t2Score, final: finalScore };
 };
 
+// Leer openAccordions inicial de localStorage si existe
+function getInitialOpenAccordions() {
+  try {
+    const stored = localStorage.getItem('openAccordions');
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return {};
+}
+
 const getInitialState = (): EvaluationState => {
   const initialState = {
     workerId: null,
@@ -39,7 +48,7 @@ const getInitialState = (): EvaluationState => {
     evaluationId: null,
     useT1SevenPoints: true, // Por defecto usar TRAMO 1 de 7 puntos
     autoSave: true, // Por defecto activar guardado automático
-    openAccordions: {}, // Estado de accordions abiertos
+    openAccordions: getInitialOpenAccordions(), // Estado de accordions abiertos
     isSaving: false,
     lastSavedAt: null,
   };
@@ -706,6 +715,11 @@ export const useEvaluationState = () => {
       }));
     }
   }, []);
+
+  // Guardar openAccordions en localStorage cada vez que cambie
+  useEffect(() => {
+    localStorage.setItem('openAccordions', JSON.stringify(evaluation.openAccordions));
+  }, [evaluation.openAccordions]);
 
   return {
     evaluation,
