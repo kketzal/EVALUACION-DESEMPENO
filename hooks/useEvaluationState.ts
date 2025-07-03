@@ -187,14 +187,8 @@ export const useEvaluationState = () => {
         const fileObject = {
           id: file.id.toString(),
           name: file.original_name,
-          original_name: file.original_name,
-          file_type: file.file_type,
-          file_size: file.file_size,
-          url: file.url || '',
-          evaluation_id: file.evaluation_id,
-          competency_id: file.competency_id,
-          conduct_id: file.conduct_id,
-          uploaded_at: file.uploaded_at
+          type: file.file_type || '',
+          content: '',
         };
         files[file.conduct_id].push(fileObject);
         console.log('Archivo agregado al estado:', { conductId: file.conduct_id, file: fileObject });
@@ -381,14 +375,8 @@ export const useEvaluationState = () => {
         const newFilesList = uploadedFiles.map((file: any) => ({
           id: file.id.toString(),
           name: file.original_name,
-          original_name: file.original_name,
-          file_type: file.file_type,
-          file_size: file.file_size,
-          url: file.url || '',
-          evaluation_id: file.evaluation_id,
-          competency_id: file.competency_id,
-          conduct_id: file.conduct_id,
-          uploaded_at: file.uploaded_at
+          type: file.file_type || '',
+          content: '',
         }));
         
         console.log('Actualizando estado con archivos:', {
@@ -596,11 +584,15 @@ export const useEvaluationState = () => {
 
   // Nuevo método para guardar workerId y token juntos
   const setWorkerSession = useCallback(({ workerId, token }: { workerId: string | null, token: string | null }) => {
-    setEvaluationWithLog(prev => ({
-      ...prev,
-      workerId,
-      token
-    }));
+    if (workerId === null) {
+      setEvaluation(getInitialState());
+    } else {
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workerId,
+        token
+      }));
+    }
   }, []);
 
   return {

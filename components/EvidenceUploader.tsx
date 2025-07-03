@@ -106,26 +106,18 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
 
   const handleFiles = async (files: File[]) => {
     try {
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append('files', file);
+      // Crear un FileList a partir del array de File
+      const dataTransfer = new DataTransfer();
+      files.forEach(file => dataTransfer.items.add(file));
+      const fileList = dataTransfer.files;
+      setIsUploading(true);
+      await addFiles({
+        competencyId,
+        conductId,
+        fileCount: fileList.length,
+        evaluationId,
+        files: fileList
       });
-      formData.append('evaluationId', evaluationId.toString());
-      formData.append('competencyId', competencyId);
-      formData.append('conductId', conductId);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al subir los archivos');
-      }
-
-      const data = await response.json();
-      addFiles(conductId, data.files);
-      
       setToast({
         message: 'Archivos subidos correctamente',
         type: 'success'
@@ -136,6 +128,8 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
         message: 'Error al subir los archivos',
         type: 'error'
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
