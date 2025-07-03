@@ -10,6 +10,31 @@ interface SummaryPageProps {
   onRemoveFile: (conductId: string, fileId: number) => void;
 }
 
+// Función para limpiar archivos sin ID válido
+const cleanInvalidFiles = (files: Record<string, any[]>): Record<string, any[]> => {
+  const cleanedFiles: Record<string, any[]> = {};
+  
+  Object.entries(files).forEach(([conductId, fileList]) => {
+    const validFiles = fileList.filter(file => {
+      if (!file.id || file.id === 'undefined' || file.id === 'null' || file.id === '') {
+        console.warn('Archivo sin ID válido encontrado en SummaryPage y removido:', {
+          conductId,
+          file,
+          fileName: file.name || file.original_name
+        });
+        return false;
+      }
+      return true;
+    });
+    
+    if (validFiles.length > 0) {
+      cleanedFiles[conductId] = validFiles;
+    }
+  });
+  
+  return cleanedFiles;
+};
+
 export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, onRemoveFile }) => {
   const [deleteTarget, setDeleteTarget] = useState<{conductId: string, file: any} | null>(null);
   const [filesOnDisk, setFilesOnDisk] = useState<string[]>([]);
@@ -23,11 +48,14 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
       .catch(() => setFilesOnDisk([]));
   }, []);
 
-  // Contar el total de archivos
-  const totalFiles = Object.values(evaluation.files).reduce((sum, files) => sum + files.length, 0);
+  // Limpiar archivos sin ID válido antes de procesar
+  const cleanedFiles = cleanInvalidFiles(evaluation.files);
+
+  // Contar el total de archivos (solo archivos válidos)
+  const totalFiles = Object.values(cleanedFiles).reduce((sum, files) => sum + files.length, 0);
 
   // Encuentra archivos en disco que no están en la BD
-  const filesInBD = Object.values(evaluation.files).flat().map(f => (f as any).file_name || f.name);
+  const filesInBD = Object.values(cleanedFiles).flat().map(f => (f as any).file_name || f.name);
   const orphanFilesOnDisk = filesOnDisk.filter(fileName => !filesInBD.includes(fileName));
 
   return (
@@ -50,7 +78,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
           <div className="space-y-6">
             {competencies.map(comp => {
               // Obtener todos los archivos para las conductas de esta competencia
-              const competencyFiles = Object.entries(evaluation.files)
+              const competencyFiles = Object.entries(cleanedFiles)
                 .filter(([conductId]) => conductId.startsWith(comp.id))
                 .reduce((acc, [conductId, files]) => {
                   if (files && files.length > 0) {
@@ -119,7 +147,14 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
                                     type="button"
                                     className="ml-2 text-red-500 hover:text-red-700 p-1 rounded transition"
                                     title="Eliminar archivo"
-                                    onClick={() => setDeleteTarget({ conductId, file })}
+                                    onClick={() => {
+                                      if (!file.id) {
+                                        console.error('El archivo no tiene ID, no se puede eliminar de la BD:', file);
+                                        alert('No se puede eliminar este archivo porque no tiene ID en la base de datos.');
+                                        return;
+                                      }
+                                      setDeleteTarget({ conductId, file });
+                                    }}
                                   >
                                     <TrashIcon className="h-5 w-5" />
                                   </button>
@@ -160,6 +195,12 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
               <button
                 className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition shadow"
                 onClick={() => {
+                  if (!deleteTarget.file.id) {
+                    console.error('El archivo no tiene ID, no se puede eliminar de la BD:', deleteTarget.file);
+                    alert('No se puede eliminar este archivo porque no tiene ID en la base de datos.');
+                    setDeleteTarget(null);
+                    return;
+                  }
                   onRemoveFile(deleteTarget.conductId, deleteTarget.file.id);
                   setDeleteTarget(null);
                 }}

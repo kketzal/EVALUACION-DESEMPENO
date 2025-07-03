@@ -673,6 +673,11 @@ function App() {
     }
   };
 
+  // Wrapper para eliminar archivos desde la página de resumen
+  const handleRemoveFileFromSummary = (conductId: string, fileId: number | string) => {
+    removeFile('', conductId, fileId.toString());
+  };
+
   if (loadingSession) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
@@ -801,7 +806,7 @@ function App() {
                 </div>
               ) : activePage === 'summary' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
-                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} onRemoveFile={removeFile} />
+                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} onRemoveFile={handleRemoveFileFromSummary} />
                 </div>
               ) : activePage === 'manage-users' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">

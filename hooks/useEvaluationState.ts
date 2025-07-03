@@ -60,6 +60,31 @@ export const getVisibleCompetencies = (workerGroup: 'GRUPO 1-2' | 'GRUPO 3-4' | 
   });
 };
 
+// Función para limpiar archivos sin ID válido
+const cleanInvalidFiles = (files: Record<string, EvidenceFile[]>): Record<string, EvidenceFile[]> => {
+  const cleanedFiles: Record<string, EvidenceFile[]> = {};
+  
+  Object.entries(files).forEach(([conductId, fileList]) => {
+    const validFiles = fileList.filter(file => {
+      if (!file.id || file.id === 'undefined' || file.id === 'null' || file.id === '') {
+        console.warn('Archivo sin ID válido encontrado y removido:', {
+          conductId,
+          file,
+          fileName: file.name
+        });
+        return false;
+      }
+      return true;
+    });
+    
+    if (validFiles.length > 0) {
+      cleanedFiles[conductId] = validFiles;
+    }
+  });
+  
+  return cleanedFiles;
+};
+
 export const useEvaluationState = () => {
   const [evaluation, setEvaluation] = useState<EvaluationState>(getInitialState);
   const [isLoading, setIsLoading] = useState(false);
@@ -200,7 +225,7 @@ export const useEvaluationState = () => {
           name: file.original_name,
           type: file.file_type || '',
           content: '',
-          url: file.url || `/uploads/evidence/${file.name || file.original_name || file.file_name}`,
+          url: file.url || `/uploads/evidence/${file.name || file.original_name}`,
         };
         files[file.conduct_id].push(fileObject);
         console.log('Archivo agregado al estado:', { conductId: file.conduct_id, file: fileObject });
@@ -215,10 +240,16 @@ export const useEvaluationState = () => {
         });
       });
 
-      console.log('Estado final de archivos:', files);
+      // Limpiar archivos sin ID válido
+      const cleanedFiles = cleanInvalidFiles(files);
+      if (Object.keys(cleanedFiles).length !== Object.keys(files).length) {
+        console.log('Archivos limpiados - archivos sin ID removidos');
+      }
+
+      console.log('Estado final de archivos:', cleanedFiles);
       console.log('Verificando archivos por conducta:');
-      Object.keys(files).forEach(conductId => {
-        console.log(`  ${conductId}: ${files[conductId].length} archivos`);
+      Object.keys(cleanedFiles).forEach(conductId => {
+        console.log(`  ${conductId}: ${cleanedFiles[conductId].length} archivos`);
       });
 
       setEvaluationWithLog(prev => {
@@ -229,7 +260,7 @@ export const useEvaluationState = () => {
           criteriaChecks,
           realEvidences,
           scores,
-          files,
+          files: cleanedFiles,
           period: periodToUse,
           useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
           autoSave: Boolean(evaluationData.evaluation.autoSave),
@@ -238,8 +269,8 @@ export const useEvaluationState = () => {
         console.log('Estado actualizado después de cargar evaluación:', {
           workerId,
           evaluationId: evaluationData.evaluation.id,
-          filesCount: Object.keys(files).length,
-          files,
+          filesCount: Object.keys(cleanedFiles).length,
+          files: cleanedFiles,
           newStateFiles: newState.files
         });
         
@@ -413,7 +444,7 @@ export const useEvaluationState = () => {
           name: file.original_name,
           type: file.file_type || '',
           content: '',
-          url: file.url || `/uploads/evidence/${file.name || file.original_name || file.file_name}`,
+          url: file.url || `/uploads/evidence/${file.name || file.original_name}`,
         }));
         
         console.log('Actualizando estado con archivos:', {
@@ -423,11 +454,14 @@ export const useEvaluationState = () => {
           totalFiles: currentFiles.length + newFilesList.length
         });
         
+        const allFiles = [...currentFiles, ...newFilesList];
+        const cleanedFiles = cleanInvalidFiles({ [conductId]: allFiles });
+        
         return {
           ...prev,
           files: {
             ...prev.files,
-            [conductId]: [...currentFiles, ...newFilesList]
+            [conductId]: cleanedFiles[conductId] || []
           }
         };
       });
