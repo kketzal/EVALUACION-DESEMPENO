@@ -118,10 +118,12 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
         let evaluation = stmt.get(workerId, period);
         
         if (!evaluation) {
-            // Crear nueva evaluación si no existe
-            stmt = db.prepare('INSERT INTO evaluations (worker_id, period) VALUES (?, ?)');
-            const result = stmt.run(workerId, period);
-            evaluation = { id: result.lastInsertRowid, worker_id: workerId, period, useT1SevenPoints: 1 };
+            // NO crear automáticamente - devolver error 404
+            return res.status(404).json({ 
+                error: 'No existe evaluación para este trabajador y periodo',
+                workerId,
+                period
+            });
         }
         
         // Obtener criterios
@@ -250,10 +252,21 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 size: file.size
             });
             
+            const now = new Date();
+            const spanishTimeFormatted = now.toLocaleString("en-US", {
+                timeZone: "Europe/Madrid",
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
             const stmt = db.prepare(`
                 INSERT INTO evidence_files 
-                (evaluation_id, competency_id, conduct_id, original_name, file_name, file_type, file_size) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (evaluation_id, competency_id, conduct_id, original_name, file_name, file_type, file_size, uploaded_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `);
             
             const result = stmt.run(
@@ -263,7 +276,8 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 file.originalname,
                 file.filename,
                 file.mimetype,
-                file.size
+                file.size,
+                spanishTimeFormatted
             );
             
             console.log('Archivo guardado en BD con ID:', result.lastInsertRowid);
@@ -277,7 +291,7 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 file_name: file.filename,
                 file_type: file.mimetype,
                 file_size: file.size,
-                uploaded_at: new Date().toISOString(),
+                uploaded_at: spanishTimeFormatted,
                 url: `http://localhost:3001/uploads/evidence/${file.filename}`
             });
         }
@@ -354,8 +368,19 @@ app.post('/api/evaluations/:evaluationId/scores', (req, res) => {
 app.put('/api/evaluations/:evaluationId', (req, res) => {
     try {
         const { evaluationId } = req.params;
-        const stmt = db.prepare('UPDATE evaluations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-        stmt.run(evaluationId);
+        const now = new Date();
+        const spanishTimeFormatted = now.toLocaleString("en-US", {
+            timeZone: "Europe/Madrid",
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+        const stmt = db.prepare('UPDATE evaluations SET updated_at = ? WHERE id = ?');
+        stmt.run(spanishTimeFormatted, evaluationId);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -372,11 +397,6 @@ app.post('/api/workers/authenticate', async (req, res) => {
         }
         const worker = db.prepare('SELECT * FROM workers WHERE id = ?').get(id);
         if (!worker || !worker.password_hash) {
-            res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-            return;
-        }
-        const valid = await bcrypt.compare(password, worker.password_hash);
-        if (!valid) {
             res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             return;
         }

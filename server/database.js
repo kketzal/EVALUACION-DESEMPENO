@@ -18,6 +18,14 @@ if (!fs.existsSync(evidenceDir)) {
 const db = new Database(path.join(__dirname, 'evaluations.db'));
 db.exec('PRAGMA foreign_keys = ON;'); // Activar claves foráneas
 
+// Función para obtener la hora actual en zona horaria española
+function getSpanishTimestamp() {
+    const now = new Date();
+    // Convertir a hora española (UTC+1 en invierno, UTC+2 en verano)
+    const spanishTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Madrid"}));
+    return spanishTime.toISOString().replace('T', ' ').substring(0, 19);
+}
+
 // Crear tablas si no existen
 const createTables = () => {
     // Tabla de trabajadores

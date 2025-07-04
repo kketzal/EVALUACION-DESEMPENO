@@ -35,13 +35,13 @@ export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Selecciona una revisión</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Selecciona una evaluación</h2>
         {lastEval && (
           <button
             className="w-full mb-3 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold shadow hover:bg-indigo-700 transition"
             onClick={() => onContinue(lastEval)}
           >
-            Continuar con la última revisión<br/>
+            Continuar con la última evaluación<br/>
             <span className="text-xs font-normal text-indigo-100">Periodo: {lastEval.period} | Versión: {lastEval.version}</span>
           </button>
         )}
@@ -49,7 +49,7 @@ export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, 
           className="w-full mb-6 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold shadow hover:bg-green-700 transition"
           onClick={onNew}
         >
-          Crear nueva revisión
+          Crear nueva evaluación
         </button>
         <div className="mb-2 text-gray-700 font-medium">O abrir una guardada:</div>
         <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 rounded-lg border border-gray-100 bg-gray-50 mb-2">
@@ -64,11 +64,11 @@ export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, 
                   <span className="font-semibold">Periodo: {ev.period}</span>
                   <span className="text-xs text-gray-500">Versión: {ev.version}</span>
                 </div>
-                <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString()}</div>
+                <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</div>
               </button>
             ))
           ) : (
-            <div className="py-4 text-gray-400 text-center">No hay revisiones guardadas</div>
+            <div className="py-4 text-gray-400 text-center">No hay evaluaciones guardadas</div>
           )}
         </div>
         <button className="mt-2 w-full text-gray-400 hover:text-gray-600 text-sm" onClick={onClose}>Cancelar</button>

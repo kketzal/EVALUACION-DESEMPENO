@@ -84,7 +84,7 @@ const ManageUsersModal: React.FC<ManageUsersModalProps> = ({ isOpen, onClose, wo
                   </>
                 ) : (
                   <>
-                    <div className="text-lg font-semibold text-indigo-900 truncate">{worker.name}</div>
+                    <div className="text-base font-semibold text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{worker.name}</div>
                     <div className="text-sm text-indigo-700 mt-1">{worker.worker_group}</div>
                   </>
                 )}

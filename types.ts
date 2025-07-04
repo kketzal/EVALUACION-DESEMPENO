@@ -35,6 +35,18 @@ export interface EvidenceFile {
   content: string; // Base64 data URL
 }
 
+export interface Evaluation {
+  id: number;
+  worker_id: string;
+  period: string;
+  created_at: string;
+  updated_at: string;
+  useT1SevenPoints: boolean;
+  autoSave: boolean;
+  version?: number;
+  worker_name?: string;
+}
+
 export interface EvaluationState {
   workerId: string | null;
   period: string;

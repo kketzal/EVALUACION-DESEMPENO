@@ -106,7 +106,13 @@ class ApiService {
   // Evaluaciones
   async getEvaluation(workerId: string, period: string): Promise<EvaluationData> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${workerId}/${period}`);
-    if (!response.ok) throw new Error('Error al obtener evaluación');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(`Error al obtener evaluación: ${response.status}`);
+      (error as any).status = response.status;
+      (error as any).data = errorData;
+      throw error;
+    }
     return response.json();
   }
 

@@ -197,69 +197,53 @@ export const useEvaluationState = () => {
       const scores: Record<string, Score> = {};
       const files: Record<string, EvidenceFile[]> = {};
 
-      // Procesar criterios
+      // Procesar criterios guardados en la base de datos
       evaluationData.criteriaChecks.forEach(check => {
         if (!criteriaChecks[check.conduct_id]) {
           const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
           criteriaChecks[check.conduct_id] = {
-            t1: Array(t1CriteriaToUse.length).fill(null), // Usar null para distinguir no inicializado
-            t2: Array(t2Criteria.length).fill(null),
+            t1: Array(t1CriteriaToUse.length).fill(false),
+            t2: Array(t2Criteria.length).fill(false),
           };
         }
         criteriaChecks[check.conduct_id][check.tramo as 't1' | 't2'][check.criterion_index] = !!check.is_checked;
       });
 
-      // Rellenar criterios no guardados con valor por defecto (true)
+      // Inicializar criterios para todas las conductas que no tengan datos guardados
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
           const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
+          
           if (!criteriaChecks[conduct.id]) {
-            // Si no hay nada guardado, inicializar por defecto
+            // Nueva conducta sin datos guardados - inicializar con TRAMO 1 activado
             criteriaChecks[conduct.id] = {
               t1: evaluation.useT1SevenPoints ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
               t2: Array(t2Criteria.length).fill(false),
             };
           } else {
-            // Si hay parcialmente guardado, completar los nulls
-            if (criteriaChecks[conduct.id].t1) {
-              criteriaChecks[conduct.id].t1 = criteriaChecks[conduct.id].t1.map((v, idx) =>
-                v === null || v === undefined
-                  ? (evaluation.useT1SevenPoints
-                      ? ([0, 1, 2].includes(idx) ? true : false)
-                      : true)
-                  : v
-              );
-            }
-            if (criteriaChecks[conduct.id].t2) {
-              criteriaChecks[conduct.id].t2 = criteriaChecks[conduct.id].t2.map(v =>
-                v === null || v === undefined ? false : v
-              );
-            }
+            // Conducta con datos parciales - completar valores faltantes
+            const currentT1 = criteriaChecks[conduct.id].t1 || [];
+            const currentT2 = criteriaChecks[conduct.id].t2 || [];
+            
+            // Completar TRAMO 1
+            criteriaChecks[conduct.id].t1 = Array(t1CriteriaToUse.length).fill(false).map((_, idx) => {
+              if (idx < currentT1.length && currentT1[idx] !== null && currentT1[idx] !== undefined) {
+                return currentT1[idx];
+              }
+              // Valor por defecto según configuración
+              return evaluation.useT1SevenPoints ? (idx < 3 ? true : false) : true;
+            });
+            
+            // Completar TRAMO 2
+            criteriaChecks[conduct.id].t2 = Array(t2Criteria.length).fill(false).map((_, idx) => {
+              return idx < currentT2.length && currentT2[idx] !== null && currentT2[idx] !== undefined 
+                ? currentT2[idx] 
+                : false;
+            });
           }
-        }
-      }
-
-      // Si no hay criterios guardados, inicializar con TRAMO 1 activado por defecto y calcular puntuación
-      for (const competency of competencies) {
-        for (const conduct of competency.conducts) {
-          if (!criteriaChecks[conduct.id]) {
-            if (evaluation.useT1SevenPoints) {
-              criteriaChecks[conduct.id] = {
-                t1: [true, true, true, false],
-                t2: Array(t2Criteria.length).fill(false),
-              };
-            } else {
-              criteriaChecks[conduct.id] = {
-                t1: Array(t1Criteria.length).fill(true),
-                t2: Array(t2Criteria.length).fill(false),
-              };
-            }
-            // Calcular y guardar la puntuación inicial
-            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
-          } else {
-            // Si ya hay criterios, también calcular la puntuación
-            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
-          }
+          
+          // Calcular puntuación para esta conducta
+          scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
         }
       }
 
@@ -327,6 +311,7 @@ export const useEvaluationState = () => {
           period: periodToUse,
           useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
           autoSave: Boolean(evaluationData.evaluation.autoSave),
+          openAccordions: evaluationData.evaluation.is_new ? {} : prev.openAccordions,
         };
         
         console.log('Estado actualizado después de cargar evaluación:', {
@@ -339,8 +324,16 @@ export const useEvaluationState = () => {
         
         return newState;
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar evaluación:', error);
+      
+      // Si es un error 404 (no existe evaluación), lanzar un error específico
+      if (error.status === 404) {
+        throw new Error('NO_EVALUATION_FOUND');
+      }
+      
+      // Para otros errores, mantener el comportamiento actual
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -360,36 +353,48 @@ export const useEvaluationState = () => {
         if (!criteriaChecks[check.conduct_id]) {
           const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
           criteriaChecks[check.conduct_id] = {
-            t1: Array(t1CriteriaToUse.length).fill(null),
-            t2: Array(t2Criteria.length).fill(null),
+            t1: Array(t1CriteriaToUse.length).fill(false),
+            t2: Array(t2Criteria.length).fill(false),
           };
         }
         criteriaChecks[check.conduct_id][check.tramo as 't1' | 't2'][check.criterion_index] = !!check.is_checked;
       });
+      
+      // Inicializar criterios para todas las conductas
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
           const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
+          
           if (!criteriaChecks[conduct.id]) {
+            // Nueva conducta sin datos guardados - inicializar con TRAMO 1 activado
             criteriaChecks[conduct.id] = {
               t1: evaluation.useT1SevenPoints ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
               t2: Array(t2Criteria.length).fill(false),
             };
           } else {
-            if (criteriaChecks[conduct.id].t1) {
-              criteriaChecks[conduct.id].t1 = criteriaChecks[conduct.id].t1.map((v, idx) =>
-                v === null || v === undefined
-                  ? (evaluation.useT1SevenPoints
-                      ? ([0, 1, 2].includes(idx) ? true : false)
-                      : true)
-                  : v
-              );
-            }
-            if (criteriaChecks[conduct.id].t2) {
-              criteriaChecks[conduct.id].t2 = criteriaChecks[conduct.id].t2.map(v =>
-                v === null || v === undefined ? false : v
-              );
-            }
+            // Conducta con datos parciales - completar valores faltantes
+            const currentT1 = criteriaChecks[conduct.id].t1 || [];
+            const currentT2 = criteriaChecks[conduct.id].t2 || [];
+            
+            // Completar TRAMO 1
+            criteriaChecks[conduct.id].t1 = Array(t1CriteriaToUse.length).fill(false).map((_, idx) => {
+              if (idx < currentT1.length && currentT1[idx] !== null && currentT1[idx] !== undefined) {
+                return currentT1[idx];
+              }
+              // Valor por defecto según configuración
+              return evaluation.useT1SevenPoints ? (idx < 3 ? true : false) : true;
+            });
+            
+            // Completar TRAMO 2
+            criteriaChecks[conduct.id].t2 = Array(t2Criteria.length).fill(false).map((_, idx) => {
+              return idx < currentT2.length && currentT2[idx] !== null && currentT2[idx] !== undefined 
+                ? currentT2[idx] 
+                : false;
+            });
           }
+          
+          // Calcular puntuación para esta conducta
+          scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
         }
       }
       evaluationData.realEvidence.forEach(evidence => {

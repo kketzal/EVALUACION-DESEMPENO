@@ -41,7 +41,7 @@ const VersionSelectorModal: React.FC<VersionSelectorModalProps> = ({ isOpen, onC
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Seleccionar periodo y versión</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Seleccionar periodo y evaluación</h2>
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Periodo</label>
           <select
@@ -55,7 +55,7 @@ const VersionSelectorModal: React.FC<VersionSelectorModalProps> = ({ isOpen, onC
           </select>
         </div>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Versiones guardadas</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Evaluaciones guardadas</label>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {(versionsByPeriod[selectedPeriod] || []).map(v => (
               <button
@@ -64,11 +64,11 @@ const VersionSelectorModal: React.FC<VersionSelectorModalProps> = ({ isOpen, onC
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition-colors text-left"
               >
                 <span className="font-mono text-sm text-gray-800">v{v.version}</span>
-                <span className="text-xs text-gray-500 ml-2">{new Date(v.created_at).toLocaleString()}</span>
+                <span className="text-xs text-gray-500 ml-2">{new Date(v.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</span>
               </button>
             ))}
             {(!versionsByPeriod[selectedPeriod] || versionsByPeriod[selectedPeriod].length === 0) && (
-              <div className="text-gray-400 text-sm text-center py-2">No hay versiones guardadas</div>
+              <div className="text-gray-400 text-sm text-center py-2">No hay evaluaciones guardadas</div>
             )}
           </div>
         </div>
@@ -133,10 +133,105 @@ export const Header: React.FC<HeaderProps & {
   }
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm border-b border-gray-200">
-      {/* MOBILE: Rediseño completo */}
+    <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
+      {/* DESKTOP: Logos, título, estado, botones */}
+      <div className="hidden lg:flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-4">
+          {/* Logos a la izquierda */}
+          <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-10 w-auto" />
+          <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-10 w-auto" />
+          <h1 className="text-2xl font-bold text-gray-900 ml-4">Evaluación de Desempeño</h1>
+          {/* El resto del header minimalista sigue aquí... */}
+          <div className="flex items-center gap-2 min-w-[120px]">
+            {isSaving ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-xs text-amber-700 font-normal">Guardando...</span>
+              </>
+            ) : lastSavedAt ? (
+              <>
+                <svg className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-xs text-green-700 font-normal">Guardado</span>
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span className="text-xs text-gray-500 font-normal">No guardado</span>
+              </>
+            )}
+          </div>
+          {/* Usuario y periodo */}
+          {selectedWorkerId && (() => {
+            const worker = workers.find(w => w.id === selectedWorkerId);
+            if (!worker) return null;
+            return (
+              <div className="flex items-center gap-3 bg-indigo-50/70 rounded-xl px-4 py-2 shadow-sm min-w-0">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-semibold text-indigo-900 break-words leading-tight" style={{wordBreak: 'break-word'}}>{worker.name}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-indigo-700 font-normal">{worker.worker_group}</span>
+                    <select
+                      id="period-select-desktop"
+                      value={period}
+                      onChange={(e) => onPeriodChange(e.target.value)}
+                      className="text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors w-auto min-w-[90px] px-1 py-0.5"
+                      style={{height: '1.7em'}}
+                    >
+                      {periodOptions.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          {/* Botones de acción */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onChangeWorkerClick}
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition-colors shadow-sm"
+              title="Cambiar trabajador"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Cambiar trabajador
+            </button>
+            <button
+              onClick={onExitApp}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors shadow-sm"
+              title="Salir de la aplicación"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Salir
+            </button>
+            <button
+              onClick={() => setVersionModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition-colors shadow-sm"
+              title="Seleccionar periodo/evaluación"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 014-4h2a4 4 0 014 4v2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7a4 4 0 018 0" />
+              </svg>
+              Seleccionar periodo/evaluación
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* MOBILE: Logos y título originales */}
       <div className="lg:hidden px-4 py-3 border-b border-gray-100">
-        {/* Fila 1: Logos y título a la izquierda */}
         <div className="flex items-center gap-2 mb-2">
           <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-7 w-auto" />
           <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-7 w-auto" />
@@ -160,20 +255,20 @@ export const Header: React.FC<HeaderProps & {
             <button
               type="button"
               onClick={onChangeWorkerClick}
-              className="inline-flex items-center justify-center p-2 text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              className="inline-flex items-center justify-center p-2 text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition-colors"
               aria-label="Cambiar trabajador"
               title="Cambiar trabajador"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </button>
             <button
               onClick={onExitApp}
-              className="p-2 rounded-md text-gray-700 hover:bg-gray-200 focus:outline-none"
+              className="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
               title="Salir de la aplicación"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
@@ -184,15 +279,15 @@ export const Header: React.FC<HeaderProps & {
           const worker = workers.find(w => w.id === selectedWorkerId);
           if (!worker) return null;
           return (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 flex flex-col items-start mb-2 w-full max-w-full">
-              <span className="text-base font-semibold text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{worker.name}</span>
+            <div className="bg-indigo-50/70 rounded-xl px-4 py-2 flex flex-col items-start w-full max-w-full shadow-sm">
+              <span className="text-sm font-semibold text-indigo-900 break-words leading-tight" style={{wordBreak: 'break-word'}}>{worker.name}</span>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-indigo-700">{worker.worker_group}</span>
+                <span className="text-xs text-indigo-700 font-normal">{worker.worker_group}</span>
                 <select
                   id="period-select"
                   value={period}
                   onChange={(e) => onPeriodChange(e.target.value)}
-                  className="text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors w-auto min-w-[90px] px-1 py-0.5"
+                  className="text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors w-auto min-w-[90px] px-1 py-0.5"
                   style={{height: '1.7em'}}
                 >
                   {periodOptions.map(p => (
@@ -203,99 +298,6 @@ export const Header: React.FC<HeaderProps & {
             </div>
           );
         })()}
-      </div>
-      {/* DESKTOP: Logos, título, estado, botones */}
-      <div className="hidden lg:flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-4">
-          {/* Logos a la izquierda */}
-          <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-10 w-auto" />
-          <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-10 w-auto" />
-          <h1 className="text-2xl font-bold text-gray-900 ml-4">Evaluación de Desempeño</h1>
-          {/* Indicador de estado de guardado */}
-          <div className="flex items-center gap-2 ml-6">
-            {isSaving ? (
-              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full">
-                <svg className="animate-spin h-4 w-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="text-sm font-medium text-amber-700">Guardando...</span>
-              </div>
-            ) : lastSavedAt ? (
-              <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-full">
-                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-sm font-medium text-green-700">Guardado: {lastSavedAt}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-200 rounded-full">
-                <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-600">No guardado</span>
-              </div>
-            )}
-          </div>
-          {/* Tarjeta usuario única en desktop */}
-          {selectedWorkerId && (() => {
-            const worker = workers.find(w => w.id === selectedWorkerId);
-            if (!worker) return null;
-            return (
-              <div className="ml-8 flex flex-col items-start bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
-                <span className="text-base font-semibold text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{worker.name}</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-indigo-700">{worker.worker_group}</span>
-                  <select
-                    id="period-select-desktop"
-                    value={period}
-                    onChange={(e) => onPeriodChange(e.target.value)}
-                    className="text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors w-auto min-w-[90px] px-1 py-0.5"
-                    style={{height: '1.7em'}}
-                  >
-                    {periodOptions.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-        {/* Botones de acción en desktop */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onChangeWorkerClick}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-            title="Cambiar trabajador"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Cambiar trabajador
-          </button>
-          <button
-            onClick={onExitApp}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-            title="Salir de la aplicación"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span>Salir</span>
-          </button>
-          <button
-            onClick={() => setVersionModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 014-4h2a4 4 0 014 4v2" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7a4 4 0 018 0" />
-            </svg>
-            Seleccionar periodo/versión
-          </button>
-        </div>
       </div>
       <VersionSelectorModal
         isOpen={isVersionModalOpen}

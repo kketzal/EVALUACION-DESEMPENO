@@ -15,8 +15,10 @@ import LogoutConfirmModal from './components/LogoutConfirmModal';
 import { SettingsPage } from './components/SettingsPage';
 import { ExportModal } from './components/ExportModal';
 import { RevisionSelectorModal } from './components/RevisionSelectorModal';
+import { Evaluation as TypesEvaluation } from './types';
 import { Evaluation } from './services/api';
 import VersionManagerModal from './components/VersionManagerModal';
+import { EvaluationManagerPage } from './components/EvaluationManagerPage';
 
 function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
   workers: Worker[];
@@ -87,13 +89,20 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
 
         {!selectedWorker ? (
           <>
-            <input
-              type="text"
-              placeholder="Buscar trabajador/a..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="mb-4 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-            />
+            <div className="relative mb-4">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4-4m0 0A7 7 0 1010 17a7 7 0 007-7z" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar trabajador/a..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 text-base sm:text-lg transition-all duration-150"
+              />
+            </div>
             <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
               {filtered.length === 0 && <div className="py-4 text-gray-500 text-center">No hay resultados</div>}
               {filtered.map((worker: Worker) => (
@@ -104,8 +113,8 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
                 >
                   <svg className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   <div>
-                    <span className="truncate block">{worker.name}</span>
-                    <span className="text-sm text-gray-500">{worker.worker_group}</span>
+                    <div className="text-sm font-medium text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{worker.name}</div>
+                    <div className="text-sm text-indigo-700">{worker.worker_group}</div>
                   </div>
                 </button>
               ))}
@@ -119,7 +128,7 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <div>
-                  <div className="font-medium text-indigo-900">{selectedWorker.name}</div>
+                  <div className="text-sm font-medium text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{selectedWorker.name}</div>
                   <div className="text-sm text-indigo-700">{selectedWorker.worker_group}</div>
                 </div>
               </div>
@@ -140,9 +149,20 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
                   autoFocus
                   required
                 />
+                {passwordInput && (
+                  <button
+                    type="button"
+                    className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 focus:outline-none"
+                    aria-label="Borrar contraseña"
+                    onClick={() => setPasswordInput("")}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   type="button"
-                  tabIndex={-1}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 focus:outline-none"
                   onClick={() => setShowPassword(s => !s)}
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
@@ -228,7 +248,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [workerSelectorResetKey, setWorkerSelectorResetKey] = useState(0); // Para forzar reset del modal
 
-  // --- NUEVO ESTADO PARA EL MODAL DE REVISIÓN ---
+  // --- NUEVO ESTADO PARA EL MODAL DE EVALUACIÓN ---
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [pendingWorkerId, setPendingWorkerId] = useState<string | null>(null);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -271,7 +291,10 @@ function App() {
         if (visibleCompetencies.length > 0 && (!activeCompetencyId || activeCompetencyId === 'B' || !visibleCompetencies.find(c => c.id === activeCompetencyId))) {
           console.log('Estableciendo primera competencia:', visibleCompetencies[0].id);
           setActiveCompetencyId(visibleCompetencies[0].id);
-          setActivePage('competency');
+          // Solo cambiar a competency si no estamos en una página especial
+          if (activePage !== 'settings' && activePage !== 'summary' && activePage !== 'manage-users' && activePage !== 'evaluation-manager') {
+            setActivePage('competency');
+          }
         }
       }
     }
@@ -279,16 +302,29 @@ function App() {
 
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
-    await setWorkerId(workerId);
-    const worker = evaluation.workers.find(w => w.id === workerId);
-    // Establecer la primera competencia visible como activa
-    if (worker) {
-      const visibleCompetencies = getVisibleCompetencies(worker.worker_group ?? null);
-      if (visibleCompetencies.length > 0) {
-        setActiveCompetencyId(visibleCompetencies[0].id);
+    try {
+      await setWorkerId(workerId);
+      const worker = evaluation.workers.find(w => w.id === workerId);
+      // Establecer la primera competencia visible como activa
+      if (worker) {
+        const visibleCompetencies = getVisibleCompetencies(worker.worker_group ?? null);
+        if (visibleCompetencies.length > 0) {
+          setActiveCompetencyId(visibleCompetencies[0].id);
+        }
+      }
+      setIsWorkerSelectorOpen(false);
+    } catch (error: any) {
+      if (error.message === 'NO_EVALUATION_FOUND') {
+        // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
+        setPendingWorkerId(workerId);
+        setPendingToken(evaluation.token || '');
+        setShowRevisionModal(true);
+        setIsWorkerSelectorOpen(false);
+      } else {
+        console.error('Error al cambiar trabajador:', error);
+        // Mostrar error al usuario si es necesario
       }
     }
-    setIsWorkerSelectorOpen(false);
   };
 
   const handleAddWorker = async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => {
@@ -358,7 +394,7 @@ function App() {
     });
     
     // Si estamos en una página especial, no buscar competencias
-    if (activePage === 'settings' || activePage === 'summary' || activePage === 'manage-users') {
+    if (activePage === 'settings' || activePage === 'summary' || activePage === 'manage-users' || activePage === 'evaluation-manager') {
       console.log('En página especial, no estableciendo competencia activa');
       return undefined;
     }
@@ -370,7 +406,6 @@ function App() {
       // Usar setTimeout para evitar actualizaciones durante el render
       setTimeout(() => {
         setActiveCompetencyId(visibleCompetencies[0].id);
-        setActivePage('competency');
       }, 0);
       return visibleCompetencies[0];
     }
@@ -448,7 +483,18 @@ function App() {
         const data = await res.json();
         setWorkerSession({ workerId: data.id, token });
         // Cargar los datos de la evaluación después de restaurar la sesión
-        await setWorkerId(data.id);
+        try {
+          await setWorkerId(data.id);
+        } catch (error: any) {
+          if (error.message === 'NO_EVALUATION_FOUND') {
+            // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
+            setPendingWorkerId(data.id);
+            setPendingToken(token);
+            setShowRevisionModal(true);
+          } else {
+            throw error; // Re-lanzar otros errores
+          }
+        }
         // Cargar el histórico de evaluaciones
         await loadWorkerEvaluations(data.id);
         // Obtener timeout global
@@ -670,6 +716,9 @@ function App() {
     } else if (id === 'manage-users') {
       setActivePage('manage-users');
       setActiveCompetencyId('manage-users');
+    } else if (id === 'evaluation-manager') {
+      setActivePage('evaluation-manager');
+      setActiveCompetencyId('evaluation-manager');
     } else {
       setActivePage('competency');
       setActiveCompetencyId(id);
@@ -697,7 +746,7 @@ function App() {
     removeFile('', conductId, fileId.toString());
   };
 
-  // Handler para seleccionar una versión concreta
+  // Handler para seleccionar una evaluación concreta
   const handleSelectVersion = async (period: string, version: number) => {
     // Buscar la evaluación con ese periodo y versión
     const ev = workerEvaluations.find(e => e.period === period && e.version === version);
@@ -707,10 +756,10 @@ function App() {
     }
   };
 
-  // Handler para crear nueva versión
+  // Handler para crear nueva evaluación
   const handleNewVersion = async (period: string) => {
     if (!evaluation.workerId) return;
-    // Crear nueva evaluación (nueva versión)
+    // Crear nueva evaluación
     const res = await fetch('/api/evaluations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -742,7 +791,7 @@ function App() {
     setShowRevisionModal(true);
   };
 
-  // --- HANDLERS PARA EL MODAL ---
+  // --- HANDLERS PARA EL MODAL DE EVALUACIÓN ---
   const handleContinue = (evaluation: Evaluation) => {
     setWorkerSession({ workerId: evaluation.worker_id, token: pendingToken || '' });
     setWorkerId(evaluation.worker_id, evaluation.period);
@@ -783,6 +832,44 @@ function App() {
     }
   };
 
+  const handleOpenEvaluation = async (evaluationId: number) => {
+    try {
+      await loadEvaluationById(evaluationId);
+      setActivePage('competency');
+    } catch (error) {
+      console.error('Error al abrir evaluación:', error);
+    }
+  };
+
+  const [nextEvaluationIsNew, setNextEvaluationIsNew] = useState(false);
+
+  // Modificar handleCreateNewEvaluation para marcar el flag
+  const handleCreateNewEvaluation = async () => {
+    if (evaluation.workerId && evaluation.period) {
+      setNextEvaluationIsNew(true);
+      await handleNewVersion(evaluation.period);
+      setActivePage('competency');
+      localStorage.setItem('activePage', 'competency');
+      localStorage.setItem('activeCompetencyId', 'B');
+    }
+  };
+
+  // Efecto para colapsar todos los accordions si la evaluación es nueva
+  useEffect(() => {
+    if (nextEvaluationIsNew && evaluation && evaluation.evaluationId) {
+      // Colapsar todos los accordions
+      if (evaluation.openAccordions && Object.keys(evaluation.openAccordions).length > 0) {
+        // Si ya hay estado, lo reseteamos
+        evaluation.openAccordions = {};
+      }
+      // Forzar re-render
+      setWorkerId(evaluation.workerId, evaluation.period);
+      setNextEvaluationIsNew(false);
+    }
+  }, [nextEvaluationIsNew, evaluation, setWorkerId]);
+
+  const [isVersionManagerOpen, setVersionManagerOpen] = useState(false);
+
   if (loadingSession) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
@@ -812,11 +899,14 @@ function App() {
               </button>
               <button
                 onClick={() => setAddWorkerModalOpen(true)}
-                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-2 mb-2 rounded-2xl shadow-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white text-lg font-semibold hover:scale-105 hover:shadow-2xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-300"
               >
-                <UserPlusIcon className="h-5 w-5 mr-2 text-gray-500" />
+                <UserPlusIcon className="h-8 w-8 mr-2 text-white drop-shadow-lg" />
                 Añadir Nuevo Trabajador
               </button>
+              <p className="text-center text-sm text-gray-500 mt-2 mb-4">
+                ¿Es tu primera vez? Crea un trabajador para empezar a usar la aplicación.
+              </p>
             </div>
           </div>
         </div>
@@ -833,7 +923,7 @@ function App() {
             period={evaluation.period}
             onPeriodChange={handlePeriodChange}
             onAddWorkerClick={() => setAddWorkerModalOpen(true)}
-            onExitApp={handleExitApp}
+            onExitApp={() => setLogoutModalOpen(true)}
             useT1SevenPoints={evaluation.useT1SevenPoints}
             onT1SevenPointsChange={setUseT1SevenPoints}
             isSaving={evaluation.isSaving}
@@ -841,7 +931,7 @@ function App() {
             onHamburgerClick={() => setSidebarOpen(true)}
             workerEvaluations={workerEvaluations}
             onSelectVersion={handleSelectVersion}
-            onNewVersion={handleNewVersion}
+            onNewVersion={handleCreateNewEvaluation}
           />
           {/* Sidebar móvil */}
           {isSidebarOpen && (
@@ -859,10 +949,13 @@ function App() {
                 </button>
                 <Sidebar
                   competencies={visibleCompetencies}
-                  activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activeCompetencyId}
+                  activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activePage === 'evaluation-manager' ? 'evaluation-manager' : activeCompetencyId}
                   onCompetencyChange={handleSidebarChange}
                   fixedDesktop={false}
                   onOpenSettings={() => { setManageUsersModalOpen(true); closeSidebar(); }}
+                  onOpenEvaluationManager={() => { setActivePage('evaluation-manager'); closeSidebar(); }}
+                  onSetActivePage={(page) => { setActivePage(page); closeSidebar(); }}
+                  activePage={activePage}
                   className="block lg:hidden h-full overflow-y-auto pt-16"
                   handleExportDB={handleExportDB}
                   handleImportDB={handleImportDB}
@@ -883,11 +976,14 @@ function App() {
             {/* Sidebar fijo desktop */}
             <Sidebar
               competencies={visibleCompetencies}
-              activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activeCompetencyId}
+              activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activePage === 'evaluation-manager' ? 'evaluation-manager' : activeCompetencyId}
               onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
               onOpenSettings={() => setManageUsersModalOpen(true)}
               onOpenVersionManager={() => setVersionManagerOpen(true)}
+              onOpenEvaluationManager={() => setActivePage('evaluation-manager')}
+              onSetActivePage={setActivePage}
+              activePage={activePage}
               className="hidden lg:block lg:fixed lg:left-0 lg:top-[64px] lg:bottom-[56px] lg:w-80 lg:h-auto lg:z-30"
               handleExportDB={handleExportDB}
               handleImportDB={handleImportDB}
@@ -897,7 +993,19 @@ function App() {
             />
             {/* Main content */}
             <main className="flex-1 w-full pt-0 lg:pl-80 lg:pt-[96px] pb-56">
-              {activePage === 'settings' ? (
+              {activePage === 'evaluation-manager' ? (
+                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                  <EvaluationManagerPage
+                    evaluations={workerEvaluations}
+                    onOpen={handleOpenEvaluation}
+                    onDelete={handleDeleteEvaluations}
+                    onDeleteAll={handleDeleteAllEvaluations}
+                    onCreateNew={handleCreateNewEvaluation}
+                    onClose={() => setActivePage('competency')}
+                    isLoading={isLoading}
+                  />
+                </div>
+              ) : activePage === 'settings' ? (
                 <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
                   <SettingsPage
                     sessionTimeout={sessionTimeout}
@@ -1014,6 +1122,12 @@ function App() {
         onOpen={loadEvaluationById}
         onDelete={handleDeleteEvaluations}
         onDeleteAll={handleDeleteAllEvaluations}
+        onCreateNewVersion={() => {
+          if (evaluation.workerId && evaluation.period) {
+            handleNewVersion(evaluation.period);
+            setVersionManagerOpen(false);
+          }
+        }}
       />
     </>
   );

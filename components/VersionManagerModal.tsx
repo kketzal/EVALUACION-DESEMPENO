@@ -8,9 +8,10 @@ interface VersionManagerModalProps {
   onOpen: (evaluationId: number) => void;
   onDelete: (evaluationIds: number[]) => void;
   onDeleteAll: () => void;
+  onCreateNewVersion: () => void;
 }
 
-const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClose, evaluations, onOpen, onDelete, onDeleteAll }) => {
+const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClose, evaluations, onOpen, onDelete, onDeleteAll, onCreateNewVersion }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   if (!isOpen) return null;
@@ -21,7 +22,7 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
 
   const handleDelete = () => {
     if (selectedIds.length > 0) {
-      if (window.confirm('¿Seguro que quieres eliminar las revisiones seleccionadas?')) {
+      if (window.confirm('¿Seguro que quieres eliminar las evaluaciones seleccionadas?')) {
         onDelete(selectedIds);
         setSelectedIds([]);
       }
@@ -29,7 +30,7 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
   };
 
   const handleDeleteAll = () => {
-    if (window.confirm('¿Seguro que quieres eliminar TODAS las revisiones? Esta acción no se puede deshacer.')) {
+    if (window.confirm('¿Seguro que quieres eliminar TODAS las evaluaciones? Esta acción no se puede deshacer.')) {
       onDeleteAll();
       setSelectedIds([]);
     }
@@ -43,9 +44,19 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Gestionar Versiones</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Gestionar Evaluaciones</h2>
         <div className="mb-4 max-h-80 overflow-y-auto divide-y divide-gray-100">
-          {evaluations.length === 0 && <div className="text-gray-400 text-center py-8">No hay revisiones guardadas.</div>}
+          {evaluations.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 gap-4">
+              <div className="text-gray-400 text-center">No hay evaluaciones guardadas.</div>
+              <button
+                className="px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors shadow text-lg"
+                onClick={onCreateNewVersion}
+              >
+                Crear nueva evaluación
+              </button>
+            </div>
+          )}
           {evaluations.map(ev => (
             <div key={ev.id} className="flex items-center gap-3 py-2 px-2 hover:bg-indigo-50 rounded transition">
               <input
@@ -58,11 +69,11 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
                 <div className="font-mono text-sm text-gray-800">
                   {typeof (ev as any)['version'] !== 'undefined' ? `v${(ev as any)['version']} - ` : ''}{ev.period}
                 </div>
-                <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString()}</div>
+                <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</div>
               </div>
               <button
                 className="text-red-500 hover:text-red-700 p-1 rounded"
-                title="Eliminar esta revisión"
+                title="Eliminar esta evaluación"
                 onClick={() => onDelete([ev.id])}
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,7 +102,7 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
           className="mt-4 w-full py-2 rounded-lg bg-red-100 text-red-700 font-semibold hover:bg-red-200 transition-colors shadow"
           onClick={handleDeleteAll}
         >
-          Eliminar TODAS las revisiones
+          Eliminar TODAS las evaluaciones
         </button>
       </div>
       <style>{`

@@ -27,7 +27,18 @@ async function postEvaluation(req, res) {
     const row = db.prepare('SELECT MAX(version) as maxVersion FROM evaluations WHERE worker_id = ? AND period = ?').get(workerId, period);
     const maxVersion = row && row.maxVersion ? row.maxVersion : 0;
     const newVersion = (maxVersion || 0) + 1;
-    const result = db.prepare('INSERT INTO evaluations (worker_id, period, version) VALUES (?, ?, ?)').run(workerId, period, newVersion);
+    const now = new Date();
+    const spanishTimeFormatted = now.toLocaleString("en-US", {
+        timeZone: "Europe/Madrid",
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+    const result = db.prepare('INSERT INTO evaluations (worker_id, period, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(workerId, period, newVersion, spanishTimeFormatted, spanishTimeFormatted);
     res.status(201).json({
       id: result.lastInsertRowid,
       workerId,
