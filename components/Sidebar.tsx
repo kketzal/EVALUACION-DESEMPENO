@@ -10,6 +10,7 @@ interface SidebarProps {
   mobile?: boolean;
   fixedDesktop?: boolean;
   onOpenSettings?: () => void;
+  onOpenVersionManager?: () => void;
   className?: string;
   handleExportDB: () => void;
   handleImportDB: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -18,7 +19,7 @@ interface SidebarProps {
   dbMessage?: string | null;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, className, handleExportDB, handleImportDB, fileInputRef, dbLoading = false, dbMessage }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetencyId, onCompetencyChange, compact = false, mobile = false, fixedDesktop = false, onOpenSettings, onOpenVersionManager, className, handleExportDB, handleImportDB, fileInputRef, dbLoading = false, dbMessage }) => {
   const [isTimeoutModalOpen, setTimeoutModalOpen] = React.useState(false);
 
   return (
@@ -132,6 +133,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
           }`}>
             Gestionar usuarios
           </span>
+        </button>
+        <button
+          onClick={() => onOpenVersionManager && onOpenVersionManager()}
+          className="group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 text-slate-700 hover:bg-gradient-to-r hover:from-slate-100 hover:to-purple-50 hover:shadow-md"
+        >
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-purple-100 group-hover:bg-purple-200">
+            <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium">Gestionar Versiones</span>
         </button>
         <button
           onClick={() => onCompetencyChange('settings')}

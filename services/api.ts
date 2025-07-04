@@ -253,6 +253,13 @@ class ApiService {
     if (!response.ok) throw new Error('Error al obtener evaluación por id');
     return response.json();
   }
+
+  async deleteEvaluation(evaluationId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Error al eliminar evaluación');
+  }
 }
 
 export const apiService = new ApiService(); 

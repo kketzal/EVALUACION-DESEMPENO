@@ -16,6 +16,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { ExportModal } from './components/ExportModal';
 import { RevisionSelectorModal } from './components/RevisionSelectorModal';
 import { Evaluation } from './services/api';
+import VersionManagerModal from './components/VersionManagerModal';
 
 function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
   workers: Worker[];
@@ -764,6 +765,24 @@ function App() {
     setShowRevisionModal(false);
   };
 
+  // Eliminar una o varias evaluaciones
+  const handleDeleteEvaluations = async (ids: number[]) => {
+    for (const id of ids) {
+      await apiService.deleteEvaluation(id);
+    }
+    if (evaluation.workerId) await loadWorkerEvaluations(evaluation.workerId);
+  };
+
+  // Eliminar todas las evaluaciones
+  const handleDeleteAllEvaluations = async () => {
+    if (workerEvaluations.length > 0) {
+      for (const ev of workerEvaluations) {
+        await apiService.deleteEvaluation(ev.id);
+      }
+      if (evaluation.workerId) await loadWorkerEvaluations(evaluation.workerId);
+    }
+  };
+
   if (loadingSession) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
@@ -868,6 +887,7 @@ function App() {
               onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
               onOpenSettings={() => setManageUsersModalOpen(true)}
+              onOpenVersionManager={() => setVersionManagerOpen(true)}
               className="hidden lg:block lg:fixed lg:left-0 lg:top-[64px] lg:bottom-[56px] lg:w-80 lg:h-auto lg:z-30"
               handleExportDB={handleExportDB}
               handleImportDB={handleImportDB}
@@ -985,6 +1005,15 @@ function App() {
         onNew={handleNew}
         onSelect={handleSelect}
         onClose={() => setShowRevisionModal(false)}
+      />
+
+      <VersionManagerModal
+        isOpen={isVersionManagerOpen}
+        onClose={() => setVersionManagerOpen(false)}
+        evaluations={workerEvaluations}
+        onOpen={loadEvaluationById}
+        onDelete={handleDeleteEvaluations}
+        onDeleteAll={handleDeleteAllEvaluations}
       />
     </>
   );

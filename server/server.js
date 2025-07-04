@@ -610,6 +610,23 @@ app.delete('/api/evidence-files-on-disk', (req, res) => {
   });
 });
 
+// Eliminar evaluación y todos sus datos asociados
+app.delete('/api/evaluations/:evaluationId', (req, res) => {
+  try {
+    const { evaluationId } = req.params;
+    // Eliminar criterios, evidencias, archivos y puntuaciones asociadas
+    db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ?').run(evaluationId);
+    db.prepare('DELETE FROM real_evidence WHERE evaluation_id = ?').run(evaluationId);
+    db.prepare('DELETE FROM evidence_files WHERE evaluation_id = ?').run(evaluationId);
+    db.prepare('DELETE FROM scores WHERE evaluation_id = ?').run(evaluationId);
+    // Eliminar la evaluación
+    db.prepare('DELETE FROM evaluations WHERE id = ?').run(evaluationId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const evaluationsHandlers = require('./evaluations.route.js');
 
 // Evaluaciones (listado y creación)
