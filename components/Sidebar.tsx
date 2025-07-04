@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         <h2 className="text-2xl font-extrabold text-indigo-900 tracking-tight border-b-2 border-indigo-100 pb-2">Competencias</h2>
       </div>
       {/* Lista de competencias */}
-      <nav className="pr-1">
+      <nav className="pr-1 pl-4 lg:pl-0">
         <ul className="space-y-0.5">
           {competencies.map((competency, idx) => (
             <li key={competency.id} className={idx === 0 ? '!mt-0' : ''}>
@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
       <div className="my-6 border-t border-slate-200" />
 
       {/* Bloque de opciones */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 pl-4 lg:pl-0">
         <button
           onClick={() => onCompetencyChange('summary')}
           className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${

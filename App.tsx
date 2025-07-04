@@ -972,7 +972,8 @@ function App() {
               `}</style>
             </>
           )}
-          <div className="flex flex-col lg:flex-row flex-1 w-full pt-[96px]">
+          {/* Layout principal responsive: apilado en móvil, columnas en desktop */}
+          <div className="flex flex-col lg:flex-row flex-1 w-full">
             {/* Sidebar fijo desktop */}
             <Sidebar
               competencies={visibleCompetencies}
@@ -984,17 +985,17 @@ function App() {
               onOpenEvaluationManager={() => setActivePage('evaluation-manager')}
               onSetActivePage={setActivePage}
               activePage={activePage}
-              className="hidden lg:block lg:fixed lg:left-0 lg:top-[64px] lg:bottom-[56px] lg:w-80 lg:h-auto lg:z-30"
+              className="hidden lg:block lg:fixed lg:left-0 lg:top-[96px] lg:bottom-0 lg:w-80 lg:h-auto lg:z-30"
               handleExportDB={handleExportDB}
               handleImportDB={handleImportDB}
               fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
               dbLoading={dbLoading}
               dbMessage={dbMessage}
             />
-            {/* Main content */}
-            <main className="flex-1 w-full pt-0 lg:pl-80 lg:pt-[96px] pb-56">
+            {/* Panel principal scrollable, padding-top según header */}
+            <main className="flex-1 min-h-0 flex flex-col overflow-y-auto px-2 sm:px-6 lg:px-10 pb-24 pt-[96px] lg:pt-[96px] lg:ml-80">
               {activePage === 'evaluation-manager' ? (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                <div className="bg-white shadow-md rounded-xl p-6">
                   <EvaluationManagerPage
                     evaluations={workerEvaluations}
                     onOpen={handleOpenEvaluation}
@@ -1006,7 +1007,7 @@ function App() {
                   />
                 </div>
               ) : activePage === 'settings' ? (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                <div className="bg-white shadow-md rounded-xl p-6">
                   <SettingsPage
                     sessionTimeout={sessionTimeout}
                     onSessionTimeoutChange={handleSessionTimeoutChange}
@@ -1022,15 +1023,15 @@ function App() {
                   />
                 </div>
               ) : activePage === 'summary' ? (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                <div className="bg-white shadow-md rounded-xl p-6">
                   <SummaryPage evaluation={evaluation} onSave={saveEvaluation} onRemoveFile={handleRemoveFileFromSummary} />
                 </div>
               ) : activePage === 'manage-users' ? (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                <div className="bg-white shadow-md rounded-xl p-6">
                   <ManageUsersPanel currentWorker={currentWorker ?? null} />
                 </div>
               ) : activeCompetency ? (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px]">
+                <div className="bg-white shadow-md rounded-xl p-6">
                   <CompetencyBlock
                     competency={activeCompetency}
                     evaluation={evaluation}
@@ -1042,7 +1043,7 @@ function App() {
                   />
                 </div>
               ) : (
-                <div className="bg-white shadow-md rounded-xl p-6 lg:-mt-[96px] flex items-center justify-center">
+                <div className="bg-white shadow-md rounded-xl p-6 flex items-center justify-center">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                     <p className="text-gray-600">

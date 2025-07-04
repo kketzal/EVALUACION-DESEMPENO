@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Worker } from '../types';
 import { UserPlusIcon } from './icons';
+import { Listbox, Transition } from '@headlessui/react';
+import { Fragment } from 'react';
 
 interface HeaderProps {
   workers: Worker[];
@@ -132,6 +134,99 @@ export const Header: React.FC<HeaderProps & {
       periodOptions.unshift(period);
   }
 
+  let userMobileBlock: React.ReactNode = null;
+  if (selectedWorkerId) {
+    const worker = workers.find(w => w.id === selectedWorkerId);
+    if (worker) {
+      let nameClass = "text-xs font-semibold text-indigo-900 whitespace-nowrap text-center";
+      if (worker.name.length > 22) nameClass = "text-[9px] font-semibold text-indigo-900 whitespace-nowrap text-center";
+      else if (worker.name.length > 16) nameClass = "text-[10px] font-semibold text-indigo-900 whitespace-nowrap text-center";
+      userMobileBlock = (
+        <div className="flex flex-col items-center bg-indigo-50/70 rounded-lg px-2 py-1 shadow-sm min-w-0 flex-1 w-full">
+          <span className={nameClass + " w-full truncate whitespace-nowrap text-center"} style={{wordBreak: 'break-word'}} title={worker.name}>{worker.name}</span>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[10px] text-indigo-700 font-normal">{worker.worker_group}</span>
+            <Listbox value={period} onChange={onPeriodChange}>
+              {({ open }) => (
+                <div className="relative min-w-[70px]">
+                  <Listbox.Button className="text-[10px] bg-white border border-indigo-200 text-indigo-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all w-full px-2 py-1 pr-6 appearance-none shadow-sm cursor-pointer flex items-center justify-between">
+                    <span className="truncate">{period}</span>
+                    <svg className={`h-4 w-4 ml-1 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Listbox.Button>
+                  <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md py-1 ring-1 ring-black ring-opacity-5 focus:outline-none text-[11px]">
+                      {periodOptions.map((p) => (
+                        <Listbox.Option
+                          key={p}
+                          value={p}
+                          className={({ active, selected }) =>
+                            `cursor-pointer select-none px-3 py-2 rounded-md mx-1 my-0.5 ${
+                              active ? 'bg-indigo-100 text-indigo-900' : selected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-900'
+                            }`
+                          }
+                        >
+                          {p}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  </Transition>
+                </div>
+              )}
+            </Listbox>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  let userDesktopBlock: React.ReactNode = null;
+  if (selectedWorkerId) {
+    const worker = workers.find(w => w.id === selectedWorkerId);
+    if (worker) {
+      userDesktopBlock = (
+        <div className="flex items-center gap-3 bg-indigo-50/70 rounded-xl px-4 py-2 shadow-sm min-w-0">
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold text-indigo-900 break-words leading-tight" style={{wordBreak: 'break-word'}}>{worker.name}</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs text-indigo-700 font-normal">{worker.worker_group}</span>
+              <Listbox value={period} onChange={onPeriodChange}>
+                {({ open }) => (
+                  <div className="relative min-w-[100px]">
+                    <Listbox.Button className="text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors w-auto min-w-[90px] px-2 py-1 appearance-none shadow-sm cursor-pointer flex items-center justify-between">
+                      <span className="truncate">{period}</span>
+                      <svg className={`h-4 w-4 ml-1 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </Listbox.Button>
+                    <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                      <Listbox.Options className="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none text-xs">
+                        {periodOptions.map((p) => (
+                          <Listbox.Option
+                            key={p}
+                            value={p}
+                            className={({ active, selected }) =>
+                              `cursor-pointer select-none px-3 py-2 rounded-md mx-1 my-0.5 ${
+                                active ? 'bg-indigo-100 text-indigo-900' : selected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-900'
+                              }`
+                            }
+                          >
+                            {p}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox.Options>
+                    </Transition>
+                  </div>
+                )}
+              </Listbox>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
       {/* DESKTOP: Logos, título, estado, botones */}
@@ -168,31 +263,7 @@ export const Header: React.FC<HeaderProps & {
             )}
           </div>
           {/* Usuario y periodo */}
-          {selectedWorkerId && (() => {
-            const worker = workers.find(w => w.id === selectedWorkerId);
-            if (!worker) return null;
-            return (
-              <div className="flex items-center gap-3 bg-indigo-50/70 rounded-xl px-4 py-2 shadow-sm min-w-0">
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-indigo-900 break-words leading-tight" style={{wordBreak: 'break-word'}}>{worker.name}</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-indigo-700 font-normal">{worker.worker_group}</span>
-                    <select
-                      id="period-select-desktop"
-                      value={period}
-                      onChange={(e) => onPeriodChange(e.target.value)}
-                      className="text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors w-auto min-w-[90px] px-1 py-0.5"
-                      style={{height: '1.7em'}}
-                    >
-                      {periodOptions.map(p => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
+          {userDesktopBlock}
           {/* Botones de acción */}
           <div className="flex items-center gap-2">
             <button
@@ -231,73 +302,48 @@ export const Header: React.FC<HeaderProps & {
         </div>
       </div>
       {/* MOBILE: Logos y título originales */}
-      <div className="lg:hidden px-4 py-3 border-b border-gray-100">
+      <div className="lg:hidden px-4 py-3 border-b border-gray-100 relative">
         <div className="flex items-center gap-2 mb-2">
           <img src="/logos/logo_uco-3.png" alt="Logo UCO" className="h-7 w-auto" />
           <img src="/logos/logo_scai.png" alt="Logo SCAI" className="h-7 w-auto" />
-          <h1 className="text-lg font-bold text-gray-900 ml-2 whitespace-nowrap">Evaluación de Desempeño</h1>
+          <h1 className="text-lg font-bold text-gray-900 ml-1 whitespace-nowrap">Evaluación de Desempeño</h1>
         </div>
-        {/* Fila 2: Menú hamburguesa + iconos */}
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            {onHamburgerClick && (
-              <button
-                className="block p-2 rounded-md text-gray-700 hover:bg-gray-200 focus:outline-none"
-                onClick={onHamburgerClick}
-              >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+        {/* Botón logout flotante en móvil */}
+        <button
+          onClick={onExitApp}
+          className="absolute top-1.5 right-2 z-20 p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none lg:hidden"
+          title="Salir de la aplicación"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
+        {/* Fila 2: Menú hamburguesa + usuario + cambiar usuario */}
+        <div className="flex items-center justify-between mb-2 gap-2">
+          {onHamburgerClick && (
             <button
-              type="button"
-              onClick={onChangeWorkerClick}
-              className="inline-flex items-center justify-center p-2 text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition-colors"
-              aria-label="Cambiar trabajador"
-              title="Cambiar trabajador"
+              className="block p-2 rounded-md text-gray-700 hover:bg-gray-200 focus:outline-none mr-2"
+              onClick={onHamburgerClick}
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <button
-              onClick={onExitApp}
-              className="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
-              title="Salir de la aplicación"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
+          )}
+          {userMobileBlock}
+          {/* Botón cambiar usuario a la derecha */}
+          <button
+            type="button"
+            onClick={onChangeWorkerClick}
+            className="inline-flex items-center justify-center p-2 text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 transition-colors"
+            aria-label="Cambiar trabajador"
+            title="Cambiar trabajador"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
-        {/* Tarjeta usuario única */}
-        {selectedWorkerId && (() => {
-          const worker = workers.find(w => w.id === selectedWorkerId);
-          if (!worker) return null;
-          return (
-            <div className="bg-indigo-50/70 rounded-xl px-4 py-2 flex flex-col items-start w-full max-w-full shadow-sm">
-              <span className="text-sm font-semibold text-indigo-900 break-words leading-tight" style={{wordBreak: 'break-word'}}>{worker.name}</span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-indigo-700 font-normal">{worker.worker_group}</span>
-                <select
-                  id="period-select"
-                  value={period}
-                  onChange={(e) => onPeriodChange(e.target.value)}
-                  className="text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-colors w-auto min-w-[90px] px-1 py-0.5"
-                  style={{height: '1.7em'}}
-                >
-                  {periodOptions.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          );
-        })()}
       </div>
       <VersionSelectorModal
         isOpen={isVersionModalOpen}
