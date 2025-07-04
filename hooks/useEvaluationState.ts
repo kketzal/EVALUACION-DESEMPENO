@@ -98,6 +98,7 @@ export const useEvaluationState = () => {
   const [evaluation, setEvaluation] = useState<EvaluationState>(getInitialState);
   const [isLoading, setIsLoading] = useState(false);
   const [workersLoaded, setWorkersLoaded] = useState(false);
+  const [workerEvaluations, setWorkerEvaluations] = useState<any[]>([]);
 
   // LOG de depuración para cada llamada a setEvaluation
   const setEvaluationWithLog = (updater: (prev: EvaluationState) => EvaluationState) => {
@@ -134,6 +135,29 @@ export const useEvaluationState = () => {
       setIsLoading(false);
     }
   }, []);
+
+  // Cargar evaluaciones históricas del trabajador seleccionado
+  const loadWorkerEvaluations = useCallback(async (workerId: string) => {
+    if (!workerId) {
+      setWorkerEvaluations([]);
+      return;
+    }
+    try {
+      const evals = await apiService.getEvaluationsByWorker(workerId);
+      setWorkerEvaluations(evals);
+    } catch (error) {
+      setWorkerEvaluations([]);
+    }
+  }, []);
+
+  // Cargar evaluaciones cuando cambia el trabajador
+  useEffect(() => {
+    if (evaluation.workerId) {
+      loadWorkerEvaluations(evaluation.workerId);
+    } else {
+      setWorkerEvaluations([]);
+    }
+  }, [evaluation.workerId, loadWorkerEvaluations]);
 
   const setWorkerId = useCallback(async (workerId: string | null, periodOverride?: string) => {
     if (!workersLoaded) {
@@ -178,12 +202,42 @@ export const useEvaluationState = () => {
         if (!criteriaChecks[check.conduct_id]) {
           const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
           criteriaChecks[check.conduct_id] = {
-            t1: Array(t1CriteriaToUse.length).fill(false),
-            t2: Array(t2Criteria.length).fill(false),
+            t1: Array(t1CriteriaToUse.length).fill(null), // Usar null para distinguir no inicializado
+            t2: Array(t2Criteria.length).fill(null),
           };
         }
         criteriaChecks[check.conduct_id][check.tramo as 't1' | 't2'][check.criterion_index] = !!check.is_checked;
       });
+
+      // Rellenar criterios no guardados con valor por defecto (true)
+      for (const competency of competencies) {
+        for (const conduct of competency.conducts) {
+          const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
+          if (!criteriaChecks[conduct.id]) {
+            // Si no hay nada guardado, inicializar por defecto
+            criteriaChecks[conduct.id] = {
+              t1: evaluation.useT1SevenPoints ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
+              t2: Array(t2Criteria.length).fill(false),
+            };
+          } else {
+            // Si hay parcialmente guardado, completar los nulls
+            if (criteriaChecks[conduct.id].t1) {
+              criteriaChecks[conduct.id].t1 = criteriaChecks[conduct.id].t1.map((v, idx) =>
+                v === null || v === undefined
+                  ? (evaluation.useT1SevenPoints
+                      ? ([0, 1, 2].includes(idx) ? true : false)
+                      : true)
+                  : v
+              );
+            }
+            if (criteriaChecks[conduct.id].t2) {
+              criteriaChecks[conduct.id].t2 = criteriaChecks[conduct.id].t2.map(v =>
+                v === null || v === undefined ? false : v
+              );
+            }
+          }
+        }
+      }
 
       // Si no hay criterios guardados, inicializar con TRAMO 1 activado por defecto y calcular puntuación
       for (const competency of competencies) {
@@ -292,12 +346,110 @@ export const useEvaluationState = () => {
     }
   }, [evaluation.period, evaluation.useT1SevenPoints, workersLoaded]);
 
+  // Cargar una evaluación concreta por id
+  const loadEvaluationById = useCallback(async (evaluationId: number) => {
+    try {
+      setIsLoading(true);
+      const evaluationData = await apiService.getEvaluationById(evaluationId);
+      // (Reutilizar la lógica de mapeo de datos de setWorkerId)
+      const criteriaChecks: Record<string, CriteriaCheckState> = {};
+      const realEvidences: Record<string, string> = {};
+      const scores: Record<string, Score> = {};
+      const files: Record<string, EvidenceFile[]> = {};
+      evaluationData.criteriaChecks.forEach(check => {
+        if (!criteriaChecks[check.conduct_id]) {
+          const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
+          criteriaChecks[check.conduct_id] = {
+            t1: Array(t1CriteriaToUse.length).fill(null),
+            t2: Array(t2Criteria.length).fill(null),
+          };
+        }
+        criteriaChecks[check.conduct_id][check.tramo as 't1' | 't2'][check.criterion_index] = !!check.is_checked;
+      });
+      for (const competency of competencies) {
+        for (const conduct of competency.conducts) {
+          const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
+          if (!criteriaChecks[conduct.id]) {
+            criteriaChecks[conduct.id] = {
+              t1: evaluation.useT1SevenPoints ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
+              t2: Array(t2Criteria.length).fill(false),
+            };
+          } else {
+            if (criteriaChecks[conduct.id].t1) {
+              criteriaChecks[conduct.id].t1 = criteriaChecks[conduct.id].t1.map((v, idx) =>
+                v === null || v === undefined
+                  ? (evaluation.useT1SevenPoints
+                      ? ([0, 1, 2].includes(idx) ? true : false)
+                      : true)
+                  : v
+              );
+            }
+            if (criteriaChecks[conduct.id].t2) {
+              criteriaChecks[conduct.id].t2 = criteriaChecks[conduct.id].t2.map(v =>
+                v === null || v === undefined ? false : v
+              );
+            }
+          }
+        }
+      }
+      evaluationData.realEvidence.forEach(evidence => {
+        realEvidences[evidence.conduct_id] = evidence.evidence_text;
+      });
+      evaluationData.scores.forEach(score => {
+        scores[score.conduct_id] = {
+          t1: score.t1_score,
+          t2: score.t2_score,
+          final: score.final_score,
+        };
+      });
+      evaluationData.evidenceFiles.forEach(file => {
+        if (!files[file.conduct_id]) {
+          files[file.conduct_id] = [];
+        }
+        const fileObject = {
+          id: file.id.toString(),
+          name: file.original_name,
+          type: file.file_type || '',
+          content: '',
+          url: file.url || `/uploads/evidence/${file.name || file.original_name}`,
+        };
+        files[file.conduct_id].push(fileObject);
+      });
+      competencies.forEach(competency => {
+        competency.conducts.forEach(conduct => {
+          if (!files[conduct.id]) {
+            files[conduct.id] = [];
+          }
+        });
+      });
+      const cleanedFiles = cleanInvalidFiles(files);
+      setEvaluationWithLog(prev => {
+        const newState = {
+          ...prev,
+          workerId: evaluationData.evaluation.worker_id,
+          evaluationId: evaluationData.evaluation.id,
+          criteriaChecks,
+          realEvidences,
+          scores,
+          files: cleanedFiles,
+          period: evaluationData.evaluation.period,
+          useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
+          autoSave: Boolean(evaluationData.evaluation.autoSave),
+        };
+        return newState;
+      });
+    } catch (error) {
+      console.error('Error al cargar evaluación por id:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [evaluation.useT1SevenPoints]);
+
   const setPeriod = useCallback(async (period: string) => {
     setEvaluationWithLog(prev => ({ ...prev, period }));
-    
     // Recargar evaluación si hay un trabajador seleccionado
     if (evaluation.workerId) {
-      await setWorkerId(evaluation.workerId);
+      await setWorkerId(evaluation.workerId, period); // Usar el nuevo periodo
     }
   }, [evaluation.workerId, setWorkerId]);
 
@@ -749,6 +901,9 @@ export const useEvaluationState = () => {
       const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
       return getVisibleCompetencies(worker?.worker_group || null);
     },
-    setEvaluation
+    setEvaluation,
+    workerEvaluations, // <-- Exponer evaluaciones históricas
+    loadWorkerEvaluations, // <-- Exponer función para recargar
+    loadEvaluationById,
   };
 };

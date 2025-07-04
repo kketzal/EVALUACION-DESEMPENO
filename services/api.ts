@@ -228,6 +228,31 @@ class ApiService {
     });
     if (!response.ok) throw new Error('Error al guardar configuración de evaluación');
   }
+
+  async createEvaluation(workerId: string, period: string): Promise<Evaluation> {
+    const response = await fetch(`${API_BASE_URL}/evaluations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workerId, period }),
+    });
+    if (!response.ok) throw new Error('Error al crear evaluación');
+    return response.json();
+  }
+
+  // Obtener todas las evaluaciones de un trabajador (todas las versiones y periodos)
+  async getEvaluationsByWorker(workerId: string): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/evaluations`);
+    if (!response.ok) throw new Error('Error al obtener evaluaciones');
+    const all = await response.json();
+    return all.filter((ev: any) => ev.worker_id === workerId);
+  }
+
+  // Obtener una evaluación concreta por id
+  async getEvaluationById(evaluationId: number): Promise<EvaluationData> {
+    const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}`);
+    if (!response.ok) throw new Error('Error al obtener evaluación por id');
+    return response.json();
+  }
 }
 
 export const apiService = new ApiService(); 

@@ -610,6 +610,37 @@ app.delete('/api/evidence-files-on-disk', (req, res) => {
   });
 });
 
+const evaluationsHandlers = require('./evaluations.route.js');
+
+// Evaluaciones (listado y creación)
+app.get('/api/evaluations', evaluationsHandlers.getEvaluations);
+app.post('/api/evaluations', evaluationsHandlers.postEvaluation);
+
+// --- ENDPOINTS MIGRADOS DESDE src/app/api/evaluations/[id] ---
+const criteriaHandlers = require('./criteria.route.js');
+const evidenceHandlers = require('./evidence.route.js');
+const filesHandlers = require('./files.route.js');
+const scoresHandlers = require('./scores.route.js');
+const evalByIdHandler = require('./evalById.route.js');
+
+// Criterios
+app.get('/api/evaluations/:id/criteria', criteriaHandlers.getCriteria);
+app.post('/api/evaluations/:id/criteria', criteriaHandlers.postCriteria);
+
+// Evidencias
+app.get('/api/evaluations/:id/evidence', evidenceHandlers.getEvidence);
+app.post('/api/evaluations/:id/evidence', evidenceHandlers.postEvidence);
+
+// Archivos (solo GET, POST/DELETE se gestionan en otro lado)
+app.get('/api/evaluations/:id/files', filesHandlers.getFiles);
+
+// Puntuaciones
+app.get('/api/evaluations/:id/scores', scoresHandlers.getScores);
+app.post('/api/evaluations/:id/scores', scoresHandlers.postScore);
+
+// Evaluación por id (histórico exacto)
+app.get('/api/evaluations/:id', evalByIdHandler.getEvaluationById);
+
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
 }); 

@@ -14,11 +14,13 @@ import ManageUsersPanel from './components/ManageUsersPanel';
 import LogoutConfirmModal from './components/LogoutConfirmModal';
 import { SettingsPage } from './components/SettingsPage';
 import { ExportModal } from './components/ExportModal';
+import { RevisionSelectorModal } from './components/RevisionSelectorModal';
+import { Evaluation } from './services/api';
 
 function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
   workers: Worker[];
   isOpen: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, token: string) => void;
   onClose: () => void;
   setWorkerSession: (args: { workerId: string, token: string }) => void;
 }) {
@@ -53,7 +55,7 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
         return;
       }
       setWorkerSession({ workerId: selectedWorker.id, token: result.token });
-      onSelect(selectedWorker.id);
+      onSelect(selectedWorker.id, result.token);
       onClose();
     } catch (error) {
       setPasswordError('Error de conexión. Inténtalo de nuevo.');
@@ -199,7 +201,10 @@ function App() {
     toggleAccordion,
     updateWorker,
     getVisibleCompetencies,
-    setEvaluation
+    setEvaluation,
+    workerEvaluations,
+    loadWorkerEvaluations,
+    loadEvaluationById
   } = useEvaluationState();
 
   // Leer valores iniciales de localStorage
@@ -221,6 +226,11 @@ function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [workerSelectorResetKey, setWorkerSelectorResetKey] = useState(0); // Para forzar reset del modal
+
+  // --- NUEVO ESTADO PARA EL MODAL DE REVISIÓN ---
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [pendingWorkerId, setPendingWorkerId] = useState<string | null>(null);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -438,6 +448,8 @@ function App() {
         setWorkerSession({ workerId: data.id, token });
         // Cargar los datos de la evaluación después de restaurar la sesión
         await setWorkerId(data.id);
+        // Cargar el histórico de evaluaciones
+        await loadWorkerEvaluations(data.id);
         // Obtener timeout global
         try {
           const resTimeout = await fetch('/api/settings/session-timeout');
@@ -684,6 +696,33 @@ function App() {
     removeFile('', conductId, fileId.toString());
   };
 
+  // Handler para seleccionar una versión concreta
+  const handleSelectVersion = async (period: string, version: number) => {
+    // Buscar la evaluación con ese periodo y versión
+    const ev = workerEvaluations.find(e => e.period === period && e.version === version);
+    if (ev) {
+      await loadEvaluationById(ev.id);
+      setPeriod(period);
+    }
+  };
+
+  // Handler para crear nueva versión
+  const handleNewVersion = async (period: string) => {
+    if (!evaluation.workerId) return;
+    // Crear nueva evaluación (nueva versión)
+    const res = await fetch('/api/evaluations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workerId: evaluation.workerId, period })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      await setWorkerId(evaluation.workerId, period); // Cargar la nueva evaluación
+      setPeriod(period);
+      loadWorkerEvaluations(evaluation.workerId);
+    }
+  };
+
   // Guardar en localStorage cada vez que cambian
   useEffect(() => {
     localStorage.setItem('activePage', activePage);
@@ -692,6 +731,38 @@ function App() {
   useEffect(() => {
     localStorage.setItem('activeCompetencyId', activeCompetencyId);
   }, [activeCompetencyId]);
+
+  // --- MODIFICAR FLUJO DE LOGIN ---
+  // Suponiendo que WorkerSelectorModal llama a este handler tras login exitoso
+  const handleLoginSuccess = async (workerId: string, token: string) => {
+    setPendingWorkerId(workerId);
+    setPendingToken(token);
+    // workerEvaluations ya se carga automáticamente por el hook
+    setShowRevisionModal(true);
+  };
+
+  // --- HANDLERS PARA EL MODAL ---
+  const handleContinue = (evaluation: Evaluation) => {
+    setWorkerSession({ workerId: evaluation.worker_id, token: pendingToken || '' });
+    setWorkerId(evaluation.worker_id, evaluation.period);
+    setShowRevisionModal(false);
+  };
+
+  const handleNew = async () => {
+    if (!pendingWorkerId) return;
+    // Usar el periodo más reciente o uno por defecto
+    const period = workerEvaluations.length > 0 ? workerEvaluations[0].period : '2023-2024';
+    const newEval = await apiService.createEvaluation(pendingWorkerId, period);
+    setWorkerSession({ workerId: pendingWorkerId, token: pendingToken || '' });
+    setWorkerId(pendingWorkerId, period);
+    setShowRevisionModal(false);
+  };
+
+  const handleSelect = (evaluation: Evaluation) => {
+    setWorkerSession({ workerId: evaluation.worker_id, token: pendingToken || '' });
+    loadEvaluationById(evaluation.id);
+    setShowRevisionModal(false);
+  };
 
   if (loadingSession) {
     return (
@@ -749,6 +820,9 @@ function App() {
             isSaving={evaluation.isSaving}
             lastSavedAt={evaluation.lastSavedAt}
             onHamburgerClick={() => setSidebarOpen(true)}
+            workerEvaluations={workerEvaluations}
+            onSelectVersion={handleSelectVersion}
+            onNewVersion={handleNewVersion}
           />
           {/* Sidebar móvil */}
           {isSidebarOpen && (
@@ -875,7 +949,7 @@ function App() {
         key={workerSelectorResetKey}
         workers={evaluation.workers}
         isOpen={isWorkerSelectorOpen}
-        onSelect={handleWorkerChange}
+        onSelect={handleLoginSuccess}
         onClose={() => setIsWorkerSelectorOpen(false)}
         setWorkerSession={setWorkerSession}
       />
@@ -903,6 +977,15 @@ function App() {
           {dbMessage}
         </div>
       )}
+
+      <RevisionSelectorModal
+        isOpen={showRevisionModal}
+        evaluations={workerEvaluations}
+        onContinue={handleContinue}
+        onNew={handleNew}
+        onSelect={handleSelect}
+        onClose={() => setShowRevisionModal(false)}
+      />
     </>
   );
 }

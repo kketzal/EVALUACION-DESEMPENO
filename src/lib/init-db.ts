@@ -18,8 +18,10 @@ export function initializeDatabase() {
       period TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (worker_id) REFERENCES workers(id),
-      UNIQUE(worker_id, period)
+      useT1SevenPoints BOOLEAN DEFAULT 1,
+      autoSave BOOLEAN DEFAULT 1,
+      version INTEGER,
+      FOREIGN KEY (worker_id) REFERENCES workers(id)
     );
 
     CREATE TABLE IF NOT EXISTS criteria_checks (
