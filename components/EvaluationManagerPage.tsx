@@ -103,97 +103,97 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Evaluaciones</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={onCreateNew}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Nueva Evaluación
-              </button>
-            </div>
-          </div>
+      {/* Header - Móvil optimizado */}
+      <div className="flex items-center gap-3 mb-6 px-4 pt-6">
+        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg shadow-sm">
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-xl font-bold bg-gradient-to-r from-purple-500 to-indigo-500 bg-clip-text text-transparent">
+            Gestionar Evaluaciones
+          </h1>
+          <p className="text-gray-600 text-sm">{evaluations.length} total</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Search */}
-            <div className="flex-1 max-w-md">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                Buscar evaluaciones
-              </label>
-              <input
-                type="text"
-                id="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por periodo, trabajador o versión..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
+      {/* Content - Móvil optimizado */}
+      <div className="px-4 py-4">
+        {/* Estadísticas simplificadas */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-xs font-medium text-gray-600">Periodos</span>
             </div>
-
-            {/* Sort */}
-            <div className="flex items-center space-x-4">
-              <div>
-                <label htmlFor="sort" className="block text-sm font-medium text-gray-700 mb-2">
-                  Ordenar por
-                </label>
-                <select
-                  id="sort"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'date' | 'period' | 'worker')}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="date">Fecha</option>
-                  <option value="period">Periodo</option>
-                  <option value="worker">Trabajador</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-2">
-                  Orden
-                </label>
-                <select
-                  id="order"
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="desc">Descendente</option>
-                  <option value="asc">Ascendente</option>
-                </select>
-              </div>
+            <p className="text-2xl font-bold text-gray-900">{new Set(evaluations.map(e => e.period)).size}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-xs font-medium text-gray-600">Trabajadores</span>
             </div>
+            <p className="text-2xl font-bold text-gray-900">{new Set(evaluations.map(e => (e as any).worker_name)).size}</p>
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Controles simplificados */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+          {/* Búsqueda */}
+          <div className="relative mb-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar evaluaciones..."
+              className="w-full px-4 py-3 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            />
+            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'period' | 'worker')}
+              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            >
+              <option value="date">Fecha</option>
+              <option value="period">Periodo</option>
+              <option value="worker">Trabajador</option>
+            </select>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            >
+              <option value="desc">↓</option>
+              <option value="asc">↑</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Acciones de selección */}
         {selectedIds.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between">
-              <span className="text-yellow-800">
-                {selectedIds.length} evaluación{selectedIds.length !== 1 ? 'es' : ''} seleccionada{selectedIds.length !== 1 ? 's' : ''}
+              <span className="text-sm font-medium text-blue-800">
+                {selectedIds.length} seleccionada{selectedIds.length !== 1 ? 's' : ''}
               </span>
-              <div className="flex items-center space-x-2">
+              <div className="flex gap-2">
                 <button
                   onClick={handleDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  className="px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
                 >
-                  Eliminar seleccionadas
+                  Eliminar
                 </button>
                 <button
                   onClick={() => setSelectedIds([])}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                  className="px-3 py-1 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
                 >
                   Cancelar
                 </button>
@@ -202,105 +202,111 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
           </div>
         )}
 
-        {/* Evaluations List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Lista de evaluaciones - Cards móviles */}
+        <div className="space-y-3">
           {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Cargando evaluaciones...</p>
+            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+              <p className="text-sm text-gray-600">Cargando...</p>
             </div>
           ) : evaluations.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="text-gray-400 mb-4">
-                <svg className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay evaluaciones</h3>
-              <p className="text-gray-600 mb-4">No se han encontrado evaluaciones guardadas.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay evaluaciones</h3>
+              <p className="text-sm text-gray-600 mb-4">Crea tu primera evaluación</p>
               <button
                 onClick={onCreateNew}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                className="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm font-medium"
               >
-                Crear primera evaluación
+                Crear evaluación
               </button>
             </div>
           ) : (
             <>
-              {/* Table Header */}
-              <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === sortedEvaluations.length && sortedEvaluations.length > 0}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      {sortedEvaluations.length} evaluación{sortedEvaluations.length !== 1 ? 'es' : ''}
-                    </span>
-                  </div>
-                  {evaluations.length > 0 && (
-                    <button
-                      onClick={handleDeleteAll}
-                      className="text-sm text-red-600 hover:text-red-800 transition-colors"
-                    >
-                      Eliminar todas
-                    </button>
-                  )}
+              {/* Header de la lista */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === sortedEvaluations.length && sortedEvaluations.length > 0}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    {sortedEvaluations.length} evaluación{sortedEvaluations.length !== 1 ? 'es' : ''}
+                  </span>
                 </div>
+                {evaluations.length > 0 && (
+                  <button
+                    onClick={handleDeleteAll}
+                    className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    Eliminar todas
+                  </button>
+                )}
               </div>
 
-              {/* Table Body */}
-              <div className="divide-y divide-gray-200">
-                {sortedEvaluations.map((evaluation) => (
-                  <div
-                    key={evaluation.id}
-                    className="px-6 py-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
+              {/* Cards de evaluaciones */}
+              {sortedEvaluations.map((evaluation) => (
+                <div
+                  key={evaluation.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="p-4">
+                    {/* Header de la card */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3 flex-1">
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(evaluation.id)}
                           onChange={() => toggleSelect(evaluation.id)}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
                         />
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-4">
-                            <div>
-                              <h3 className="text-sm font-medium text-gray-900">
-                                {(evaluation as any).worker_name || 'Trabajador no especificado'}
-                              </h3>
-                              <p className="text-sm text-gray-500">
-                                Periodo: {evaluation.period} | Versión: {evaluation.version || 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Creada: {formatDate(evaluation.created_at)}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-semibold text-gray-900 truncate">
+                            {(evaluation as any).worker_name || 'Trabajador no especificado'}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDate(evaluation.created_at)}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => onOpen(evaluation.id)}
-                          className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 transition-colors"
-                        >
-                          Abrir
-                        </button>
-                        <button
-                          onClick={() => onDelete([evaluation.id])}
-                          className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                    </div>
+
+                    {/* Badges de información */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {evaluation.period}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        v{evaluation.version || 'N/A'}
+                      </span>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onOpen(evaluation.id)}
+                        className="flex-1 px-3 py-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 transition-colors font-medium"
+                      >
+                        Abrir
+                      </button>
+                      <button
+                        onClick={() => onDelete([evaluation.id])}
+                        className="px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </>
           )}
         </div>

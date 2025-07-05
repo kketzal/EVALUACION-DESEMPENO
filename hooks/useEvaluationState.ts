@@ -264,18 +264,21 @@ export const useEvaluationState = () => {
       // Procesar archivos por conducta
       console.log('Procesando archivos de evidencia:', evaluationData.evidenceFiles);
       evaluationData.evidenceFiles.forEach(file => {
-        if (!files[file.conduct_id]) {
-          files[file.conduct_id] = [];
+        const conductKey = String(file.conduct_id).toUpperCase();
+        if (!files[conductKey]) {
+          files[conductKey] = [];
         }
-        const fileObject = {
+        const fileObject: EvidenceFile & { file_name: string } = {
           id: file.id.toString(),
           name: file.original_name,
           type: file.file_type || '',
           content: '',
-          url: file.url || `/uploads/evidence/${file.name || file.original_name}`,
+          url: file.url || `/api/files/${file.file_name || file.original_name}`,
+          file_name: file.file_name || '',
+          file_size: file.file_size || 0,
         };
-        files[file.conduct_id].push(fileObject);
-        console.log('Archivo agregado al estado:', { conductId: file.conduct_id, file: fileObject });
+        files[conductKey].push(fileObject);
+        console.log('Archivo agregado al estado:', { conductId: file.conduct_id, conductKey, file: fileObject });
       });
 
       // Verificar que cada conducta tenga su array de archivos inicializado
@@ -311,7 +314,7 @@ export const useEvaluationState = () => {
           period: periodToUse,
           useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
           autoSave: Boolean(evaluationData.evaluation.autoSave),
-          openAccordions: evaluationData.evaluation.is_new ? {} : prev.openAccordions,
+          openAccordions: (evaluationData.evaluation as any).is_new ? {} : prev.openAccordions,
         };
         
         console.log('Estado actualizado después de cargar evaluación:', {
@@ -411,12 +414,14 @@ export const useEvaluationState = () => {
         if (!files[file.conduct_id]) {
           files[file.conduct_id] = [];
         }
-        const fileObject = {
+        const fileObject: EvidenceFile & { file_name: string } = {
           id: file.id.toString(),
           name: file.original_name,
           type: file.file_type || '',
           content: '',
-          url: file.url || `/uploads/evidence/${file.name || file.original_name}`,
+          url: file.url || `/api/files/${file.file_name || file.original_name}`,
+          file_name: file.file_name || '',
+          file_size: file.file_size || 0,
         };
         files[file.conduct_id].push(fileObject);
       });
@@ -610,8 +615,10 @@ export const useEvaluationState = () => {
           name: file.original_name,
           type: file.file_type || '',
           content: '',
-          url: file.url || `/uploads/evidence/${file.name || file.original_name}`,
-        }));
+          url: file.url || `/api/files/${file.file_name || file.original_name}`,
+          file_name: file.file_name || '',
+          file_size: file.file_size || 0,
+        }) as EvidenceFile & { file_name: string });
         
         console.log('Actualizando estado con archivos:', {
           conductId,

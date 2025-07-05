@@ -993,7 +993,7 @@ function App() {
               dbMessage={dbMessage}
             />
             {/* Panel principal scrollable, padding-top según header */}
-            <main className="flex-1 min-h-0 flex flex-col overflow-y-auto px-2 sm:px-6 lg:px-10 pb-24 pt-[96px] lg:pt-[96px] lg:ml-80">
+            <main className="flex-1 min-h-0 flex flex-col overflow-y-auto px-2 sm:px-6 lg:px-10 pb-24 pt-[120px] lg:pt-[96px] lg:ml-80">
               {activePage === 'evaluation-manager' ? (
                 <div className="bg-white shadow-md rounded-xl p-6">
                   <EvaluationManagerPage

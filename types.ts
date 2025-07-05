@@ -33,6 +33,9 @@ export interface EvidenceFile {
   name: string;
   type: string;
   content: string; // Base64 data URL
+  file_name?: string; // Full relative path for evidence file
+  url?: string; // URL for accessing the file
+  file_size?: number; // File size in bytes
 }
 
 export interface Evaluation {

@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 const API_BASE_URL = 'http://localhost:3001/api';
 
 export interface Worker {
@@ -142,7 +144,13 @@ class ApiService {
     if (!response.ok) throw new Error('Error al guardar evidencia');
   }
 
-  async uploadFiles(evaluationId: number, files: FileList, competencyId: string, conductId: string): Promise<EvidenceFile[]> {
+  async uploadFiles(
+    evaluationId: number,
+    files: FileList,
+    competencyId: string,
+    conductId: string,
+    onProgress?: (percent: number) => void
+  ): Promise<EvidenceFile[]> {
     console.log('=== uploadFiles ENTER ===');
     console.log('uploadFiles called:', { 
       evaluationId, 
@@ -166,21 +174,29 @@ class ApiService {
     });
 
     console.log('Enviando request a:', `${API_BASE_URL}/evaluations/${evaluationId}/files`);
-    const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/files`, {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await axios.post(
+      `${API_BASE_URL}/evaluations/${evaluationId}/files`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percent);
+          }
+        }
+      }
+    );
     
     console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
+    console.log('Response ok:', response.status === 200);
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      throw new Error(`Error al subir archivos: ${response.status} ${errorText}`);
+    if (response.status !== 200) {
+      console.error('Error response:', response.data);
+      throw new Error(`Error al subir archivos: ${response.status} ${response.data}`);
     }
     
-    const result = await response.json();
+    const result = response.data;
     console.log('Upload result:', result);
     console.log('=== uploadFiles EXIT ===');
     return result;
