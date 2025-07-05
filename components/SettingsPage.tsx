@@ -260,6 +260,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </AccordionItem>
 
+
+
         {/* Configuración de Evaluación */}
         <AccordionItem
           title="Configuración de Evaluación"

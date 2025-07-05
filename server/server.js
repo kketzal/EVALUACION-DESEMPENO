@@ -82,24 +82,15 @@ const storage = multer.diskStorage({
         cb(null, dir);
     },
     filename: function (req, file, cb) {
-        // Mantener el nombre original del archivo, pero agregar timestamp para evitar duplicados
+        // Generar un nombre único y seguro para el archivo físico
         const timestamp = Date.now();
-        const originalName = file.originalname;
-        const extension = path.extname(originalName);
-        let nameWithoutExt = path.basename(originalName, extension);
-        // Sanitizar el nombre base
-        nameWithoutExt = nameWithoutExt
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '') // quitar tildes
-            .replace(/[^a-zA-Z0-9_\-\.]/g, '_') // solo letras, números, guion, guion bajo y punto
-            .replace(/_+/g, '_')
-            .replace(/^_+|_+$/g, '')
-            .toLowerCase();
-        // Sanitizar extensión
+        const randomId = Math.random().toString(36).substring(2, 15);
+        const extension = path.extname(file.originalname);
         const safeExt = extension.replace(/[^a-zA-Z0-9\.]/g, '');
-        // Crear nombre único: nombre_original_timestamp.ext
-        const uniqueName = `${nameWithoutExt}_${timestamp}${safeExt}`;
-        console.log('Archivo renombrado:', { original: originalName, new: uniqueName });
+        
+        // Crear nombre único: timestamp_randomId.ext (solo números, letras y punto)
+        const uniqueName = `${timestamp}_${randomId}${safeExt}`;
+        console.log('Archivo físico renombrado:', { original: file.originalname, new: uniqueName });
         cb(null, uniqueName);
     }
 });
@@ -166,6 +157,50 @@ const handleMulterError = (error, req, res, next) => {
     
     next(error);
 };
+
+// Función elegante para corregir nombres corruptos de archivos
+function fixCorruptedFileName(name) {
+    if (!name) return name;
+    // Patrones corruptos típicos: vocal + \xCC\x81 (NFD mal interpretado como UTF-8)
+    // Ejemplo: o + \xCC\x81 = oÌ
+    const patterns = [
+        { re: /aÌ\x81/g, to: 'á' },
+        { re: /eÌ\x81/g, to: 'é' },
+        { re: /iÌ\x81/g, to: 'í' },
+        { re: /oÌ\x81/g, to: 'ó' },
+        { re: /uÌ\x81/g, to: 'ú' },
+        { re: /nÌ\x83/g, to: 'ñ' },
+        { re: /uÌ\x88/g, to: 'ü' },
+        // Mayúsculas
+        { re: /AÌ\x81/g, to: 'Á' },
+        { re: /EÌ\x81/g, to: 'É' },
+        { re: /IÌ\x81/g, to: 'Í' },
+        { re: /OÌ\x81/g, to: 'Ó' },
+        { re: /UÌ\x81/g, to: 'Ú' },
+        { re: /NÌ\x83/g, to: 'Ñ' },
+        { re: /UÌ\x88/g, to: 'Ü' },
+    ];
+    let fixed = name;
+    let changed = false;
+    for (const { re, to } of patterns) {
+        if (re.test(fixed)) {
+            fixed = fixed.replace(re, to);
+            changed = true;
+        }
+    }
+    // Si no se detectó ningún patrón, devolver el original normalizado
+    return changed ? fixed.normalize('NFC') : name.normalize('NFC');
+}
+
+// Función para limpiar nombres de archivos (mantener compatibilidad)
+function cleanFileName(fileName) {
+    return fixCorruptedFileName(fileName);
+}
+
+// Exportar funciones para pruebas
+if (require.main !== module) {
+    module.exports = { fixCorruptedFileName, cleanFileName };
+}
 
 // Aplicar middleware de manejo de errores de multer
 app.use(handleMulterError);
@@ -275,6 +310,8 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
         const evidenceFilesWithUrl = evidenceFiles.map(file => {
             return {
                 ...file,
+                original_name: cleanFileName(file.original_name), // Limpiar nombre original si está corrupto
+                name: cleanFileName(file.original_name), // Agregar campo name para compatibilidad con el frontend
                 url: `/api/files/${file.file_name}`
             };
         });
@@ -390,8 +427,13 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
     
     try {
         for (const file of files) {
+            // Corregir nombre si está corrupto
+            const fixedOriginalName = fixCorruptedFileName(file.originalname);
+            const normalizedOriginalName = fixedOriginalName.normalize('NFC');
+            
             console.log('Procesando archivo:', {
                 originalname: file.originalname,
+                normalizedOriginalName,
                 filename: file.filename,
                 mimetype: file.mimetype,
                 size: file.size,
@@ -442,7 +484,7 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 evaluationId,
                 competencyId,
                 conductId,
-                file.originalname,
+                normalizedOriginalName,
                 relativeFilePath,
                 file.mimetype,
                 file.size,
@@ -462,7 +504,8 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 evaluation_id: evaluationId,
                 competency_id: competencyId,
                 conduct_id: conductId,
-                original_name: file.originalname,
+                original_name: normalizedOriginalName,
+                name: normalizedOriginalName, // Para frontend
                 file_name: relativeFilePath,
                 file_type: file.mimetype,
                 file_size: file.size,
@@ -574,14 +617,17 @@ app.get('/api/files/:filePath(*)', (req, res) => {
             file.file_type === 'text/html'
         );
 
+        // Limpiar el nombre original para los headers (solo si está corrupto)
+        const cleanOriginalName = cleanFileName(file.original_name);
+        
         // Configurar headers según el tipo de archivo
         if (canViewInBrowser) {
             // Para archivos visualizables, permitir que se abran en el navegador
             res.setHeader('Content-Type', file.file_type);
-            res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
+            res.setHeader('Content-Disposition', `inline; filename="${cleanOriginalName}"`);
         } else {
             // Para archivos no visualizables, forzar descarga
-            res.setHeader('Content-Disposition', `attachment; filename="${file.original_name}"`);
+            res.setHeader('Content-Disposition', `attachment; filename="${cleanOriginalName}"`);
             res.setHeader('Content-Type', file.file_type || 'application/octet-stream');
         }
         res.setHeader('Cache-Control', 'no-cache');
@@ -1043,6 +1089,8 @@ app.get('/api/debug/evidence-files', (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);

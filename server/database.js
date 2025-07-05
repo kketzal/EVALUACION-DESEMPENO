@@ -17,6 +17,7 @@ if (!fs.existsSync(evidenceDir)) {
 
 const db = new Database(path.join(__dirname, 'evaluations.db'));
 db.exec('PRAGMA foreign_keys = ON;'); // Activar claves foráneas
+db.exec('PRAGMA encoding = "UTF-8";'); // Forzar codificación UTF-8
 
 // Función para obtener la hora actual en zona horaria española
 function getSpanishTimestamp() {

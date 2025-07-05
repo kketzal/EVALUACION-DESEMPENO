@@ -146,7 +146,7 @@ class ApiService {
 
   async uploadFiles(
     evaluationId: number,
-    files: FileList,
+    files: FileList | File[],
     competencyId: string,
     conductId: string,
     onProgress?: (percent: number) => void
@@ -164,9 +164,12 @@ class ApiService {
     formData.append('conductId', conductId);
     
     console.log('Agregando archivos al FormData...');
-    Array.from(files).forEach((file, index) => {
+    // Convertir File[] a array si es necesario
+    const filesArray = Array.isArray(files) ? files : Array.from(files);
+    
+    filesArray.forEach((file, index) => {
       console.log(`Archivo ${index}:`, { 
-        name: file.name, 
+        originalName: file.name,
         type: file.type, 
         size: file.size 
       });
@@ -201,6 +204,8 @@ class ApiService {
     console.log('=== uploadFiles EXIT ===');
     return result;
   }
+
+
 
   async deleteFile(fileId: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
@@ -282,6 +287,8 @@ class ApiService {
     });
     if (!response.ok) throw new Error('Error al eliminar evaluación');
   }
+
+
 }
 
 export const apiService = new ApiService(); 

@@ -741,6 +741,8 @@ function App() {
     }
   };
 
+
+
   // Wrapper para eliminar archivos desde la página de resumen
   const handleRemoveFileFromSummary = (conductId: string, fileId: number | string) => {
     removeFile('', conductId, fileId.toString());

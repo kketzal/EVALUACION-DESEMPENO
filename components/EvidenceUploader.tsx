@@ -153,10 +153,21 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
     if (files.length === 0) return;
 
     try {
-      // Crear un FileList a partir del array de File
-      const dataTransfer = new DataTransfer();
-      files.forEach(file => dataTransfer.items.add(file));
-      const fileList = dataTransfer.files;
+      // Log para debug: verificar nombres antes de enviar
+      console.log('=== ARCHIVOS ANTES DE ENVIAR ===');
+      files.forEach((file, index) => {
+        // Convertir string a hex sin usar Buffer (compatible con navegador)
+        const originalNameHex = Array.from(file.name).map(char => 
+          char.charCodeAt(0).toString(16).padStart(2, '0')
+        ).join('');
+        
+        console.log(`Archivo ${index}:`, {
+          originalName: file.name,
+          originalNameHex: originalNameHex,
+          size: file.size,
+          type: file.type
+        });
+      });
       
       setIsUploading(true);
       setUploadProgress(0);
@@ -175,9 +186,9 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
       await addFiles({
         competencyId,
         conductId,
-        fileCount: fileList.length,
+        fileCount: files.length,
         evaluationId,
-        files: fileList
+        files: files // Pasar directamente el array de File, no DataTransfer
       });
 
       clearInterval(progressInterval);

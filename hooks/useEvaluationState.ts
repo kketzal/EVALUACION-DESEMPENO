@@ -587,7 +587,7 @@ export const useEvaluationState = () => {
     conductId: string;
     fileCount: number;
     evaluationId: number | null;
-    files: FileList;
+    files: FileList | File[];
   }) => {
     console.log('=== addFiles ENTER ===');
     console.log('addFiles called:', { competencyId, conductId, fileCount, evaluationId });
