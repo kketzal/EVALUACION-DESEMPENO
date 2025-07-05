@@ -20,12 +20,29 @@ interface EvidenceUploaderProps {
 // Toast simple local
 const Toast: FC<Toast> = ({ message, type }) => (
   <div
-    className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded shadow-lg text-white transition-all animate-fade-in-up ${
-      type === 'success' ? 'bg-green-600' : 'bg-red-600'
+    className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-xl shadow-2xl backdrop-blur-sm border transition-all duration-300 ${
+      type === 'success' 
+        ? 'bg-green-50 text-green-800 border-green-200' 
+        : 'bg-red-50 text-red-800 border-red-200'
     }`}
     role="alert"
   >
-    {message}
+    <div className="flex items-center gap-3">
+      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+        type === 'success' ? 'bg-green-100' : 'bg-red-100'
+      }`}>
+        {type === 'success' ? (
+          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        )}
+      </div>
+      <span className="text-sm font-medium">{message}</span>
+    </div>
   </div>
 );
 
@@ -382,97 +399,121 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
 
       {/* Lista de archivos */}
       {files.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-medium text-gray-700">
-              Archivos adjuntos ({files.length})
-            </h4>
+        <div className="space-y-3">
+          {/* Header con estadísticas y acciones */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-8 h-8 bg-indigo-100 rounded-lg">
+                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Archivos adjuntos
+                </h4>
+                <p className="text-xs text-gray-500">
+                  {files.length} archivo{files.length !== 1 ? 's' : ''} • {formatFileSize(files.reduce((acc: number, file: EvidenceFile) => acc + (file.file_size || 0), 0))}
+                </p>
+              </div>
+            </div>
+            
             {removeAllFilesFromConduct && (
               <button
                 onClick={() => setConfirmDeleteAll(true)}
                 disabled={deletingAll}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`group relative inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                   deletingAll
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-white text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300 shadow-sm hover:shadow-md'
                 }`}
                 title="Eliminar todos los archivos"
               >
                 {deletingAll ? (
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 )}
-                Eliminar todos
+                <span className="hidden sm:inline">Eliminar todos</span>
+                <span className="sm:hidden">Eliminar</span>
               </button>
             )}
           </div>
-          {files.map((file: EvidenceFile) => {
-            console.log('Renderizando archivo en EvidenceUploader:', { id: file.id, name: file.name, file_type: file.file_type });
-            return (
-            <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{getFileIcon(file.file_type)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {file.name}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-gray-500">
-                      {file.file_type || 'Archivo adjunto'}
-                    </p>
-                    <span className="text-xs text-gray-400">•</span>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(file.file_size)}
-                    </p>
+          {/* Lista de archivos individuales */}
+          <div className="space-y-2">
+            {files.map((file: EvidenceFile) => {
+              console.log('Renderizando archivo en EvidenceUploader:', { id: file.id, name: file.name, file_type: file.file_type });
+              return (
+                <div key={file.id} className="group relative flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    {/* Icono del archivo */}
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg flex items-center justify-center border border-indigo-100">
+                        <span className="text-lg">{getFileIcon(file.file_type)}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Información del archivo */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                        {file.name}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          {file.file_type || 'Archivo'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {formatFileSize(file.file_size)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Acciones */}
+                  <div className="flex items-center gap-1">
+                    {file.url && (
+                      <button
+                        onClick={() => handleFileClick(file)}
+                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 group-hover:scale-105"
+                        title={canViewInBrowser(file.file_type) ? "Ver archivo" : "Descargar archivo"}
+                      >
+                        {canViewInBrowser(file.file_type) ? (
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteFile(file.id as number)}
+                      disabled={deletingFiles.has(file.id as number)}
+                      className={`p-2 rounded-lg transition-all duration-200 group-hover:scale-105 ${
+                        deletingFiles.has(file.id as number)
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                      title="Eliminar archivo"
+                    >
+                      {deletingFiles.has(file.id as number) ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {file.url && (
-                  <button
-                    onClick={() => handleFileClick(file)}
-                    className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded-lg transition-colors"
-                    title={canViewInBrowser(file.file_type) ? "Ver archivo" : "Descargar archivo"}
-                  >
-                    {canViewInBrowser(file.file_type) ? (
-                      // Icono de ojo para archivos visualizables
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      // Icono de descarga para archivos no visualizables
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDeleteFile(file.id as number)}
-                  disabled={deletingFiles.has(file.id as number)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    deletingFiles.has(file.id as number)
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-red-600 hover:text-red-800 hover:bg-red-100'
-                  }`}
-                  title="Eliminar archivo"
-                >
-                  {deletingFiles.has(file.id as number) ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-          );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
       {/* Modal de confirmación para eliminar archivo de evidencia */}
@@ -488,8 +529,8 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
       {/* Modal de confirmación para eliminar todos los archivos */}
       <ConfirmModal
         open={confirmDeleteAll}
-        title="¿Eliminar todos los archivos?"
-        message={`¿Seguro que quieres eliminar todos los archivos de evidencia de esta conducta? Esta acción no se puede deshacer.`}
+        title="Eliminar todos los archivos"
+        message={`Se eliminarán ${files.length} archivo${files.length !== 1 ? 's' : ''} de evidencia de esta conducta. Esta acción no se puede deshacer.`}
         confirmText="Eliminar todos"
         loading={deletingAll}
         onCancel={() => setConfirmDeleteAll(false)}
