@@ -680,6 +680,36 @@ export const useEvaluationState = () => {
     }
   }, []);
 
+  const removeAllFilesFromConduct = useCallback(async (competencyId: string, conductId: string) => {
+    console.log('=== removeAllFilesFromConduct ENTER ===');
+    console.log('removeAllFilesFromConduct called:', { competencyId, conductId });
+    
+    if (!evaluation.evaluationId) {
+      throw new Error('No hay evaluación activa');
+    }
+    
+    try {
+      const result = await apiService.deleteAllFilesFromConduct(evaluation.evaluationId, conductId);
+      console.log('Archivos eliminados del servidor:', result);
+      
+      setEvaluationWithLog(prev => {
+        return {
+          ...prev,
+          files: {
+            ...prev.files,
+            [conductId]: [], // Vaciar la lista de archivos de esta conducta
+          },
+        };
+      });
+      
+      console.log('Estado actualizado después de eliminar todos los archivos');
+      return result;
+    } catch (error) {
+      console.error('Error al eliminar archivos de la conducta:', error);
+      throw error;
+    }
+  }, [evaluation.evaluationId]);
+
   const addWorker = useCallback(async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => {
     try {
       const newWorker = {
@@ -902,6 +932,7 @@ export const useEvaluationState = () => {
     updateRealEvidence,
     addFiles,
     removeFile,
+    removeAllFilesFromConduct,
     saveEvaluation,
     addWorker,
     updateWorkerGroup,

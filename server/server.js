@@ -82,16 +82,9 @@ const storage = multer.diskStorage({
         cb(null, dir);
     },
     filename: function (req, file, cb) {
-        // Generar un nombre único y seguro para el archivo físico
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(2, 15);
-        const extension = path.extname(file.originalname);
-        const safeExt = extension.replace(/[^a-zA-Z0-9\.]/g, '');
-        
-        // Crear nombre único: timestamp_randomId.ext (solo números, letras y punto)
-        const uniqueName = `${timestamp}_${randomId}${safeExt}`;
-        console.log('Archivo físico renombrado:', { original: file.originalname, new: uniqueName });
-        cb(null, uniqueName);
+        // Limpiar el nombre original para evitar problemas de seguridad
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, safeName);
     }
 });
 
@@ -641,6 +634,22 @@ app.get('/api/files/:filePath(*)', (req, res) => {
     }
 });
 
+// Función utilitaria para eliminar carpetas vacías recursivamente hasta un directorio raíz
+function removeEmptyDirsRecursively(dirPath, stopAt) {
+    if (!fs.existsSync(dirPath)) return;
+    if (dirPath === stopAt) return;
+    try {
+        const files = fs.readdirSync(dirPath);
+        if (files.length === 0) {
+            fs.rmdirSync(dirPath);
+            // Subir un nivel y repetir
+            removeEmptyDirsRecursively(path.dirname(dirPath), stopAt);
+        }
+    } catch (err) {
+        console.log('No se pudo eliminar directorio:', dirPath, err.message);
+    }
+}
+
 // Eliminar archivo de evidencia
 app.delete('/api/files/:fileId', (req, res) => {
     try {
@@ -649,9 +658,10 @@ app.delete('/api/files/:fileId', (req, res) => {
         
         // Obtener información del archivo
         let stmt = db.prepare(`
-            SELECT ef.*, e.period 
+            SELECT ef.*, e.period, w.name as worker_name
             FROM evidence_files ef 
             JOIN evaluations e ON ef.evaluation_id = e.id 
+            JOIN workers w ON e.worker_id = w.id
             WHERE ef.id = ?
         `);
         const file = stmt.get(fileId);
@@ -663,30 +673,19 @@ app.delete('/api/files/:fileId', (req, res) => {
             return res.status(404).json({ error: 'Archivo no encontrado' });
         }
         
-        // Construir la ruta del archivo con la nueva estructura de carpetas
-        const periodDir = file.period || 'unknown';
-        const userDir = sanitizeUsername(file.worker_name || 'unknown');
-        const competencyDir = file.competency_id || 'unknown';
-        const conductDir = file.conduct_id || 'unknown';
-        const filePath = path.join(__dirname, 'uploads', 'evidence', periodDir, userDir, competencyDir, conductDir, file.file_name);
+        // Construir la ruta del archivo físico
+        // El file_name ya contiene la ruta completa desde la raíz de evidence
+        const filePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
         
         console.log('Intentando eliminar archivo físico:', filePath);
         
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
             console.log('Archivo físico eliminado exitosamente');
-            
-            // Verificar si el directorio está vacío y eliminarlo si es necesario
-            const dirPath = path.dirname(filePath);
-            try {
-                const filesInDir = fs.readdirSync(dirPath);
-                if (filesInDir.length === 0) {
-                    fs.rmdirSync(dirPath);
-                    console.log('Directorio vacío eliminado:', dirPath);
-                }
-            } catch (err) {
-                console.log('No se pudo verificar/eliminar directorio:', err.message);
-            }
+            // Eliminar directorios vacíos recursivamente hasta /uploads/evidence
+            const conductDirPath = path.dirname(filePath);
+            const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+            removeEmptyDirsRecursively(conductDirPath, evidenceRoot);
         } else {
             console.log('Archivo físico no encontrado en:', filePath);
         }
@@ -1090,7 +1089,261 @@ app.get('/api/debug/evidence-files', (req, res) => {
     }
 });
 
+// Eliminar todos los archivos de una conducta específica
+app.delete('/api/evaluations/:evaluationId/conducts/:conductId/files', (req, res) => {
+    try {
+        const { evaluationId, conductId } = req.params;
+        console.log('Eliminando todos los archivos de conducta:', { evaluationId, conductId });
+        
+        // Obtener todos los archivos de la conducta
+        let stmt = db.prepare(`
+            SELECT ef.*, e.period, w.name as worker_name
+            FROM evidence_files ef 
+            JOIN evaluations e ON ef.evaluation_id = e.id 
+            JOIN workers w ON e.worker_id = w.id
+            WHERE ef.evaluation_id = ? AND ef.conduct_id = ?
+        `);
+        const files = stmt.all(evaluationId, conductId);
+        
+        console.log(`Encontrados ${files.length} archivos para eliminar`);
+        
+        if (files.length === 0) {
+            return res.json({ success: true, message: 'No hay archivos para eliminar', deletedCount: 0 });
+        }
+        
+        let deletedCount = 0;
+        let errors = [];
+        let lastConductDirPath = null;
+        
+        for (const file of files) {
+            try {
+                // Construir la ruta del archivo físico
+                // El file_name ya contiene la ruta completa desde la raíz de evidence
+                const filePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
+                lastConductDirPath = path.dirname(filePath);
+                // Eliminar archivo físico si existe
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    console.log('Archivo físico eliminado:', filePath);
+                }
+                // Eliminar registro de la base de datos
+                const deleteStmt = db.prepare('DELETE FROM evidence_files WHERE id = ?');
+                const result = deleteStmt.run(file.id);
+                if (result.changes > 0) {
+                    deletedCount++;
+                    console.log(`Archivo ${file.id} eliminado de BD`);
+                }
+            } catch (error) {
+                console.error(`Error eliminando archivo ${file.id}:`, error);
+                errors.push({ fileId: file.id, error: error.message });
+            }
+        }
+        // Limpiar directorios vacíos recursivamente
+        if (lastConductDirPath) {
+            const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+            removeEmptyDirsRecursively(lastConductDirPath, evidenceRoot);
+        }
+        console.log(`Eliminación completada: ${deletedCount} archivos eliminados, ${errors.length} errores`);
+        res.json({ 
+            success: true, 
+            message: `${deletedCount} archivo${deletedCount !== 1 ? 's' : ''} eliminado${deletedCount !== 1 ? 's' : ''} exitosamente`,
+            deletedCount,
+            errors: errors.length > 0 ? errors : undefined
+        });
+    } catch (error) {
+        console.error('Error al eliminar archivos de conducta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
+// Obtener archivos huérfanos en el sistema de archivos
+app.get('/api/orphan-files', (req, res) => {
+    try {
+        const evidenceDir = path.join(__dirname, 'uploads', 'evidence');
+        const orphanFiles = [];
+        const orphanDirs = [];
+        
+        if (!fs.existsSync(evidenceDir)) {
+            return res.json({ orphanFiles: [], orphanDirs: [] });
+        }
+        
+        // Obtener todos los archivos registrados en la BD
+        const stmt = db.prepare('SELECT file_name FROM evidence_files');
+        const dbFiles = stmt.all().map(row => row.file_name);
+        
+        // Función recursiva para escanear directorios
+        function scanDirectory(dirPath, relativePath = '') {
+            if (!fs.existsSync(dirPath)) return;
+            
+            const items = fs.readdirSync(dirPath);
+            
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item);
+                const relativeItemPath = path.join(relativePath, item);
+                const stat = fs.statSync(fullPath);
+                
+                if (stat.isDirectory()) {
+                    // Es un directorio
+                    const subItems = fs.readdirSync(fullPath);
+                    if (subItems.length === 0) {
+                        // Directorio vacío
+                        orphanDirs.push({
+                            path: relativeItemPath,
+                            fullPath: fullPath,
+                            type: 'empty'
+                        });
+                    } else {
+                        // Directorio con contenido, escanear recursivamente
+                        scanDirectory(fullPath, relativeItemPath);
+                    }
+                } else {
+                    // Es un archivo
+                    // Construir la ruta completa que debería estar en la BD
+                    const expectedDbPath = relativeItemPath;
+                    
+                    if (!dbFiles.includes(expectedDbPath)) {
+                        // Archivo no está en la BD
+                        orphanFiles.push({
+                            name: item,
+                            path: relativeItemPath,
+                            fullPath: fullPath,
+                            size: stat.size,
+                            modified: stat.mtime
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Escanear desde la raíz de evidence
+        scanDirectory(evidenceDir);
+        
+        console.log(`Encontrados ${orphanFiles.length} archivos huérfanos y ${orphanDirs.length} carpetas vacías`);
+        
+        res.json({
+            orphanFiles,
+            orphanDirs
+        });
+        
+    } catch (error) {
+        console.error('Error al escanear archivos huérfanos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar archivo huérfano
+app.delete('/api/orphan-files/:filename', (req, res) => {
+    try {
+        const { filename } = req.params;
+        const { path: filePath } = req.query;
+        
+        if (!filePath) {
+            return res.status(400).json({ error: 'Se requiere la ruta del archivo' });
+        }
+        
+        const fullPath = path.join(__dirname, 'uploads', 'evidence', filePath);
+        
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: 'Archivo no encontrado' });
+        }
+        
+        // Verificar que el archivo no esté en la BD
+        const stmt = db.prepare('SELECT COUNT(*) as count FROM evidence_files WHERE file_name = ?');
+        const result = stmt.get(filename);
+        
+        if (result.count > 0) {
+            return res.status(400).json({ error: 'El archivo está registrado en la base de datos' });
+        }
+        
+        // Eliminar archivo
+        fs.unlinkSync(fullPath);
+        
+        // Limpiar directorios vacíos recursivamente
+        const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+        removeEmptyDirsRecursively(path.dirname(fullPath), evidenceRoot);
+        
+        res.json({ success: true, message: 'Archivo huérfano eliminado correctamente' });
+        
+    } catch (error) {
+        console.error('Error al eliminar archivo huérfano:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar carpeta huérfana
+app.delete('/api/orphan-dirs/:dirPath', (req, res) => {
+    try {
+        const { dirPath } = req.params;
+        const fullPath = path.join(__dirname, 'uploads', 'evidence', dirPath);
+        
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: 'Carpeta no encontrada' });
+        }
+        
+        const stat = fs.statSync(fullPath);
+        if (!stat.isDirectory()) {
+            return res.status(400).json({ error: 'No es un directorio' });
+        }
+        
+        const items = fs.readdirSync(fullPath);
+        if (items.length > 0) {
+            return res.status(400).json({ error: 'La carpeta no está vacía' });
+        }
+        
+        // Eliminar carpeta vacía
+        fs.rmdirSync(fullPath);
+        
+        // Limpiar directorios vacíos recursivamente hacia arriba
+        const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+        removeEmptyDirsRecursively(path.dirname(fullPath), evidenceRoot);
+        
+        res.json({ success: true, message: 'Carpeta huérfana eliminada correctamente' });
+        
+    } catch (error) {
+        console.error('Error al eliminar carpeta huérfana:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Registrar archivos huérfanos en la base de datos
+app.post('/api/register-orphan-files', (req, res) => {
+    try {
+        const { registerOrphanFiles } = require('./register_orphan_files');
+        
+        // Ejecutar el registro
+        const result = registerOrphanFiles();
+        
+        res.json({ 
+            success: true, 
+            message: 'Archivos huérfanos registrados correctamente',
+            result
+        });
+        
+    } catch (error) {
+        console.error('Error al registrar archivos huérfanos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Corregir nombres originales de archivos
+app.post('/api/fix-original-names', (req, res) => {
+    try {
+        const { fixOriginalNames } = require('./fix_original_names');
+        
+        // Ejecutar la corrección
+        const result = fixOriginalNames();
+        
+        res.json({ 
+            success: true, 
+            message: 'Nombres originales corregidos correctamente',
+            result
+        });
+        
+    } catch (error) {
+        console.error('Error al corregir nombres originales:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);

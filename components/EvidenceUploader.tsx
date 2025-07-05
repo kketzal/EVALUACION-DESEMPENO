@@ -14,6 +14,7 @@ interface EvidenceUploaderProps {
   evaluation: any;
   addFiles: Function;
   removeFile: Function;
+  removeAllFilesFromConduct?: Function;
 }
 
 // Toast simple local
@@ -78,7 +79,8 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
   files: propFiles,
   evaluation,
   addFiles,
-  removeFile
+  removeFile,
+  removeAllFilesFromConduct
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -87,6 +89,8 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   // Obtener archivos directamente del estado global
   const files = evaluation.files[String(conductId).toUpperCase()] || [];
@@ -215,20 +219,42 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
   };
 
   const confirmDelete = async () => {
-    if (confirmDeleteId == null) return;
+    if (confirmDeleteId === null) return;
+    
     try {
-      setDeletingFiles(prev => new Set(prev).add(confirmDeleteId));
-      await removeFile(competencyId, conductId, confirmDeleteId);
-      setToast({ message: 'Archivo eliminado correctamente', type: 'success' });
-    } catch (error) {
-      setToast({ message: 'Error al eliminar archivo', type: 'error' });
-    } finally {
-      setDeletingFiles(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(confirmDeleteId);
-        return newSet;
+      await removeFile(competencyId, conductId, confirmDeleteId.toString());
+      setToast({
+        message: 'Archivo eliminado correctamente',
+        type: 'success'
       });
+    } catch (error) {
+      setToast({
+        message: 'Error al eliminar el archivo',
+        type: 'error'
+      });
+    } finally {
       setConfirmDeleteId(null);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!removeAllFilesFromConduct) return;
+    
+    try {
+      setDeletingAll(true);
+      const result = await removeAllFilesFromConduct(competencyId, conductId);
+      setToast({
+        message: result.message || `${result.deletedCount} archivo${result.deletedCount !== 1 ? 's' : ''} eliminado${result.deletedCount !== 1 ? 's' : ''} correctamente`,
+        type: 'success'
+      });
+    } catch (error) {
+      setToast({
+        message: 'Error al eliminar los archivos',
+        type: 'error'
+      });
+    } finally {
+      setDeletingAll(false);
+      setConfirmDeleteAll(false);
     }
   };
 
@@ -357,9 +383,32 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
       {/* Lista de archivos */}
       {files.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">
-            Archivos adjuntos ({files.length})
-          </h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-gray-700">
+              Archivos adjuntos ({files.length})
+            </h4>
+            {removeAllFilesFromConduct && (
+              <button
+                onClick={() => setConfirmDeleteAll(true)}
+                disabled={deletingAll}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  deletingAll
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                }`}
+                title="Eliminar todos los archivos"
+              >
+                {deletingAll ? (
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                )}
+                Eliminar todos
+              </button>
+            )}
+          </div>
           {files.map((file: EvidenceFile) => {
             console.log('Renderizando archivo en EvidenceUploader:', { id: file.id, name: file.name, file_type: file.file_type });
             return (
@@ -434,6 +483,17 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
         loading={confirmDeleteId !== null && deletingFiles.has(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={confirmDelete}
+      />
+
+      {/* Modal de confirmación para eliminar todos los archivos */}
+      <ConfirmModal
+        open={confirmDeleteAll}
+        title="¿Eliminar todos los archivos?"
+        message={`¿Seguro que quieres eliminar todos los archivos de evidencia de esta conducta? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar todos"
+        loading={deletingAll}
+        onCancel={() => setConfirmDeleteAll(false)}
+        onConfirm={handleDeleteAll}
       />
     </div>
   );

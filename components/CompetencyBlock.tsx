@@ -13,6 +13,7 @@ interface CompetencyBlockProps {
   onEvidenceChange: (conductId: string, text: string) => void;
   addFiles: Function;
   removeFile: Function;
+  removeAllFilesFromConduct?: Function;
   onToggleAccordion: (conductId: string, isOpen: boolean) => void;
 }
 
@@ -153,6 +154,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
   onEvidenceChange, 
   addFiles, 
   removeFile,
+  removeAllFilesFromConduct,
   onToggleAccordion
 }) => {
   const emptyScore = { t1: null, t2: null, final: 0 };
@@ -297,6 +299,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
                 evaluation={evaluation}
                 addFiles={addFiles}
                 removeFile={removeFile}
+                removeAllFilesFromConduct={removeAllFilesFromConduct}
               />
             </div>
           </Accordion>

@@ -39,6 +39,7 @@ export interface EvidenceFile {
   id: string | number;
   name?: string;
   original_name: string;
+  file_name?: string;
   file_type: string;
   file_size: number;
   url?: string;
@@ -205,13 +206,19 @@ class ApiService {
     return result;
   }
 
-
-
   async deleteFile(fileId: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Error al eliminar archivo');
+  }
+
+  async deleteAllFilesFromConduct(evaluationId: number, conductId: string): Promise<{ deletedCount: number; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/conducts/${conductId}/files`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Error al eliminar archivos de la conducta');
+    return response.json();
   }
 
   async saveScore(evaluationId: number, score: {
@@ -287,8 +294,6 @@ class ApiService {
     });
     if (!response.ok) throw new Error('Error al eliminar evaluación');
   }
-
-
 }
 
 export const apiService = new ApiService(); 

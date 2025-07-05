@@ -214,6 +214,7 @@ function App() {
     updateRealEvidence,
     addFiles,
     removeFile,
+    removeAllFilesFromConduct,
     saveEvaluation,
     addWorker,
     updateWorkerGroup,
@@ -1026,7 +1027,12 @@ function App() {
                 </div>
               ) : activePage === 'summary' ? (
                 <div className="bg-white shadow-md rounded-xl p-6">
-                  <SummaryPage evaluation={evaluation} onSave={saveEvaluation} onRemoveFile={handleRemoveFileFromSummary} />
+                  <SummaryPage 
+                    evaluation={evaluation} 
+                    onSave={saveEvaluation} 
+                    onRemoveFile={handleRemoveFileFromSummary}
+                    onRemoveAllFilesFromConduct={removeAllFilesFromConduct}
+                  />
                 </div>
               ) : activePage === 'manage-users' ? (
                 <div className="bg-white shadow-md rounded-xl p-6">
@@ -1041,6 +1047,7 @@ function App() {
                     onEvidenceChange={updateRealEvidence}
                     addFiles={addFiles}
                     removeFile={removeFile}
+                    removeAllFilesFromConduct={removeAllFilesFromConduct}
                     onToggleAccordion={toggleAccordion}
                   />
                 </div>
