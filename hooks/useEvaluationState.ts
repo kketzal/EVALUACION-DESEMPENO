@@ -51,6 +51,8 @@ const getInitialState = (): EvaluationState => {
     openAccordions: getInitialOpenAccordions(), // Estado de accordions abiertos
     isSaving: false,
     lastSavedAt: null,
+    lastSavedAtFull: null,
+    version: null,
   };
   console.log('Initial state created:', initialState);
   return initialState;
@@ -97,6 +99,7 @@ const cleanInvalidFiles = (files: Record<string, EvidenceFile[]>): Record<string
 export const useEvaluationState = () => {
   const [evaluation, setEvaluation] = useState<EvaluationState>(getInitialState);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingEvaluations, setIsLoadingEvaluations] = useState(false);
   const [workersLoaded, setWorkersLoaded] = useState(false);
   const [workerEvaluations, setWorkerEvaluations] = useState<any[]>([]);
 
@@ -138,15 +141,23 @@ export const useEvaluationState = () => {
 
   // Cargar evaluaciones históricas del trabajador seleccionado
   const loadWorkerEvaluations = useCallback(async (workerId: string) => {
+    console.log('loadWorkerEvaluations llamado con workerId:', workerId);
     if (!workerId) {
+      console.log('No hay workerId, limpiando evaluaciones');
       setWorkerEvaluations([]);
       return;
     }
     try {
+      setIsLoadingEvaluations(true);
+      console.log('Cargando evaluaciones del trabajador desde API...');
       const evals = await apiService.getEvaluationsByWorker(workerId);
+      console.log('Evaluaciones cargadas desde API:', evals);
       setWorkerEvaluations(evals);
     } catch (error) {
+      console.error('Error al cargar evaluaciones del trabajador:', error);
       setWorkerEvaluations([]);
+    } finally {
+      setIsLoadingEvaluations(false);
     }
   }, []);
 
@@ -303,6 +314,27 @@ export const useEvaluationState = () => {
       });
 
       setEvaluationWithLog(prev => {
+        // Detectar si la evaluación es nueva
+        const isNew = (evaluationData.evaluation as any).is_new || false;
+        const hasUpdatedAt = !!evaluationData.evaluation.updated_at;
+        
+        console.log('setWorkerId - Detección de evaluación nueva:', {
+          evaluationId: evaluationData.evaluation.id,
+          isNew,
+          hasUpdatedAt,
+          updatedAt: evaluationData.evaluation.updated_at
+        });
+        
+        // Una evaluación es nueva si el backend dice que es nueva
+        // Para evaluaciones guardadas, el backend devuelve is_new: false
+        const isActuallyNew = isNew;
+        
+        console.log('setWorkerId - Evaluación realmente nueva:', {
+          isNew,
+          hasUpdatedAt,
+          isActuallyNew
+        });
+        
         const newState = {
           ...prev,
           workerId,
@@ -312,9 +344,13 @@ export const useEvaluationState = () => {
           scores,
           files: cleanedFiles,
           period: periodToUse,
-          useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
-          autoSave: Boolean(evaluationData.evaluation.autoSave),
-          openAccordions: (evaluationData.evaluation as any).is_new ? {} : prev.openAccordions,
+          useT1SevenPoints: isActuallyNew ? prev.useT1SevenPoints : Boolean(evaluationData.evaluation.useT1SevenPoints),
+          autoSave: isActuallyNew ? prev.autoSave : Boolean(evaluationData.evaluation.autoSave),
+          openAccordions: isActuallyNew ? {} : prev.openAccordions,
+          lastSavedAt: isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleDateString('es-ES') : null),
+          lastSavedAtFull: isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleString('es-ES') : null),
+          version: evaluationData.evaluation.version || null,
+          isNewEvaluation: isActuallyNew,
         };
         
         console.log('Estado actualizado después de cargar evaluación:', {
@@ -322,7 +358,10 @@ export const useEvaluationState = () => {
           evaluationId: evaluationData.evaluation.id,
           filesCount: Object.keys(cleanedFiles).length,
           files: cleanedFiles,
-          newStateFiles: newState.files
+          newStateFiles: newState.files,
+          lastSavedAt: newState.lastSavedAt,
+          version: newState.version,
+          isActuallyNew
         });
         
         return newState;
@@ -346,7 +385,17 @@ export const useEvaluationState = () => {
   const loadEvaluationById = useCallback(async (evaluationId: number) => {
     try {
       setIsLoading(true);
+      console.log('loadEvaluationById - Iniciando carga de evaluación:', evaluationId);
+      
       const evaluationData = await apiService.getEvaluationById(evaluationId);
+      console.log('loadEvaluationById - Datos recibidos del backend:', {
+        evaluation: evaluationData.evaluation,
+        criteriaChecksCount: evaluationData.criteriaChecks?.length || 0,
+        realEvidenceCount: evaluationData.realEvidence?.length || 0,
+        evidenceFilesCount: evaluationData.evidenceFiles?.length || 0,
+        scoresCount: evaluationData.scores?.length || 0
+      });
+      
       // (Reutilizar la lógica de mapeo de datos de setWorkerId)
       const criteriaChecks: Record<string, CriteriaCheckState> = {};
       const realEvidences: Record<string, string> = {};
@@ -434,6 +483,41 @@ export const useEvaluationState = () => {
       });
       const cleanedFiles = cleanInvalidFiles(files);
       setEvaluationWithLog(prev => {
+        // Detectar si la evaluación es nueva
+        const isNew = (evaluationData.evaluation as any).is_new || false;
+        const hasUpdatedAt = !!evaluationData.evaluation.updated_at;
+        const hasData = Object.keys(criteriaChecks).length > 0 || Object.keys(realEvidences).length > 0;
+        
+        console.log('loadEvaluationById - Detección de evaluación nueva:', {
+          evaluationId: evaluationData.evaluation.id,
+          isNew,
+          hasUpdatedAt,
+          updatedAt: evaluationData.evaluation.updated_at,
+          hasCriteriaChecks: Object.keys(criteriaChecks).length > 0,
+          hasRealEvidence: Object.keys(realEvidences).length > 0,
+          hasEvidenceFiles: Object.keys(files).length > 0,
+          hasData
+        });
+        
+        // Una evaluación NO es nueva si tiene datos o tiene updated_at
+        const isActuallyNew = isNew && !hasData && !hasUpdatedAt;
+        
+        console.log('loadEvaluationById - Evaluación realmente nueva:', {
+          isNew,
+          hasUpdatedAt,
+          isActuallyNew
+        });
+        
+        const lastSavedAt = isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleDateString('es-ES') : null);
+        const lastSavedAtFull = isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleString('es-ES') : null);
+        
+        console.log('🔍 Timestamps calculados:', {
+          updated_at: evaluationData.evaluation.updated_at,
+          lastSavedAt,
+          lastSavedAtFull,
+          isActuallyNew
+        });
+        
         const newState = {
           ...prev,
           workerId: evaluationData.evaluation.worker_id,
@@ -443,9 +527,21 @@ export const useEvaluationState = () => {
           scores,
           files: cleanedFiles,
           period: evaluationData.evaluation.period,
-          useT1SevenPoints: Boolean(evaluationData.evaluation.useT1SevenPoints),
-          autoSave: Boolean(evaluationData.evaluation.autoSave),
+          useT1SevenPoints: isActuallyNew ? prev.useT1SevenPoints : Boolean(evaluationData.evaluation.useT1SevenPoints),
+          autoSave: isActuallyNew ? prev.autoSave : Boolean(evaluationData.evaluation.autoSave),
+          lastSavedAt,
+          lastSavedAtFull,
+          version: evaluationData.evaluation.version || null,
+          isNewEvaluation: isActuallyNew,
         };
+        
+        console.log('loadEvaluationById - Estado final:', {
+          lastSavedAt: newState.lastSavedAt,
+          lastSavedAtFull: newState.lastSavedAtFull,
+          isNewEvaluation: newState.isNewEvaluation,
+          version: newState.version
+        });
+        
         return newState;
       });
     } catch (error) {
@@ -472,9 +568,11 @@ export const useEvaluationState = () => {
       
       // Actualizar estado con timestamp de guardado automático
       const now = new Date().toLocaleString('es-ES');
+      const nowDate = new Date().toLocaleDateString('es-ES');
       setEvaluationWithLog(prev => ({
         ...prev,
-        lastSavedAt: now
+        lastSavedAt: nowDate,
+        lastSavedAtFull: now
       }));
 
       console.log('Guardado automático realizado:', now);
@@ -759,10 +857,12 @@ export const useEvaluationState = () => {
       
       // Actualizar estado con timestamp de guardado
       const now = new Date().toLocaleString('es-ES');
+      const nowDate = new Date().toLocaleDateString('es-ES');
       setEvaluationWithLog(prev => ({
         ...prev,
         isSaving: false,
-        lastSavedAt: now
+        lastSavedAt: nowDate,
+        lastSavedAtFull: now
       }));
 
       // No mostrar alert de éxito - ya tenemos la notificación visual
@@ -925,6 +1025,7 @@ export const useEvaluationState = () => {
   return {
     evaluation,
     isLoading,
+    isLoadingEvaluations,
     setWorkerId,
     setWorkerSession,
     setPeriod,

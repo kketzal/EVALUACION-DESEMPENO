@@ -9,9 +9,10 @@ interface VersionManagerModalProps {
   onDelete: (evaluationIds: number[]) => void;
   onDeleteAll: () => void;
   onCreateNewVersion: () => void;
+  isLoading?: boolean;
 }
 
-const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClose, evaluations, onOpen, onDelete, onDeleteAll, onCreateNewVersion }) => {
+const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClose, evaluations, onOpen, onDelete, onDeleteAll, onCreateNewVersion, isLoading = false }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   if (!isOpen) return null;
@@ -46,7 +47,12 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
         </button>
         <h2 className="text-xl font-bold text-gray-900 mb-4">Gestionar Evaluaciones</h2>
         <div className="mb-4 max-h-80 overflow-y-auto divide-y divide-gray-100">
-          {evaluations.length === 0 && (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
+              <div className="text-gray-600 text-center">Cargando evaluaciones...</div>
+            </div>
+          ) : evaluations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
               <div className="text-gray-400 text-center">No hay evaluaciones guardadas.</div>
               <button
@@ -56,32 +62,33 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
                 Crear nueva evaluación
               </button>
             </div>
-          )}
-          {evaluations.map(ev => (
-            <div key={ev.id} className="flex items-center gap-3 py-2 px-2 hover:bg-indigo-50 rounded transition">
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(ev.id)}
-                onChange={() => toggleSelect(ev.id)}
-                className="accent-indigo-600"
-              />
-              <div className="flex-1 cursor-pointer" onClick={() => onOpen(ev.id)}>
-                <div className="font-mono text-sm text-gray-800">
-                  {typeof (ev as any)['version'] !== 'undefined' ? `v${(ev as any)['version']} - ` : ''}{ev.period}
+          ) : (
+            evaluations.map(ev => (
+              <div key={ev.id} className="flex items-center gap-3 py-2 px-2 hover:bg-indigo-50 rounded transition">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(ev.id)}
+                  onChange={() => toggleSelect(ev.id)}
+                  className="accent-indigo-600"
+                />
+                <div className="flex-1 cursor-pointer" onClick={() => onOpen(ev.id)}>
+                  <div className="font-mono text-sm text-gray-800">
+                    {typeof (ev as any)['version'] !== 'undefined' ? `v${(ev as any)['version']} - ` : ''}{ev.period}
+                  </div>
+                  <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</div>
                 </div>
-                <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</div>
+                <button
+                  className="text-red-500 hover:text-red-700 p-1 rounded"
+                  title="Eliminar esta evaluación"
+                  onClick={() => onDelete([ev.id])}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <button
-                className="text-red-500 hover:text-red-700 p-1 rounded"
-                title="Eliminar esta evaluación"
-                onClick={() => onDelete([ev.id])}
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
+            ))
+          )}
         </div>
         <div className="flex gap-3 mt-6">
           <button

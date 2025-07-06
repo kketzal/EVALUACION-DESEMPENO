@@ -65,7 +65,7 @@ const createTables = () => {
             worker_id TEXT NOT NULL,
             period TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME,
             useT1SevenPoints BOOLEAN DEFAULT 1,
             autoSave BOOLEAN DEFAULT 1,
             FOREIGN KEY (worker_id) REFERENCES workers (id)
@@ -181,6 +181,71 @@ async function migrateUsersDefaultPassword() {
     console.log(`Migrados ${users.length} usuarios con contraseña por defecto '1234'.`);
 }
 
+// Migrar evaluaciones: limpiar updated_at de evaluaciones sin datos guardados
+function migrateEvaluationsUpdatedAt() {
+    try {
+        // Buscar evaluaciones que tienen updated_at pero no tienen criterios, evidencia o archivos
+        const evaluations = db.prepare(`
+            SELECT e.id, e.updated_at 
+            FROM evaluations e 
+            LEFT JOIN criteria_checks cc ON e.id = cc.evaluation_id 
+            LEFT JOIN real_evidence re ON e.id = re.evaluation_id 
+            LEFT JOIN evidence_files ef ON e.id = ef.evaluation_id 
+            WHERE e.updated_at IS NOT NULL 
+            AND cc.id IS NULL 
+            AND re.id IS NULL 
+            AND ef.id IS NULL
+        `).all();
+        
+        if (evaluations.length > 0) {
+            const stmt = db.prepare('UPDATE evaluations SET updated_at = NULL WHERE id = ?');
+            for (const evaluation of evaluations) {
+                stmt.run(evaluation.id);
+            }
+            console.log(`Migradas ${evaluations.length} evaluaciones: updated_at establecido a NULL para evaluaciones sin datos`);
+        } else {
+            console.log('No hay evaluaciones que necesiten migración de updated_at');
+        }
+    } catch (error) {
+        console.log('Error en migración de updated_at:', error);
+    }
+}
+
+// Verificar el estado de las evaluaciones en la base de datos
+function checkEvaluationsStatus() {
+    try {
+        console.log('=== VERIFICACIÓN DE ESTADO DE EVALUACIONES ===');
+        
+        const evaluations = db.prepare(`
+            SELECT e.id, e.worker_id, e.period, e.version, e.created_at, e.updated_at,
+                   COUNT(cc.id) as criteria_count,
+                   COUNT(re.id) as evidence_count,
+                   COUNT(ef.id) as files_count
+            FROM evaluations e 
+            LEFT JOIN criteria_checks cc ON e.id = cc.evaluation_id 
+            LEFT JOIN real_evidence re ON e.id = re.evaluation_id 
+            LEFT JOIN evidence_files ef ON e.id = ef.evaluation_id 
+            GROUP BY e.id
+            ORDER BY e.id DESC
+            LIMIT 10
+        `).all();
+        
+        console.log('Últimas 10 evaluaciones:');
+        evaluations.forEach(evaluation => {
+            console.log(`  ID: ${evaluation.id}, Worker: ${evaluation.worker_id}, Period: ${evaluation.period}, Version: ${evaluation.version}`);
+            console.log(`    Created: ${evaluation.created_at}, Updated: ${evaluation.updated_at}`);
+            console.log(`    Data: Criteria=${evaluation.criteria_count}, Evidence=${evaluation.evidence_count}, Files=${evaluation.files_count}`);
+            console.log(`    Has data: ${evaluation.criteria_count > 0 || evaluation.evidence_count > 0 || evaluation.files_count > 0}`);
+            console.log(`    Should have updated_at: ${evaluation.criteria_count > 0 || evaluation.evidence_count > 0 || evaluation.files_count > 0}`);
+            console.log('');
+        });
+        
+        console.log('=== FIN VERIFICACIÓN ===');
+    } catch (error) {
+        console.log('Error en verificación de evaluaciones:', error);
+    }
+}
+
 async function createSuperAdmin() {
     const exists = db.prepare('SELECT id FROM workers WHERE id = ?').get('superadmin');
     if (!exists) {
@@ -194,6 +259,8 @@ async function createSuperAdmin() {
 // Inicializar base de datos
 createTables();
 // migrateUsersDefaultPassword();
+// migrateEvaluationsUpdatedAt();
+checkEvaluationsStatus();
 createSuperAdmin();
 
 module.exports = { db, uploadsDir, evidenceDir }; 

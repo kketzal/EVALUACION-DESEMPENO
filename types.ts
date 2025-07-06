@@ -64,5 +64,8 @@ export interface EvaluationState {
   openAccordions: Record<string, boolean>;
   isSaving: boolean;
   lastSavedAt: string | null;
+  lastSavedAtFull: string | null;
+  version: number | null;
+  isNewEvaluation?: boolean;
   token?: string | null;
 }

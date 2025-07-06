@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
@@ -14,25 +14,63 @@ const groupOptions = [
 ];
 
 export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose, onSave }) => {
+  // SOLUCIÓN DIRECTA - Campos siempre vacíos
   const [name, setName] = useState('');
   const [group, setGroup] = useState<'GRUPO 1-2' | 'GRUPO 3-4'>('GRUPO 1-2');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // RESET INMEDIATO cuando se abre + ROMPER CACHE DEL NAVEGADOR
+  useEffect(() => {
+    if (isOpen) {
+      console.log('ABRIENDO MODAL - CAMPOS VACÍOS + ROMPIENDO CACHE');
+      setName('');
+      setGroup('GRUPO 1-2');
+      setPassword('');
+      setShowPassword(false);
+      
+      // ROMPER CACHE DEL NAVEGADOR - Limpiar inputs directamente del DOM
+      setTimeout(() => {
+        const nameInput = document.getElementById('worker-name') as HTMLInputElement;
+        const passwordInput = document.getElementById('worker-password') as HTMLInputElement;
+        
+        if (nameInput) {
+          nameInput.value = '';
+          nameInput.setAttribute('value', '');
+        }
+        if (passwordInput) {
+          passwordInput.value = '';
+          passwordInput.setAttribute('value', '');
+        }
+        console.log('CACHE DEL NAVEGADOR ROMPIDO');
+      }, 10);
+    }
+  }, [isOpen]);
+
+  // Close modal handler
+  const handleClose = () => {
+    onClose();
+  };
+
   if (!isOpen) return null;
+
+  // Debug log
+  console.log('🔍 MODAL RENDER:', { name, password, group, isOpen, nameLength: name.length, passwordLength: password.length });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && password.trim().length >= 4) {
       onSave(name.trim(), group, password);
+      // Reset form after successful save
       setName('');
       setGroup('GRUPO 1-2');
       setPassword('');
+      setShowPassword(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-2 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-2 sm:p-4" onClick={handleClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xs sm:max-w-lg p-4 sm:p-8 relative animate-fade-in" onClick={e => e.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col items-center mb-4 sm:mb-6">
@@ -43,7 +81,7 @@ export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose,
             </div>
             <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900 text-center mb-1 sm:mb-2">Añadir Nuevo Trabajador/a</h3>
             <p className="text-gray-500 text-center text-xs sm:text-sm mb-1 sm:mb-2">Introduce los datos para crear un nuevo trabajador y empezar a usar la aplicación.</p>
-            <button type="button" onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+            <button type="button" onClick={handleClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 sm:h-8 sm:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -63,6 +101,8 @@ export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose,
                 placeholder="Ej: Juan Pérez"
                 required
                 autoFocus
+                autoComplete="off"
+                spellCheck="false"
               />
             </div>
             <div>
@@ -78,6 +118,8 @@ export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose,
                   className="mt-1 block w-full rounded-xl bg-white text-gray-900 border-2 border-gray-200 shadow focus:border-pink-500 focus:ring-2 focus:ring-pink-300 text-base sm:text-lg px-3 py-2 sm:px-4 sm:py-3 transition pr-20"
                   placeholder="Mínimo 4 caracteres"
                   required
+                  autoComplete="new-password"
+                  spellCheck="false"
                 />
                 {password && (
                   <button
@@ -148,7 +190,7 @@ export const AddWorkerModal: React.FC<AddWorkerModalProps> = ({ isOpen, onClose,
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-medium text-gray-700 bg-white border-2 border-gray-200 rounded-xl shadow hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-300 transition"
             >
               Cancelar

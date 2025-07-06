@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { CompetencyBlock } from './components/CompetencyBlock';
-import { useEvaluationState, getVisibleCompetencies } from './hooks/useEvaluationState';
+import { useEvaluationState, getVisibleCompetencies as getVisibleCompetenciesFromHook } from './hooks/useEvaluationState';
 import { Sidebar } from './components/Sidebar';
 import { SummaryPage } from './components/SummaryPage';
 import { AddWorkerModal } from './components/AddWorkerModal';
@@ -20,12 +20,14 @@ import { Evaluation } from './services/api';
 import VersionManagerModal from './components/VersionManagerModal';
 import { EvaluationManagerPage } from './components/EvaluationManagerPage';
 
-function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession }: {
+function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession, isLoading = false, isWorkerSelectorLoading = false }: {
   workers: Worker[];
   isOpen: boolean;
   onSelect: (id: string, token: string) => void;
   onClose: () => void;
   setWorkerSession: (args: { workerId: string, token: string }) => void;
+  isLoading?: boolean;
+  isWorkerSelectorLoading?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
@@ -33,6 +35,19 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
   const [passwordError, setPasswordError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Resetear estado cuando se abre el modal
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedWorker(null);
+      setPasswordInput('');
+      setPasswordError('');
+      setSearch('');
+      setIsAuthenticating(false);
+      setShowPassword(false);
+    }
+  }, [isOpen]);
+  
   const filtered = workers.filter((w: Worker) => w.name.toLowerCase().includes(search.toLowerCase()));
   
   if (!isOpen) return null;
@@ -104,20 +119,31 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
               />
             </div>
             <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-              {filtered.length === 0 && <div className="py-4 text-gray-500 text-center">No hay resultados</div>}
-              {filtered.map((worker: Worker) => (
-                <button
-                  key={worker.id}
-                  onClick={() => handleWorkerSelect(worker)}
-                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded transition-colors flex items-center gap-2"
-                >
-                  <svg className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  <div>
-                    <div className="text-sm font-medium text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{worker.name}</div>
-                    <div className="text-sm text-indigo-700">{worker.worker_group}</div>
-                  </div>
-                </button>
-              ))}
+              {isLoading ? (
+                <div className="py-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+                  <p className="text-sm text-gray-600">
+                    {isWorkerSelectorLoading ? 'Preparando lista de trabajadores...' : 'Cargando lista de trabajadores...'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">Por favor espera</p>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="py-4 text-gray-500 text-center">No hay resultados</div>
+              ) : (
+                filtered.map((worker: Worker) => (
+                  <button
+                    key={worker.id}
+                    onClick={() => handleWorkerSelect(worker)}
+                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 rounded transition-colors flex items-center gap-2"
+                  >
+                    <svg className="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <div>
+                      <div className="text-sm font-medium text-indigo-900 break-words" style={{wordBreak: 'break-word'}}>{worker.name}</div>
+                      <div className="text-sm text-indigo-700">{worker.worker_group}</div>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </>
         ) : (
@@ -207,9 +233,10 @@ function App() {
   const {
     evaluation,
     isLoading,
+    isLoadingEvaluations,
     setWorkerId,
     setWorkerSession,
-    setPeriod,
+    setPeriod: setPeriodFromHook,
     updateCriteriaCheck,
     updateRealEvidence,
     addFiles,
@@ -241,6 +268,8 @@ function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarClosing, setSidebarClosing] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const [pendingWorkerId, setPendingWorkerId] = useState<string | null>(null);
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
   const [dbLoading, setDbLoading] = React.useState(false);
   const [dbMessage, setDbMessage] = React.useState<string | null>(null);
@@ -248,11 +277,23 @@ function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [workerSelectorResetKey, setWorkerSelectorResetKey] = useState(0); // Para forzar reset del modal
+  const [addWorkerModalKey, setAddWorkerModalKey] = useState(0); // Para forzar reset del modal de añadir trabajador
+  const [isWorkerSelectorLoading, setIsWorkerSelectorLoading] = useState(false);
 
   // --- NUEVO ESTADO PARA EL MODAL DE EVALUACIÓN ---
   const [showRevisionModal, setShowRevisionModal] = useState(false);
-  const [pendingWorkerId, setPendingWorkerId] = useState<string | null>(null);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [isProcessingEvaluation, setIsProcessingEvaluation] = useState(false);
+
+  // Log para depurar el estado del modal
+  useEffect(() => {
+    console.log('Estado del modal de revisión:', {
+      showRevisionModal,
+      pendingWorkerId,
+      workerEvaluationsLength: workerEvaluations.length,
+      isProcessingEvaluation
+    });
+  }, [showRevisionModal, pendingWorkerId, workerEvaluations.length, isProcessingEvaluation]);
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -285,16 +326,28 @@ function App() {
       console.log('Worker encontrado:', worker);
       
       if (worker) {
-        const visibleCompetencies = getVisibleCompetencies(worker.worker_group ?? null);
+        const visibleCompetencies = getVisibleCompetenciesFromHook(worker.worker_group ?? null);
         console.log('Competencias visibles:', visibleCompetencies);
         
-        // Si no hay competencia activa válida, establecer la primera
-        if (visibleCompetencies.length > 0 && (!activeCompetencyId || activeCompetencyId === 'B' || !visibleCompetencies.find(c => c.id === activeCompetencyId))) {
-          console.log('Estableciendo primera competencia:', visibleCompetencies[0].id);
-          setActiveCompetencyId(visibleCompetencies[0].id);
-          // Solo cambiar a competency si no estamos en una página especial
-          if (activePage !== 'settings' && activePage !== 'summary' && activePage !== 'manage-users' && activePage !== 'evaluation-manager') {
-            setActivePage('competency');
+        // Verificar si la competencia activa actual es válida para este trabajador
+        const isValidCompetency = visibleCompetencies.find(c => c.id === activeCompetencyId);
+        
+        if (visibleCompetencies.length > 0) {
+          if (!isValidCompetency) {
+            // La competencia activa no es válida para este trabajador, usar la primera
+            console.log('Competencia activa no válida, estableciendo primera competencia:', visibleCompetencies[0].id);
+            setActiveCompetencyId(visibleCompetencies[0].id);
+            // Solo cambiar a competency si no estamos en una página especial
+            if (activePage !== 'settings' && activePage !== 'summary' && activePage !== 'manage-users' && activePage !== 'evaluation-manager') {
+              setActivePage('competency');
+            }
+          } else {
+            // La competencia activa es válida, mantenerla
+            console.log('Competencia activa válida, manteniendo:', activeCompetencyId);
+            // Solo cambiar a competency si no estamos en una página especial
+            if (activePage !== 'settings' && activePage !== 'summary' && activePage !== 'manage-users' && activePage !== 'evaluation-manager') {
+              setActivePage('competency');
+            }
           }
         }
       }
@@ -308,15 +361,20 @@ function App() {
       const worker = evaluation.workers.find(w => w.id === workerId);
       // Establecer la primera competencia visible como activa
       if (worker) {
-        const visibleCompetencies = getVisibleCompetencies(worker.worker_group ?? null);
+        const visibleCompetencies = getVisibleCompetenciesFromHook(worker.worker_group ?? null);
         if (visibleCompetencies.length > 0) {
           setActiveCompetencyId(visibleCompetencies[0].id);
         }
+      }
+      // Guardar la evaluación actual
+      if (evaluation.evaluationId) {
+        saveUserEvaluation(workerId, evaluation.period, evaluation.evaluationId);
       }
       setIsWorkerSelectorOpen(false);
     } catch (error: any) {
       if (error.message === 'NO_EVALUATION_FOUND') {
         // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
+        console.log('No se encontró evaluación al cambiar trabajador, mostrando modal de selección');
         setPendingWorkerId(workerId);
         setPendingToken(evaluation.token || '');
         setShowRevisionModal(true);
@@ -335,7 +393,7 @@ function App() {
       await setWorkerId(newWorkerId);
       // Selecciona la primera competencia visible
       const worker = evaluation.workers.find(w => w.id === newWorkerId);
-      const visibleCompetencies = getVisibleCompetencies(worker?.worker_group ?? null);
+      const visibleCompetencies = getVisibleCompetenciesFromHook(worker?.worker_group ?? null);
       if (visibleCompetencies.length > 0) {
         setActiveCompetencyId(visibleCompetencies[0].id);
       }
@@ -357,6 +415,7 @@ function App() {
       } catch (e) { /* ignorar error */ }
     }
     localStorage.removeItem('sessionToken');
+    clearUserEvaluation(); // Limpiar la evaluación guardada
     setWorkerSession({ workerId: null, token: null });
     setActiveCompetencyId('B');
     setLogoutModalOpen(false);
@@ -381,7 +440,7 @@ function App() {
       evaluationWorkerId: evaluation.workerId,
       workersLength: evaluation.workers.length
     });
-    const competencies = getVisibleCompetencies(currentWorker?.worker_group ?? null);
+    const competencies = getVisibleCompetenciesFromHook(currentWorker?.worker_group ?? null);
     console.log('Competencias visibles resultantes:', competencies);
     return competencies;
   }, [evaluation.workerId, evaluation.workers]);
@@ -416,9 +475,15 @@ function App() {
 
   // Cambiar periodo y recargar evaluación
   const handlePeriodChange = async (newPeriod: string) => {
-    setPeriod(newPeriod);
     if (evaluation.workerId) {
       await setWorkerId(evaluation.workerId, newPeriod);
+    }
+  };
+
+  // Función local para cambiar periodo
+  const setPeriod = async (period: string) => {
+    if (evaluation.workerId) {
+      await setWorkerId(evaluation.workerId, period);
     }
   };
 
@@ -439,6 +504,7 @@ function App() {
       isLoggingOut = true;
       
       localStorage.removeItem('sessionToken');
+      clearUserEvaluation(); // Limpiar la evaluación guardada
       setWorkerSession({ workerId: null, token: null });
       setActiveCompetencyId('B');
       
@@ -471,9 +537,16 @@ function App() {
 
     // Restaurar sesión por token
     const restoreSession = async () => {
+      if (sessionRestored) {
+        console.log('Sesión ya restaurada, saltando...');
+        setLoadingSession(false);
+        return;
+      }
+      
       const token = localStorage.getItem('sessionToken');
       if (!token) {
         setLoadingSession(false);
+        setSessionRestored(true);
         return;
       }
       try {
@@ -482,22 +555,71 @@ function App() {
         });
         if (!res.ok) throw new Error('Sesión inválida');
         const data = await res.json();
+        
+        // Establecer la sesión del trabajador inmediatamente
         setWorkerSession({ workerId: data.id, token });
-        // Cargar los datos de la evaluación después de restaurar la sesión
-        try {
-          await setWorkerId(data.id);
-        } catch (error: any) {
-          if (error.message === 'NO_EVALUATION_FOUND') {
-            // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
-            setPendingWorkerId(data.id);
-            setPendingToken(token);
-            setShowRevisionModal(true);
-          } else {
-            throw error; // Re-lanzar otros errores
+        
+        // Cargar el histórico de evaluaciones primero
+        await loadWorkerEvaluations(data.id);
+        
+        // Intentar restaurar la evaluación específica del usuario
+        const savedEvaluation = getUserEvaluation();
+        let evaluationLoaded = false;
+        
+        if (savedEvaluation && savedEvaluation.workerId === data.id) {
+          // Intentar cargar la evaluación específica guardada
+          try {
+            console.log('Intentando cargar evaluación guardada:', savedEvaluation);
+            await setWorkerId(data.id, savedEvaluation.period);
+            evaluationLoaded = true;
+            console.log('Evaluación guardada cargada exitosamente');
+          } catch (error: any) {
+            console.log('No se pudo cargar la evaluación guardada:', error.message);
+            // Continuar con la lógica de fallback
           }
         }
-        // Cargar el histórico de evaluaciones
-        await loadWorkerEvaluations(data.id);
+        
+        if (!evaluationLoaded) {
+          // Intentar cargar la evaluación más reciente del trabajador
+          try {
+            // Obtener las evaluaciones del trabajador para determinar qué periodo cargar
+            const workerEvaluations = await apiService.getEvaluationsByWorker(data.id);
+            console.log('Evaluaciones encontradas en restoreSession:', workerEvaluations);
+            
+            if (workerEvaluations && workerEvaluations.length > 0) {
+              // Usar la evaluación más reciente (primera en la lista)
+              const latestEvaluation = workerEvaluations[0];
+              console.log('Cargando evaluación más reciente:', latestEvaluation);
+              await setWorkerId(data.id, latestEvaluation.period);
+              
+              // Guardar esta evaluación como la del usuario
+              saveUserEvaluation(data.id, latestEvaluation.period, latestEvaluation.id);
+              console.log('Evaluación más reciente cargada exitosamente');
+            } else {
+              // No hay evaluaciones, mostrar modal de selección para crear nueva
+              console.log('No hay evaluaciones previas, mostrando modal de selección');
+              setPendingWorkerId(data.id);
+              setPendingToken(token);
+              setShowRevisionModal(true);
+            }
+          } catch (error: any) {
+            console.log('Error en restoreSession:', error);
+            if (error.message === 'NO_EVALUATION_FOUND') {
+              // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
+              console.log('No se encontró evaluación, mostrando modal de selección');
+              setPendingWorkerId(data.id);
+              setPendingToken(token);
+              setShowRevisionModal(true);
+            } else {
+              // Para otros errores, también mostrar el modal para dar opción al usuario
+              console.log('Error inesperado, mostrando modal de selección como fallback');
+              setPendingWorkerId(data.id);
+              setPendingToken(token);
+              setShowRevisionModal(true);
+            }
+          }
+        }
+        
         // Obtener timeout global
         try {
           const resTimeout = await fetch('/api/settings/session-timeout');
@@ -505,10 +627,12 @@ function App() {
           timeoutMinutes = dataTimeout.timeout || 60;
         } catch {}
         updateActivity();
+        setSessionRestored(true);
       } catch {
         localStorage.removeItem('sessionToken');
         setWorkerSession({ workerId: null, token: null });
         setActiveCompetencyId('B');
+        setSessionRestored(true);
       }
       setLoadingSession(false);
     };
@@ -523,6 +647,33 @@ function App() {
       events.forEach(ev => window.removeEventListener(ev, updateActivity));
     };
     // eslint-disable-next-line
+  }, []); // Solo ejecutar una vez al montar el componente
+
+  // Efecto separado para manejar la autenticación cuando cambia el estado del trabajador
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutMinutes = 60;
+
+    const updateActivity = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        // Logout por timeout
+        localStorage.removeItem('sessionToken');
+        clearUserEvaluation();
+        setWorkerSession({ workerId: null, token: null });
+        setActiveCompetencyId('B');
+      }, timeoutMinutes * 60 * 1000);
+    };
+
+    // Al autenticar, guardar token y usuario
+    if (evaluation.workerId && evaluation.token) {
+      localStorage.setItem('sessionToken', evaluation.token);
+      updateActivity();
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [evaluation.workerId, evaluation.token]);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -754,8 +905,14 @@ function App() {
     // Buscar la evaluación con ese periodo y versión
     const ev = workerEvaluations.find(e => e.period === period && e.version === version);
     if (ev) {
-      await loadEvaluationById(ev.id);
-      setPeriod(period);
+      try {
+        await loadEvaluationById(ev.id);
+        console.log('Evaluación cargada correctamente:', { id: ev.id, period, version });
+      } catch (error) {
+        console.error('Error al cargar la evaluación:', error);
+      }
+    } else {
+      console.error('No se encontró la evaluación:', { period, version, availableEvaluations: workerEvaluations });
     }
   };
 
@@ -788,33 +945,104 @@ function App() {
   // --- MODIFICAR FLUJO DE LOGIN ---
   // Suponiendo que WorkerSelectorModal llama a este handler tras login exitoso
   const handleLoginSuccess = async (workerId: string, token: string) => {
-    setPendingWorkerId(workerId);
-    setPendingToken(token);
-    // workerEvaluations ya se carga automáticamente por el hook
-    setShowRevisionModal(true);
+    console.log('Login exitoso, estableciendo sesión y cargando evaluaciones del trabajador:', workerId);
+    
+    // Establecer la sesión del trabajador inmediatamente
+    setWorkerSession({ workerId, token });
+    
+    // Cargar las evaluaciones del trabajador
+    try {
+      console.log('Cargando evaluaciones del trabajador...');
+      await loadWorkerEvaluations(workerId);
+      console.log('Evaluaciones cargadas, mostrando modal de selección');
+      setPendingWorkerId(workerId);
+      setPendingToken(token);
+      setShowRevisionModal(true);
+    } catch (error) {
+      console.error('Error al cargar evaluaciones desde login:', error);
+      // Mostrar modal de todas formas si hay error
+      setPendingWorkerId(workerId);
+      setPendingToken(token);
+      setShowRevisionModal(true);
+    }
   };
 
   // --- HANDLERS PARA EL MODAL DE EVALUACIÓN ---
-  const handleContinue = (evaluation: Evaluation) => {
-    setWorkerSession({ workerId: evaluation.worker_id, token: pendingToken || '' });
-    setWorkerId(evaluation.worker_id, evaluation.period);
-    setShowRevisionModal(false);
+  const handleContinue = async (evaluation: Evaluation) => {
+    console.log('Continuando con evaluación:', evaluation);
+    setIsProcessingEvaluation(true);
+    try {
+      // Cargar la evaluación específica por ID
+      await loadEvaluationById(evaluation.id);
+      // Guardar la evaluación seleccionada
+      saveUserEvaluation(evaluation.worker_id, evaluation.period, evaluation.id);
+      setShowRevisionModal(false);
+      console.log('Evaluación continuada exitosamente');
+    } catch (error) {
+      console.error('Error al continuar evaluación:', error);
+      // Mostrar error al usuario si es necesario
+    } finally {
+      setIsProcessingEvaluation(false);
+    }
   };
 
   const handleNew = async () => {
     if (!pendingWorkerId) return;
-    // Usar el periodo más reciente o uno por defecto
-    const period = workerEvaluations.length > 0 ? workerEvaluations[0].period : '2023-2024';
-    const newEval = await apiService.createEvaluation(pendingWorkerId, period);
-    setWorkerSession({ workerId: pendingWorkerId, token: pendingToken || '' });
-    setWorkerId(pendingWorkerId, period);
+    console.log('Creando nueva evaluación para trabajador:', pendingWorkerId);
+    setIsProcessingEvaluation(true);
+    
+    // Cerrar el modal inmediatamente
     setShowRevisionModal(false);
+    
+    try {
+      // Usar el periodo más reciente o uno por defecto
+      const period = workerEvaluations.length > 0 ? workerEvaluations[0].period : '2023-2024';
+      console.log('Creando evaluación con periodo:', period);
+      const newEval = await apiService.createEvaluation(pendingWorkerId, period);
+      console.log('Nueva evaluación creada:', newEval);
+      
+      // Cargar la nueva evaluación específica por ID
+      console.log('Cargando nueva evaluación por ID:', newEval.id);
+      await loadEvaluationById(newEval.id);
+      
+      // Guardar la nueva evaluación
+      saveUserEvaluation(pendingWorkerId, period, newEval.id);
+      console.log('Nueva evaluación creada y cargada exitosamente');
+    } catch (error) {
+      console.error('Error al crear nueva evaluación:', error);
+      // Mostrar error al usuario si es necesario
+    } finally {
+      setIsProcessingEvaluation(false);
+    }
   };
 
-  const handleSelect = (evaluation: Evaluation) => {
-    setWorkerSession({ workerId: evaluation.worker_id, token: pendingToken || '' });
-    loadEvaluationById(evaluation.id);
-    setShowRevisionModal(false);
+  const handleSelect = async (selectedEval: Evaluation) => {
+    console.log('🔄 handleSelect - Iniciando selección de evaluación:', selectedEval);
+    setIsProcessingEvaluation(true);
+    try {
+      // Cargar la evaluación específica
+      await loadEvaluationById(selectedEval.id);
+
+      // Esperar un poco para que el estado se actualice
+      setTimeout(() => {
+        // Usar el estado global evaluation, no el parámetro
+        console.log('🔄 handleSelect - Estado después de cargar:', {
+          evaluationId: evaluation.evaluationId,
+          lastSavedAt: evaluation.lastSavedAt,
+          isNewEvaluation: evaluation.isNewEvaluation,
+          version: evaluation.version
+        });
+        // Guardar la evaluación seleccionada
+        saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
+        setShowRevisionModal(false);
+        console.log('✅ Evaluación seleccionada y cargada exitosamente');
+      }, 200);
+    } catch (error) {
+      console.error('❌ Error al seleccionar evaluación:', error);
+      // Mostrar error al usuario si es necesario
+    } finally {
+      setIsProcessingEvaluation(false);
+    }
   };
 
   // Eliminar una o varias evaluaciones
@@ -837,10 +1065,30 @@ function App() {
 
   const handleOpenEvaluation = async (evaluationId: number) => {
     try {
+      console.log('🔍 handleOpenEvaluation - Iniciando:', evaluationId);
+      console.log('🔍 Estado antes de cargar:', { workerId: evaluation.workerId, period: evaluation.period, evaluationId: evaluation.evaluationId });
+      
       await loadEvaluationById(evaluationId);
-      setActivePage('competency');
+      
+      console.log('🔍 loadEvaluationById completado');
+      console.log('🔍 Estado después de cargar:', { workerId: evaluation.workerId, period: evaluation.period, evaluationId: evaluation.evaluationId });
+      
+      // Esperar un poco para que el estado se actualice
+      setTimeout(() => {
+        console.log('🔍 setTimeout ejecutado');
+        console.log('🔍 Estado en setTimeout:', { workerId: evaluation.workerId, period: evaluation.period, evaluationId: evaluation.evaluationId });
+        
+        // Guardar la evaluación abierta después de que se haya cargado
+        if (evaluation.workerId && evaluation.period) {
+          saveUserEvaluation(evaluation.workerId, evaluation.period, evaluationId);
+          console.log('✅ Evaluación guardada en localStorage:', { workerId: evaluation.workerId, period: evaluation.period, evaluationId });
+        } else {
+          console.log('❌ No se pudo guardar - datos faltantes:', { workerId: evaluation.workerId, period: evaluation.period });
+        }
+        setActivePage('competency');
+      }, 100);
     } catch (error) {
-      console.error('Error al abrir evaluación:', error);
+      console.error('❌ Error al abrir evaluación:', error);
     }
   };
 
@@ -873,6 +1121,20 @@ function App() {
 
   const [isVersionManagerOpen, setVersionManagerOpen] = useState(false);
 
+  // Funciones para guardar y restaurar la evaluación específica del usuario
+  const saveUserEvaluation = (workerId: string, period: string, evaluationId: number) => {
+    localStorage.setItem('userEvaluation', JSON.stringify({ workerId, period, evaluationId }));
+  };
+
+  const getUserEvaluation = () => {
+    const saved = localStorage.getItem('userEvaluation');
+    return saved ? JSON.parse(saved) : null;
+  };
+
+  const clearUserEvaluation = () => {
+    localStorage.removeItem('userEvaluation');
+  };
+
   if (loadingSession) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
@@ -901,7 +1163,10 @@ function App() {
                 Seleccionar Trabajador
               </button>
               <button
-                onClick={() => setAddWorkerModalOpen(true)}
+                onClick={() => {
+                  setAddWorkerModalKey(k => k + 1);
+                  setAddWorkerModalOpen(true);
+                }}
                 className="w-full flex items-center justify-center gap-3 px-6 py-4 mt-2 mb-2 rounded-2xl shadow-lg bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white text-lg font-semibold hover:scale-105 hover:shadow-2xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-300"
               >
                 <UserPlusIcon className="h-8 w-8 mr-2 text-white drop-shadow-lg" />
@@ -922,20 +1187,47 @@ function App() {
             workers={evaluation.workers}
             selectedWorkerId={evaluation.workerId}
             onWorkerChange={handleWorkerChange}
-            onChangeWorkerClick={() => setIsWorkerSelectorOpen(true)}
+            onChangeWorkerClick={() => {
+          console.log('Abriendo modal de selección de trabajador');
+          setIsWorkerSelectorLoading(true);
+          setIsWorkerSelectorOpen(true);
+          // Simular un pequeño delay para mostrar el spinner
+          setTimeout(() => {
+            setIsWorkerSelectorLoading(false);
+          }, 500);
+        }}
             period={evaluation.period}
             onPeriodChange={handlePeriodChange}
-            onAddWorkerClick={() => setAddWorkerModalOpen(true)}
+            onAddWorkerClick={() => {
+              setAddWorkerModalKey(k => k + 1);
+              setAddWorkerModalOpen(true);
+            }}
             onExitApp={() => setLogoutModalOpen(true)}
             useT1SevenPoints={evaluation.useT1SevenPoints}
             onT1SevenPointsChange={setUseT1SevenPoints}
             isSaving={evaluation.isSaving}
             lastSavedAt={evaluation.lastSavedAt}
+            lastSavedAtFull={evaluation.lastSavedAtFull}
+            version={evaluation.version}
+            isNewEvaluation={evaluation.isNewEvaluation}
             onHamburgerClick={() => setSidebarOpen(true)}
             workerEvaluations={workerEvaluations}
             onSelectVersion={handleSelectVersion}
             onNewVersion={handleCreateNewEvaluation}
+            isLoading={isLoading}
           />
+          
+          {/* Log para depurar el estado de evaluación nueva */}
+          {(() => {
+            console.log('Header - Estado de evaluación nueva:', {
+              isNewEvaluation: evaluation.isNewEvaluation,
+              lastSavedAt: evaluation.lastSavedAt,
+              lastSavedAtFull: evaluation.lastSavedAtFull,
+              version: evaluation.version
+            });
+            return null;
+          })()}
+
           {/* Sidebar móvil */}
           {isSidebarOpen && (
             <>
@@ -1078,6 +1370,7 @@ function App() {
       )}
 
       <AddWorkerModal
+        key={addWorkerModalKey}
         isOpen={isAddWorkerModalOpen}
         onClose={() => setAddWorkerModalOpen(false)}
         onSave={handleAddWorker}
@@ -1090,6 +1383,8 @@ function App() {
         onSelect={handleLoginSuccess}
         onClose={() => setIsWorkerSelectorOpen(false)}
         setWorkerSession={setWorkerSession}
+        isLoading={isWorkerSelectorLoading || loadingSession || !evaluation.workers.length}
+        isWorkerSelectorLoading={isWorkerSelectorLoading}
       />
 
       <ManageUsersModal
@@ -1097,6 +1392,7 @@ function App() {
         onClose={() => setManageUsersModalOpen(false)}
         workers={evaluation.workers}
         onUpdateWorker={updateWorker}
+        isLoading={isLoading}
       />
 
       <LogoutConfirmModal open={isLogoutModalOpen} onConfirm={confirmLogout} onCancel={() => setLogoutModalOpen(false)} />
@@ -1123,7 +1419,16 @@ function App() {
         onNew={handleNew}
         onSelect={handleSelect}
         onClose={() => setShowRevisionModal(false)}
+        isLoading={isLoadingEvaluations || isProcessingEvaluation}
       />
+      
+      {/* Log para depurar el modal */}
+      {console.log('Renderizando RevisionSelectorModal:', {
+        showRevisionModal,
+        workerEvaluationsLength: workerEvaluations.length,
+        isLoadingEvaluations,
+        isProcessingEvaluation
+      })}
 
       <VersionManagerModal
         isOpen={isVersionManagerOpen}
@@ -1138,6 +1443,7 @@ function App() {
             setVersionManagerOpen(false);
           }
         }}
+        isLoading={isLoading}
       />
     </>
   );

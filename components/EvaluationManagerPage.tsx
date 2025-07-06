@@ -122,25 +122,25 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
       <div className="px-4 py-4">
         {/* Estadísticas simplificadas */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"></div>
               <span className="text-xs font-medium text-gray-600">Periodos</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{new Set(evaluations.map(e => e.period)).size}</p>
+            <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{new Set(evaluations.map(e => e.period)).size}</p>
           </div>
           
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
               <span className="text-xs font-medium text-gray-600">Trabajadores</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{new Set(evaluations.map(e => (e as any).worker_name)).size}</p>
+            <p className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{new Set(evaluations.map(e => (e as any).worker_name)).size}</p>
           </div>
         </div>
 
         {/* Controles simplificados */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 hover:shadow-md transition-all duration-200">
           {/* Búsqueda */}
           <div className="relative mb-4">
             <input
@@ -148,7 +148,7 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar evaluaciones..."
-              className="w-full px-4 py-3 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              className="w-full px-4 py-3 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all duration-200"
             />
             <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -160,7 +160,7 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'date' | 'period' | 'worker')}
-              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all duration-200"
             >
               <option value="date">Fecha</option>
               <option value="period">Periodo</option>
@@ -169,7 +169,7 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all duration-200"
             >
               <option value="desc">↓</option>
               <option value="asc">↑</option>
@@ -254,7 +254,7 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
               {sortedEvaluations.map((evaluation) => (
                 <div
                   key={evaluation.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:border-indigo-200 transition-all duration-200"
                 >
                   <div className="p-4">
                     {/* Header de la card */}
@@ -267,10 +267,10 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-semibold text-gray-900 truncate">
+                          <h3 className="text-sm font-semibold text-gray-900 truncate leading-tight">
                             {(evaluation as any).worker_name || 'Trabajador no especificado'}
                           </h3>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 mt-0.5">
                             {formatDate(evaluation.created_at)}
                           </p>
                         </div>
@@ -279,10 +279,10 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
 
                     {/* Badges de información */}
                     <div className="flex items-center gap-2 mb-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200">
                         {evaluation.period}
                       </span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 border border-purple-200">
                         v{evaluation.version || 'N/A'}
                       </span>
                     </div>
@@ -291,13 +291,13 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
                     <div className="flex gap-2">
                       <button
                         onClick={() => onOpen(evaluation.id)}
-                        className="flex-1 px-3 py-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 transition-colors font-medium"
+                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white text-sm rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all duration-200 font-medium shadow-sm"
                       >
                         Abrir
                       </button>
                       <button
                         onClick={() => onDelete([evaluation.id])}
-                        className="px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                        className="px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

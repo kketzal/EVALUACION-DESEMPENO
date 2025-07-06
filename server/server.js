@@ -1074,6 +1074,9 @@ app.post('/api/evaluations/:id/scores', scoresHandlers.postScore);
 // Evaluación por id (histórico exacto)
 app.get('/api/evaluations/:id', evalByIdHandler.getEvaluationById);
 
+// Endpoint de prueba para verificar el estado de la base de datos
+app.get('/api/test/database-state', evalByIdHandler.testDatabaseState);
+
 // Endpoint de debugging para verificar la tabla evidence_files
 app.get('/api/debug/evidence-files', (req, res) => {
     try {

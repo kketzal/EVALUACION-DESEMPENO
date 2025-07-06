@@ -38,12 +38,36 @@ async function postEvaluation(req, res) {
         second: '2-digit',
         hour12: false
     }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
-    const result = db.prepare('INSERT INTO evaluations (worker_id, period, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(workerId, period, newVersion, spanishTimeFormatted, spanishTimeFormatted);
+    
+    // Para evaluaciones nuevas, updated_at debe ser null inicialmente
+    const result = db.prepare('INSERT INTO evaluations (worker_id, period, version, created_at, updated_at) VALUES (?, ?, ?, ?, NULL)').run(workerId, period, newVersion, spanishTimeFormatted);
+    
+    console.log('postEvaluation - Evaluación creada:', {
+      id: result.lastInsertRowid,
+      worker_id: workerId,
+      period,
+      version: newVersion,
+      created_at: spanishTimeFormatted,
+      updated_at: null
+    });
+    
+    // Verificar que se guardó correctamente
+    const savedEvaluation = db.prepare('SELECT * FROM evaluations WHERE id = ?').get(result.lastInsertRowid);
+    console.log('postEvaluation - Verificación de guardado:', {
+      id: savedEvaluation.id,
+      updated_at: savedEvaluation.updated_at,
+      updated_at_type: typeof savedEvaluation.updated_at,
+      updated_at_null: savedEvaluation.updated_at === null
+    });
+    
     res.status(201).json({
       id: result.lastInsertRowid,
-      workerId,
+      worker_id: workerId,
       period,
-      version: newVersion
+      version: newVersion,
+      created_at: spanishTimeFormatted,
+      updated_at: null,
+      is_new: true
     });
   } catch (error) {
     console.error('Error en POST /api/evaluations:', error);

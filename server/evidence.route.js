@@ -27,6 +27,22 @@ async function postEvidence(req, res) {
     if (!conductId) {
       return res.status(400).json({ error: 'conductId es requerido' });
     }
+    
+    // Actualizar updated_at de la evaluación
+    const now = new Date();
+    const spanishTimeFormatted = now.toLocaleString("en-US", {
+        timeZone: "Europe/Madrid",
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+    
+    db.prepare('UPDATE evaluations SET updated_at = ? WHERE id = ?').run(spanishTimeFormatted, evaluationId);
+    
     const row = db.prepare('SELECT id FROM real_evidence WHERE evaluation_id = ? AND conduct_id = ?').get(evaluationId, conductId);
     if (row) {
       db.prepare('UPDATE real_evidence SET evidence_text = ? WHERE id = ?').run(evidenceText || '', row.id);

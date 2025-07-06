@@ -27,6 +27,22 @@ async function postScore(req, res) {
     if (!conductId || score === undefined) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
+    
+    // Actualizar updated_at de la evaluación
+    const now = new Date();
+    const spanishTimeFormatted = now.toLocaleString("en-US", {
+        timeZone: "Europe/Madrid",
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+    
+    db.prepare('UPDATE evaluations SET updated_at = ? WHERE id = ?').run(spanishTimeFormatted, evaluationId);
+    
     const row = db.prepare('SELECT id FROM scores WHERE evaluation_id = ? AND conduct_id = ?').get(evaluationId, conductId);
     if (row) {
       db.prepare('UPDATE scores SET score = ? WHERE id = ?').run(score, row.id);

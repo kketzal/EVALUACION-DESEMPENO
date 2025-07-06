@@ -17,6 +17,7 @@ export interface Evaluation {
   updated_at: string;
   useT1SevenPoints?: boolean;
   autoSave?: boolean;
+  version?: number;
 }
 
 export interface CriteriaCheck {

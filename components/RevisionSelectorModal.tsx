@@ -16,9 +16,12 @@ interface RevisionSelectorModalProps {
   onNew: () => void;
   onSelect: (evaluation: Evaluation) => void;
   onClose: () => void;
+  isLoading?: boolean;
 }
 
-export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, onSelect, onClose }: RevisionSelectorModalProps) {
+export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, onSelect, onClose, isLoading = false }: RevisionSelectorModalProps) {
+  console.log('RevisionSelectorModal renderizado:', { isOpen, evaluationsLength: evaluations?.length, isLoading });
+  
   if (!isOpen) return null;
 
   const lastEval = evaluations && evaluations.length > 0 ? evaluations[0] : null;
@@ -38,27 +41,51 @@ export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, 
         <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Selecciona una evaluación</h2>
         {lastEval && (
           <button
-            className="w-full mb-3 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold shadow hover:bg-indigo-700 transition"
+            className="w-full mb-3 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold shadow hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => onContinue(lastEval)}
+            disabled={isLoading}
           >
-            Continuar con la última evaluación<br/>
-            <span className="text-xs font-normal text-indigo-100">Periodo: {lastEval.period} | Versión: {lastEval.version}</span>
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Cargando evaluación...</span>
+              </div>
+            ) : (
+              <>
+                Continuar con la última evaluación<br/>
+                <span className="text-xs font-normal text-indigo-100">Periodo: {lastEval.period} | Versión: {lastEval.version}</span>
+              </>
+            )}
           </button>
         )}
         <button
-          className="w-full mb-6 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold shadow hover:bg-green-700 transition"
+          className="w-full mb-6 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold shadow hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={onNew}
+          disabled={isLoading}
         >
-          Crear nueva evaluación
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Creando nueva evaluación...</span>
+            </div>
+          ) : (
+            'Crear nueva evaluación'
+          )}
         </button>
         <div className="mb-2 text-gray-700 font-medium">O abrir una guardada:</div>
         <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 rounded-lg border border-gray-100 bg-gray-50 mb-2">
-          {evaluations && evaluations.length > 0 ? (
+          {isLoading ? (
+            <div className="py-8 text-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Cargando evaluaciones...</p>
+            </div>
+          ) : evaluations && evaluations.length > 0 ? (
             evaluations.map((ev: Evaluation) => (
               <button
                 key={ev.id}
-                className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors text-gray-800"
+                className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => onSelect(ev)}
+                disabled={isLoading}
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">Periodo: {ev.period}</span>
