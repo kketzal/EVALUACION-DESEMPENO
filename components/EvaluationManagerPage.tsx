@@ -21,6 +21,12 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
   onClose,
   isLoading = false
 }) => {
+  // Log temporal para depurar
+  console.log('EvaluationManagerPage renderizado con:', {
+    evaluationsCount: evaluations.length,
+    evaluations: evaluations,
+    isLoading
+  });
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'period' | 'worker'>('date');

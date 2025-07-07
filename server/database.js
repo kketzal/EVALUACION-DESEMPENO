@@ -91,12 +91,12 @@ const createTables = () => {
     }
 
     // Forzar recreación de la tabla criteria_checks con clave foránea correcta
-    try {
-        db.exec('DROP TABLE IF EXISTS criteria_checks;');
-        console.log('Tabla criteria_checks eliminada para recreación con clave foránea.');
-    } catch (error) {
-        console.log('No se pudo eliminar criteria_checks:', error);
-    }
+    // try {
+    //     db.exec('DROP TABLE IF EXISTS criteria_checks;');
+    //     console.log('Tabla criteria_checks eliminada para recreación con clave foránea.');
+    // } catch (error) {
+    //     console.log('No se pudo eliminar criteria_checks:', error);
+    // }
 
     db.exec(`
         CREATE TABLE IF NOT EXISTS criteria_checks (

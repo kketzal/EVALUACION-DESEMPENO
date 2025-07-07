@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { EvaluationState as BaseEvaluationState, Score, Worker, CriteriaCheckState, EvidenceFile } from '../types';
 import { competencies } from '../data/evaluationData';
 import { t1Criteria, t1Criteria7Points, t2Criteria } from '../data/criteriaData';
@@ -108,6 +108,8 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
   const [isLoadingEvaluations, setIsLoadingEvaluations] = useState(false);
   const [workersLoaded, setWorkersLoaded] = useState(false);
   const [workerEvaluations, setWorkerEvaluations] = useState<any[]>([]);
+  // Ref para almacenar el timeout de debounce
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // LOG de depuración para cada llamada a setEvaluation
   const setEvaluationWithLog = (updater: (prev: EvaluationState) => EvaluationState) => {
@@ -116,7 +118,14 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       // Clon profundo de criteriaChecks para forzar re-render
       const deepClonedCriteriaChecks = JSON.parse(JSON.stringify(next.criteriaChecks));
       const nextWithClone = { ...next, criteriaChecks: deepClonedCriteriaChecks };
-      console.log('setEvaluation called:', { prev, next: nextWithClone });
+      console.log('setEvaluation called:', { 
+        workerId: nextWithClone.workerId,
+        evaluationId: nextWithClone.evaluationId,
+        isNewEvaluation: nextWithClone.isNewEvaluation,
+        workerEvaluationsLength: nextWithClone.workerEvaluations.length,
+        workerEvaluationsIds: nextWithClone.workerEvaluations.map(e => e.id),
+        lastSavedAt: nextWithClone.lastSavedAt
+      });
       return nextWithClone;
     });
   };
@@ -147,10 +156,16 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
 
   // Cargar evaluaciones históricas del trabajador seleccionado
   const loadWorkerEvaluations = useCallback(async (workerId: string) => {
+    console.log('=== loadWorkerEvaluations ENTER ===');
     console.log('loadWorkerEvaluations llamado con workerId:', workerId);
     if (!workerId) {
       console.log('No hay workerId, limpiando evaluaciones');
       setWorkerEvaluations([]);
+      // También limpiar el estado global
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workerEvaluations: []
+      }));
       return;
     }
     try {
@@ -158,23 +173,71 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       console.log('Cargando evaluaciones del trabajador desde API...');
       const evals = await apiService.getEvaluationsByWorker(workerId);
       console.log('Evaluaciones cargadas desde API:', evals);
+      console.log('Número de evaluaciones encontradas:', evals.length);
       setWorkerEvaluations(evals);
+      // Sincronizar con el estado global
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workerEvaluations: evals
+      }));
+      console.log('Estado workerEvaluations actualizado con:', {
+        count: evals.length,
+        ids: evals.map(e => e.id),
+        periods: evals.map(e => e.period)
+      });
     } catch (error) {
       console.error('Error al cargar evaluaciones del trabajador:', error);
       setWorkerEvaluations([]);
+      // También limpiar el estado global en caso de error
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workerEvaluations: []
+      }));
     } finally {
       setIsLoadingEvaluations(false);
+      console.log('=== loadWorkerEvaluations EXIT ===');
     }
   }, []);
 
   // Cargar evaluaciones cuando cambia el trabajador
   useEffect(() => {
+    console.log('useEffect para cargar evaluaciones - Estado actual:', {
+      workerId: evaluation.workerId,
+      period: evaluation.period,
+      workerEvaluationsLength: evaluation.workerEvaluations.length
+    });
+    
+    // Limpiar timeout anterior si existe
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
     // Solo recargar evaluaciones si hay workerId y periodo definido (no usar el periodo por defecto si hay uno seleccionado)
     if (evaluation.workerId && evaluation.period) {
-      loadWorkerEvaluations(evaluation.workerId);
+      console.log('Programando carga de evaluaciones para workerId:', evaluation.workerId);
+      // Usar un timeout para evitar múltiples llamadas simultáneas
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (evaluation.workerId) { // Verificar nuevamente que no sea null
+          console.log('Ejecutando carga de evaluaciones para workerId:', evaluation.workerId);
+          loadWorkerEvaluations(evaluation.workerId);
+        }
+      }, 150); // Aumentar el delay para mayor estabilidad
     } else {
+      console.log('Limpiando evaluaciones - no hay workerId o period');
       setWorkerEvaluations([]);
+      // También limpiar el estado global
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        workerEvaluations: []
+      }));
     }
+    
+    // Cleanup function
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
   }, [evaluation.workerId, evaluation.period, loadWorkerEvaluations]);
 
   const setWorkerId = useCallback(async (workerId: string | null, periodOverride?: string) => {
@@ -231,41 +294,31 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       // Inicializar criterios para todas las conductas que no tengan datos guardados
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
-          // Forzar uso de 7 puntos por defecto en evaluaciones nuevas
-          const isNewEval = (evaluationData.evaluation as any).is_new || false;
-          const useT1Seven = isNewEval ? true : evaluation.useT1SevenPoints;
-          const t1CriteriaToUse = useT1Seven ? t1Criteria7Points : t1Criteria;
-          
+          const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
           if (!criteriaChecks[conduct.id]) {
-            // Nueva conducta sin datos guardados - inicializar con TRAMO 1 activado
+            // Si no hay datos guardados, inicializar todo a false
             criteriaChecks[conduct.id] = {
-              t1: useT1Seven ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
+              t1: Array(t1CriteriaToUse.length).fill(false),
               t2: Array(t2Criteria.length).fill(false),
             };
           } else {
-            // Conducta con datos parciales - completar valores faltantes
+            // Si hay datos parciales, completar solo con false
             const currentT1 = criteriaChecks[conduct.id].t1 || [];
             const currentT2 = criteriaChecks[conduct.id].t2 || [];
-            
-            // Completar TRAMO 1
             criteriaChecks[conduct.id].t1 = Array(t1CriteriaToUse.length).fill(false).map((_, idx) => {
               if (idx < currentT1.length && currentT1[idx] !== null && currentT1[idx] !== undefined) {
                 return currentT1[idx];
               }
-              // Valor por defecto según configuración
-              return useT1Seven ? (idx < 3 ? true : false) : true;
+              return false;
             });
-            
-            // Completar TRAMO 2
             criteriaChecks[conduct.id].t2 = Array(t2Criteria.length).fill(false).map((_, idx) => {
               return idx < currentT2.length && currentT2[idx] !== null && currentT2[idx] !== undefined 
                 ? currentT2[idx] 
                 : false;
             });
           }
-          
           // Calcular puntuación para esta conducta
-          scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], useT1Seven);
+          scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
         }
       }
 
@@ -328,17 +381,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         // Detectar si la evaluación es nueva
         const isNew = (evaluationData.evaluation as any).is_new || false;
         const hasUpdatedAt = !!evaluationData.evaluation.updated_at;
+        const hasBackendData = evaluationData.criteriaChecks.length > 0 || evaluationData.realEvidence.length > 0 || evaluationData.evidenceFiles.length > 0;
         
         console.log('setWorkerId - Detección de evaluación nueva:', {
           evaluationId: evaluationData.evaluation.id,
           isNew,
           hasUpdatedAt,
-          updatedAt: evaluationData.evaluation.updated_at
+          updatedAt: evaluationData.evaluation.updated_at,
+          backendCriteriaChecks: evaluationData.criteriaChecks.length,
+          backendRealEvidence: evaluationData.realEvidence.length,
+          backendEvidenceFiles: evaluationData.evidenceFiles.length,
+          hasBackendData
         });
         
-        // Una evaluación es nueva si el backend dice que es nueva
-        // Para evaluaciones guardadas, el backend devuelve is_new: false
-        const isActuallyNew = isNew;
+        // Una evaluación es nueva si NO tiene updated_at y NO tiene datos en el backend
+        const isActuallyNew = !hasUpdatedAt && !hasBackendData;
         
         console.log('setWorkerId - Evaluación realmente nueva:', {
           isNew,
@@ -470,26 +527,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
           const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
           
           if (!criteriaChecks[conduct.id]) {
-            // Nueva conducta sin datos guardados - inicializar con TRAMO 1 activado
+            // Si no hay datos guardados, inicializar todo a false
             criteriaChecks[conduct.id] = {
-              t1: evaluation.useT1SevenPoints ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
+              t1: Array(t1CriteriaToUse.length).fill(false),
               t2: Array(t2Criteria.length).fill(false),
             };
           } else {
-            // Conducta con datos parciales - completar valores faltantes
+            // Si hay datos parciales, completar solo con false
             const currentT1 = criteriaChecks[conduct.id].t1 || [];
             const currentT2 = criteriaChecks[conduct.id].t2 || [];
-            
-            // Completar TRAMO 1
             criteriaChecks[conduct.id].t1 = Array(t1CriteriaToUse.length).fill(false).map((_, idx) => {
               if (idx < currentT1.length && currentT1[idx] !== null && currentT1[idx] !== undefined) {
                 return currentT1[idx];
               }
-              // Valor por defecto según configuración
-              return evaluation.useT1SevenPoints ? (idx < 3 ? true : false) : true;
+              return false;
             });
-            
-            // Completar TRAMO 2
             criteriaChecks[conduct.id].t2 = Array(t2Criteria.length).fill(false).map((_, idx) => {
               return idx < currentT2.length && currentT2[idx] !== null && currentT2[idx] !== undefined 
                 ? currentT2[idx] 
@@ -538,21 +590,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         // Detectar si la evaluación es nueva
         const isNew = (evaluationData.evaluation as any).is_new || false;
         const hasUpdatedAt = !!evaluationData.evaluation.updated_at;
-        const hasData = Object.keys(criteriaChecks).length > 0 || Object.keys(realEvidences).length > 0;
+        const hasBackendData = evaluationData.criteriaChecks.length > 0 || evaluationData.realEvidence.length > 0 || evaluationData.evidenceFiles.length > 0;
         
         console.log('loadEvaluationById - Detección de evaluación nueva:', {
           evaluationId: evaluationData.evaluation.id,
           isNew,
           hasUpdatedAt,
           updatedAt: evaluationData.evaluation.updated_at,
-          hasCriteriaChecks: Object.keys(criteriaChecks).length > 0,
-          hasRealEvidence: Object.keys(realEvidences).length > 0,
-          hasEvidenceFiles: Object.keys(files).length > 0,
-          hasData
+          backendCriteriaChecks: evaluationData.criteriaChecks.length,
+          backendRealEvidence: evaluationData.realEvidence.length,
+          backendEvidenceFiles: evaluationData.evidenceFiles.length,
+          hasBackendData
         });
         
-        // Una evaluación solo es nueva si NO tiene updated_at y NO tiene datos
-        const isActuallyNew = !hasUpdatedAt && !hasData;
+        // Una evaluación es nueva si NO tiene updated_at y NO tiene datos en el backend
+        const isActuallyNew = !hasUpdatedAt && !hasBackendData;
         
         console.log('loadEvaluationById - Evaluación realmente nueva:', {
           isNew,
@@ -613,7 +665,13 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
 
   // Función para guardado automático
   const autoSaveEvaluation = useCallback(async () => {
-    if (!evaluation.evaluationId || !evaluation.autoSave) return;
+    if (!evaluation.autoSave) return;
+
+    // Si no hay evaluationId, no podemos hacer guardado automático
+    if (!evaluation.evaluationId) {
+      console.log('No hay evaluationId para guardado automático');
+      return;
+    }
 
     try {
       await apiService.updateEvaluation(evaluation.evaluationId);
@@ -624,7 +682,8 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       setEvaluationWithLog(prev => ({
         ...prev,
         lastSavedAt: nowDate,
-        lastSavedAtFull: now
+        lastSavedAtFull: now,
+        isNewEvaluation: false // Marcar como no nueva después del primer guardado
       }));
 
       console.log('Guardado automático realizado:', now);
@@ -644,7 +703,25 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       const created = await apiService.createEvaluation(evaluation.workerId, evaluation.period);
       evalId = created.id;
       usedPeriod = created.period;
-      setEvaluationWithLog(prev => ({ ...prev, evaluationId: evalId, isNewEvaluation: false, period: usedPeriod }));
+      setEvaluationWithLog(prev => ({ 
+        ...prev, 
+        evaluationId: evalId, 
+        isNewEvaluation: true, 
+        lastSavedAt: null,
+        lastSavedAtFull: null,
+        period: usedPeriod 
+      }));
+      
+      // Recargar la lista de evaluaciones del trabajador para que aparezca en la página de gestión
+      if (evaluation.workerId) {
+        console.log('Recargando evaluaciones después de crear evaluación nueva para workerId:', evaluation.workerId);
+        await loadWorkerEvaluations(evaluation.workerId);
+        console.log('Evaluaciones recargadas después de crear evaluación nueva');
+      }
+      
+      // Guardar automáticamente todos los toggles activados del TRAMO 1 para la nueva evaluación
+      const currentCriteriaChecks = evaluation.criteriaChecks;
+      await saveAllActiveT1Toggles(evalId, currentCriteriaChecks);
     }
 
     console.log('updateCriteriaCheck called:', { conductId, tramo, criterionIndex, isChecked });
@@ -718,6 +795,35 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
     }
   }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints, evaluation.autoSave, autoSaveEvaluation, evaluation.workerId, evaluation.period]);
 
+  // Función para guardar automáticamente todos los toggles activados del TRAMO 1
+  const saveAllActiveT1Toggles = useCallback(async (evalId: number, criteriaChecks: Record<string, CriteriaCheckState>) => {
+    console.log('Guardando todos los toggles activados del TRAMO 1...');
+    
+    for (const competency of competencies) {
+      for (const conduct of competency.conducts) {
+        const conductChecks = criteriaChecks[conduct.id];
+        if (conductChecks && conductChecks.t1) {
+          // Guardar todos los toggles activados del TRAMO 1
+          for (let i = 0; i < conductChecks.t1.length; i++) {
+            if (conductChecks.t1[i]) {
+              try {
+                await apiService.saveCriteria(evalId, {
+                  conductId: conduct.id,
+                  tramo: 't1',
+                  criterionIndex: i,
+                  isChecked: true,
+                });
+                console.log(`Guardado toggle TRAMO 1 activado: ${conduct.id}, criterio ${i}`);
+              } catch (error) {
+                console.error(`Error al guardar toggle TRAMO 1: ${conduct.id}, criterio ${i}`, error);
+              }
+            }
+          }
+        }
+      }
+    }
+  }, []);
+
   const updateRealEvidence = useCallback(async (conductId: string, text: string) => {
     let evalId = evaluation.evaluationId;
     let usedPeriod = evaluation.period;
@@ -729,7 +835,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       const created = await apiService.createEvaluation(evaluation.workerId, evaluation.period);
       evalId = created.id;
       usedPeriod = created.period;
-      setEvaluationWithLog(prev => ({ ...prev, evaluationId: evalId, isNewEvaluation: false, period: usedPeriod }));
+      setEvaluationWithLog(prev => ({ 
+        ...prev, 
+        evaluationId: evalId, 
+        isNewEvaluation: true, 
+        lastSavedAt: null,
+        lastSavedAtFull: null,
+        period: usedPeriod 
+      }));
+      
+      // Recargar la lista de evaluaciones del trabajador para que aparezca en la página de gestión
+      if (evaluation.workerId) {
+        console.log('Recargando evaluaciones después de crear evaluación nueva para workerId:', evaluation.workerId);
+        await loadWorkerEvaluations(evaluation.workerId);
+        console.log('Evaluaciones recargadas después de crear evaluación nueva');
+      }
     }
 
     try {
@@ -772,7 +892,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       const created = await apiService.createEvaluation(evaluation.workerId, evaluation.period);
       evalId = created.id;
       usedPeriod = created.period;
-      setEvaluationWithLog(prev => ({ ...prev, evaluationId: evalId, isNewEvaluation: false, period: usedPeriod }));
+      setEvaluationWithLog(prev => ({ 
+        ...prev, 
+        evaluationId: evalId, 
+        isNewEvaluation: true, 
+        lastSavedAt: null,
+        lastSavedAtFull: null,
+        period: usedPeriod 
+      }));
+      
+      // Recargar la lista de evaluaciones del trabajador para que aparezca en la página de gestión
+      if (evaluation.workerId) {
+        console.log('Recargando evaluaciones después de crear evaluación nueva para workerId:', evaluation.workerId);
+        await loadWorkerEvaluations(evaluation.workerId);
+        console.log('Evaluaciones recargadas después de crear evaluación nueva');
+      }
     }
 
     console.log('Procesando archivos para:', { competencyId, conductId, evaluationId: evalId });
@@ -1044,6 +1178,7 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       }
 
       console.log('Después de cambiar TRAMO 1, criteriaChecks:', JSON.stringify(newCriteriaChecks));
+      
       return {
         ...newState,
         criteriaChecks: newCriteriaChecks,
@@ -1051,11 +1186,18 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       };
     });
 
-    // Guardar en la API el valor de useT1SevenPoints si hay evaluación activa
+    // Guardar automáticamente todos los toggles activados del TRAMO 1 si hay evaluación activa
     if (evaluation.evaluationId) {
       try {
         await apiService.updateEvaluationSettings(evaluation.evaluationId, { useT1SevenPoints });
         console.log('Configuración de TRAMO 1 actualizada en la base de datos');
+        
+        // Obtener el estado actualizado para guardar los toggles
+        const currentState = evaluation;
+        const updatedCriteriaChecks = currentState.criteriaChecks;
+        
+        // Guardar automáticamente todos los toggles activados del TRAMO 1
+        await saveAllActiveT1Toggles(evaluation.evaluationId, updatedCriteriaChecks);
       } catch (error) {
         console.error('Error al guardar configuración:', error);
       }
@@ -1100,6 +1242,14 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       loadWorkers();
     }
   }, [evaluation.workerId, loadWorkers]);
+
+  // Sincronizar workerEvaluations con el objeto principal de evaluación
+  useEffect(() => {
+    setEvaluationWithLog(prev => ({
+      ...prev,
+      workerEvaluations
+    }));
+  }, [workerEvaluations]);
 
   return {
     evaluation,

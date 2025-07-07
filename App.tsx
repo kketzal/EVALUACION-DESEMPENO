@@ -268,16 +268,8 @@ function App() {
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [isProcessingEvaluation, setIsProcessingEvaluation] = useState(false);
-
-  // Log para depurar el estado del modal
-  useEffect(() => {
-    console.log('Estado del modal de revisión:', {
-      showRevisionModal,
-      pendingWorkerId,
-      workerEvaluationsLength: evaluation.workerEvaluations.length,
-      isProcessingEvaluation
-    });
-  }, [showRevisionModal, pendingWorkerId, evaluation.workerEvaluations.length, isProcessingEvaluation]);
+  // Bandera simple para evitar reapertura inmediata del modal
+  const [modalJustClosed, setModalJustClosed] = useState(false);
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -404,6 +396,9 @@ function App() {
     setActiveCompetencyId('B');
     setLogoutModalOpen(false);
     setWorkerSelectorResetKey(k => k + 1); // Forzar reset del modal
+    // Limpiar banderas del modal de evaluación
+    setShowRevisionModal(false);
+    setModalJustClosed(false);
   };
 
   const handleFilesUploaded = (conductId: string, files: EvidenceFile[]) => {
@@ -582,24 +577,30 @@ function App() {
             } else {
               // No hay evaluaciones, mostrar modal de selección para crear nueva
               console.log('No hay evaluaciones previas, mostrando modal de selección');
-              setPendingWorkerId(data.id);
-              setPendingToken(token);
-              setShowRevisionModal(true);
+              if (!modalJustClosed) {
+                setPendingWorkerId(data.id);
+                setPendingToken(token);
+                setShowRevisionModal(true);
+              }
             }
           } catch (error: any) {
             console.log('Error en restoreSession:', error);
             if (error.message === 'NO_EVALUATION_FOUND') {
               // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
               console.log('No se encontró evaluación, mostrando modal de selección');
-              setPendingWorkerId(data.id);
-              setPendingToken(token);
-              setShowRevisionModal(true);
+              if (!modalJustClosed) {
+                setPendingWorkerId(data.id);
+                setPendingToken(token);
+                setShowRevisionModal(true);
+              }
             } else {
               // Para otros errores, también mostrar el modal para dar opción al usuario
               console.log('Error inesperado, mostrando modal de selección como fallback');
-              setPendingWorkerId(data.id);
-              setPendingToken(token);
-              setShowRevisionModal(true);
+              if (!modalJustClosed) {
+                setPendingWorkerId(data.id);
+                setPendingToken(token);
+                setShowRevisionModal(true);
+              }
             }
           }
         }
@@ -632,33 +633,6 @@ function App() {
     };
     // eslint-disable-next-line
   }, []); // Solo ejecutar una vez al montar el componente
-
-  // Efecto separado para manejar la autenticación cuando cambia el estado del trabajador
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
-    let timeoutMinutes = 60;
-
-    const updateActivity = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        // Logout por timeout
-        localStorage.removeItem('sessionToken');
-        clearUserEvaluation();
-        useEvaluationStateProps.setWorkerSession({ workerId: null, token: null });
-        setActiveCompetencyId('B');
-      }, timeoutMinutes * 60 * 1000);
-    };
-
-    // Al autenticar, guardar token y usuario
-    if (evaluation.workerId && evaluation.token) {
-      localStorage.setItem('sessionToken', evaluation.token);
-      updateActivity();
-    }
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [evaluation.workerId, evaluation.token]);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -927,27 +901,27 @@ function App() {
   }, [activeCompetencyId]);
 
   // --- MODIFICAR FLUJO DE LOGIN ---
-  // Suponiendo que WorkerSelectorModal llama a este handler tras login exitoso
   const handleLoginSuccess = async (workerId: string, token: string) => {
     console.log('Login exitoso, estableciendo sesión y cargando evaluaciones del trabajador:', workerId);
-    
-    // Establecer la sesión del trabajador inmediatamente
     useEvaluationStateProps.setWorkerSession({ workerId, token });
-    
-    // Cargar las evaluaciones del trabajador
     try {
       console.log('Cargando evaluaciones del trabajador...');
       await useEvaluationStateProps.loadWorkerEvaluations(workerId);
-      console.log('Evaluaciones cargadas, mostrando modal de selección');
-      setPendingWorkerId(workerId);
-      setPendingToken(token);
-      setShowRevisionModal(true);
+      
+      // Mostrar modal si no hay evaluación cargada y no se acaba de cerrar
+      if (!evaluation.evaluationId && !modalJustClosed) {
+        setPendingWorkerId(workerId);
+        setPendingToken(token);
+        setShowRevisionModal(true);
+      }
     } catch (error) {
       console.error('Error al cargar evaluaciones desde login:', error);
-      // Mostrar modal de todas formas si hay error
-      setPendingWorkerId(workerId);
-      setPendingToken(token);
-      setShowRevisionModal(true);
+      // Mostrar modal en caso de error también
+      if (!modalJustClosed) {
+        setPendingWorkerId(workerId);
+        setPendingToken(token);
+        setShowRevisionModal(true);
+      }
     }
   };
 
@@ -956,15 +930,33 @@ function App() {
     console.log('Continuando con evaluación:', evaluation);
     setIsProcessingEvaluation(true);
     try {
-      // Cargar la evaluación específica por ID
       await useEvaluationStateProps.loadEvaluationById(evaluation.id);
-      // Guardar la evaluación seleccionada
       saveUserEvaluation(evaluation.worker_id, evaluation.period, evaluation.id);
       setShowRevisionModal(false);
+      setModalJustClosed(true); // Bloquear reapertura inmediata
+      setTimeout(() => setModalJustClosed(false), 500); // Permitir futuras aperturas tras 500ms
       console.log('Evaluación continuada exitosamente');
     } catch (error) {
       console.error('Error al continuar evaluación:', error);
-      // Mostrar error al usuario si es necesario
+    } finally {
+      setIsProcessingEvaluation(false);
+    }
+  };
+
+  const handleSelect = async (selectedEval: Evaluation) => {
+    console.log('🔄 handleSelect - Iniciando selección de evaluación:', selectedEval);
+    setIsProcessingEvaluation(true);
+    try {
+      await useEvaluationStateProps.loadEvaluationById(selectedEval.id);
+      setTimeout(() => {
+        saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
+        setShowRevisionModal(false);
+        setModalJustClosed(true); // Bloquear reapertura inmediata
+        setTimeout(() => setModalJustClosed(false), 500);
+        console.log('✅ Evaluación seleccionada y cargada exitosamente');
+      }, 200);
+    } catch (error) {
+      console.error('❌ Error al seleccionar evaluación:', error);
     } finally {
       setIsProcessingEvaluation(false);
     }
@@ -990,44 +982,58 @@ function App() {
     setIsProcessingEvaluation(true);
     setShowRevisionModal(false);
     try {
-      // NO crear la evaluación en la base de datos todavía, solo inicializar el estado en frontend
-      // Esperar a que el usuario haga el primer cambio para crearla realmente
-      useEvaluationStateProps.setWorkerId(pendingWorkerId, period); // Esto inicializa el estado en frontend
-      // No llamar a apiService.createEvaluation aquí
-      // Guardar la selección en localStorage
+      // Inicializar estado de evaluación nueva sin cargar desde el backend
+      const initialState = getInitialState(globalT1SevenPoints);
+      const newState = {
+        ...initialState,
+        workerId: pendingWorkerId,
+        period: period,
+        evaluationId: null,
+        isNewEvaluation: true,
+        lastSavedAt: null,
+        lastSavedAtFull: null,
+        version: null,
+        // Mantener la lista de trabajadores existente
+        workers: evaluation.workers,
+        workerEvaluations: evaluation.workerEvaluations,
+        // Inicializar criterios por defecto para todas las conductas
+        criteriaChecks: {},
+        scores: {},
+        realEvidences: {},
+        files: {},
+        openAccordions: {}
+      };
+      
+      // Inicializar criterios para todas las conductas según el grupo del trabajador
+      const worker = evaluation.workers.find(w => w.id === pendingWorkerId);
+      if (worker) {
+        const visibleCompetencies = getVisibleCompetenciesFromHook(worker.worker_group);
+        for (const competency of visibleCompetencies) {
+          for (const conduct of competency.conducts) {
+            (newState.criteriaChecks as any)[conduct.id] = {
+              t1: globalT1SevenPoints ? [true, true, true, false] : Array(6).fill(true),
+              t2: Array(4).fill(false),
+            };
+            (newState.scores as any)[conduct.id] = {
+              t1: globalT1SevenPoints ? 3 : 6,
+              t2: 0,
+              final: globalT1SevenPoints ? 3 : 6,
+            };
+          }
+        }
+      }
+      
+      useEvaluationStateProps.setEvaluation(newState);
       saveUserEvaluation(pendingWorkerId, period, null);
-      console.log('Evaluación inicializada en frontend, esperando cambios para crear en backend');
+      
+      // Establecer la página activa a competency (primera página de preguntas)
+      setActivePage('competency');
+      localStorage.setItem('activePage', 'competency');
+      localStorage.setItem('activeCompetencyId', 'B');
+      
+      console.log('Evaluación nueva inicializada en frontend:', newState);
     } catch (error) {
       console.error('Error al preparar nueva evaluación:', error);
-    } finally {
-      setIsProcessingEvaluation(false);
-    }
-  };
-
-  const handleSelect = async (selectedEval: Evaluation) => {
-    console.log('🔄 handleSelect - Iniciando selección de evaluación:', selectedEval);
-    setIsProcessingEvaluation(true);
-    try {
-      // Cargar la evaluación específica
-      await useEvaluationStateProps.loadEvaluationById(selectedEval.id);
-
-      // Esperar un poco para que el estado se actualice
-      setTimeout(() => {
-        // Usar el estado global evaluation, no el parámetro
-        console.log('🔄 handleSelect - Estado después de cargar:', {
-          evaluationId: evaluation.evaluationId,
-          lastSavedAt: evaluation.lastSavedAt,
-          isNewEvaluation: evaluation.isNewEvaluation,
-          version: evaluation.version
-        });
-        // Guardar la evaluación seleccionada
-        saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
-        setShowRevisionModal(false);
-        console.log('✅ Evaluación seleccionada y cargada exitosamente');
-      }, 200);
-    } catch (error) {
-      console.error('❌ Error al seleccionar evaluación:', error);
-      // Mostrar error al usuario si es necesario
     } finally {
       setIsProcessingEvaluation(false);
     }
@@ -1043,12 +1049,30 @@ function App() {
     // Resetear si la evaluación activa fue borrada o si ya no hay evaluaciones
     const remaining = evaluation.workerEvaluations.filter(ev => !ids.includes(ev.id));
     if (
-      ids.includes(evaluation.evaluationId) ||
+      (evaluation.evaluationId && ids.includes(evaluation.evaluationId)) ||
       remaining.length === 0
     ) {
       clearUserEvaluation();
-      useEvaluationStateProps.setEvaluation(getInitialState(globalT1SevenPoints));
-      setActivePage('competency');
+      // Mantener el workerId y workers cuando se eliminan todas las evaluaciones
+      const currentWorkerId = evaluation.workerId;
+      const currentWorkers = evaluation.workers;
+      const initialState = getInitialState(globalT1SevenPoints);
+      useEvaluationStateProps.setEvaluation({
+        ...initialState,
+        workerId: currentWorkerId,
+        workers: currentWorkers
+      });
+      
+      // Si se eliminaron todas las evaluaciones, mostrar el modal para crear una nueva
+      if (remaining.length === 0) {
+        setShowRevisionModal(true);
+        setPendingWorkerId(currentWorkerId);
+      } else {
+        // Si estamos en la página de gestión, no redirigir; solo limpiar el estado.
+        if (activePage !== 'evaluation-manager') {
+          setActivePage('competency');
+        }
+      }
     }
   };
 
@@ -1059,6 +1083,20 @@ function App() {
         await apiService.deleteEvaluation(ev.id);
       }
       if (evaluation.workerId) await useEvaluationStateProps.loadWorkerEvaluations(evaluation.workerId);
+      
+      // Mantener el workerId y workers cuando se eliminan todas las evaluaciones
+      const currentWorkerId = evaluation.workerId;
+      const currentWorkers = evaluation.workers;
+      const initialState = getInitialState(globalT1SevenPoints);
+      useEvaluationStateProps.setEvaluation({
+        ...initialState,
+        workerId: currentWorkerId,
+        workers: currentWorkers
+      });
+      
+      // Mostrar el modal para crear una nueva evaluación
+      setShowRevisionModal(true);
+      setPendingWorkerId(currentWorkerId);
     }
   };
 
@@ -1141,6 +1179,46 @@ function App() {
       await apiService.setGlobalEvaluationSettings({ useT1SevenPoints: value });
     } catch {}
   };
+
+  const handleOpenRevisionModal = () => {
+    setShowRevisionModal(true);
+    setPendingWorkerId(evaluation.workerId); // workerId actual
+  };
+
+  // Efecto para mostrar automáticamente el modal cuando no hay evaluación cargada
+  useEffect(() => {
+    // Solo mostrar si hay un trabajador, no hay evaluación cargada, hay evaluaciones disponibles, y no se acaba de cerrar
+    if (evaluation.workerId && 
+        !evaluation.evaluationId && 
+        evaluation.workerEvaluations.length > 0 && 
+        !modalJustClosed && 
+        !showRevisionModal) {
+      console.log('Mostrando modal automáticamente - no hay evaluación cargada');
+      setPendingWorkerId(evaluation.workerId);
+      setShowRevisionModal(true);
+    }
+  }, [evaluation.workerId, evaluation.evaluationId, evaluation.workerEvaluations.length, modalJustClosed, showRevisionModal]);
+
+  // Efecto para cerrar automáticamente el modal cuando se cargue una evaluación
+  useEffect(() => {
+    if (evaluation.evaluationId && showRevisionModal) {
+      console.log('Evaluación cargada, cerrando modal automáticamente');
+      setShowRevisionModal(false);
+    }
+  }, [evaluation.evaluationId, showRevisionModal]);
+
+  // Log para depurar el estado del modal
+  useEffect(() => {
+    console.log('Estado del modal de revisión:', {
+      showRevisionModal,
+      pendingWorkerId,
+      workerEvaluationsLength: evaluation.workerEvaluations.length,
+      evaluationId: evaluation.evaluationId,
+      workerId: evaluation.workerId,
+      isProcessingEvaluation,
+      modalJustClosed
+    });
+  }, [showRevisionModal, pendingWorkerId, evaluation.workerEvaluations.length, evaluation.evaluationId, evaluation.workerId, isProcessingEvaluation, modalJustClosed]);
 
   if (loadingSession) {
     return (
@@ -1303,7 +1381,7 @@ function App() {
                     onOpen={handleOpenEvaluation}
                     onDelete={handleDeleteEvaluations}
                     onDeleteAll={handleDeleteAllEvaluations}
-                    onCreateNew={handleCreateNewEvaluation}
+                    onCreateNew={handleOpenRevisionModal}
                     onClose={() => setActivePage('competency')}
                     isLoading={useEvaluationStateProps.isLoading}
                   />
@@ -1421,11 +1499,13 @@ function App() {
 
       <RevisionSelectorModal
         isOpen={showRevisionModal}
-        evaluations={evaluation.workerEvaluations.filter(ev => ev.period === evaluation.period)}
+        evaluations={evaluation.workerEvaluations}
         onContinue={handleContinue}
         onNew={handleNew}
         onSelect={handleSelect}
-        onClose={() => setShowRevisionModal(false)}
+        onClose={() => {
+          setShowRevisionModal(false);
+        }}
         isLoading={useEvaluationStateProps.isLoadingEvaluations || isProcessingEvaluation}
         periods={biennialPeriods}
       />

@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { db, uploadsDir, evidenceDir } = require('./database');
+
+// Log de la base de datos que está usando el servidor
+console.log('[SERVER] Base de datos del servidor:', db.name);
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
@@ -268,6 +271,75 @@ app.patch('/api/workers/:id', async (req, res) => {
     }
 });
 
+// Eliminar trabajador y todos sus datos asociados
+app.delete('/api/workers/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log('Eliminando trabajador:', id);
+        
+        // Verificar que el trabajador existe
+        const worker = db.prepare('SELECT * FROM workers WHERE id = ?').get(id);
+        if (!worker) {
+            return res.status(404).json({ error: 'Trabajador no encontrado' });
+        }
+        
+        // Obtener todas las evaluaciones del trabajador
+        const evaluations = db.prepare('SELECT id FROM evaluations WHERE worker_id = ?').all(id);
+        console.log(`Encontradas ${evaluations.length} evaluaciones para eliminar`);
+        
+        // Para cada evaluación, eliminar todos sus datos asociados (criterios, evidencias, archivos, puntuaciones)
+        let totalFilesDeleted = 0;
+        for (const evaluation of evaluations) {
+            // Obtener archivos de la evaluación
+            const files = db.prepare('SELECT * FROM evidence_files WHERE evaluation_id = ?').all(evaluation.id);
+            
+            // Eliminar archivos físicos
+            for (const file of files) {
+                try {
+                    const filePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
+                    if (fs.existsSync(filePath)) {
+                        fs.unlinkSync(filePath);
+                        console.log('Archivo físico eliminado:', filePath);
+                        totalFilesDeleted++;
+                    }
+                } catch (error) {
+                    console.error(`Error eliminando archivo físico ${file.id}:`, error);
+                }
+            }
+            
+            // Eliminar datos de la evaluación
+            db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ?').run(evaluation.id);
+            db.prepare('DELETE FROM real_evidence WHERE evaluation_id = ?').run(evaluation.id);
+            db.prepare('DELETE FROM evidence_files WHERE evaluation_id = ?').run(evaluation.id);
+            db.prepare('DELETE FROM scores WHERE evaluation_id = ?').run(evaluation.id);
+        }
+        
+        // Eliminar evaluaciones del trabajador
+        const evaluationsResult = db.prepare('DELETE FROM evaluations WHERE worker_id = ?').run(id);
+        
+        // Eliminar sesiones del trabajador
+        const sessionsResult = db.prepare('DELETE FROM sessions WHERE worker_id = ?').run(id);
+        
+        // Eliminar el trabajador
+        const workerResult = db.prepare('DELETE FROM workers WHERE id = ?').run(id);
+        
+        console.log('Eliminación completada:', {
+            evaluationsDeleted: evaluationsResult.changes,
+            sessionsDeleted: sessionsResult.changes,
+            workerDeleted: workerResult.changes,
+            physicalFilesDeleted: totalFilesDeleted
+        });
+        
+        res.json({ 
+            success: true, 
+            message: `Trabajador eliminado exitosamente. ${evaluationsResult.changes} evaluaciones eliminadas, ${totalFilesDeleted} archivos físicos eliminados.`
+        });
+    } catch (error) {
+        console.error('Error eliminando trabajador:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Rutas para evaluaciones
 app.get('/api/evaluations/:workerId/:period', (req, res) => {
     try {
@@ -329,25 +401,59 @@ app.get('/api/evaluations/:workerId/:period', (req, res) => {
     }
 });
 
+// Endpoint de prueba
+app.get('/api/test', (req, res) => {
+    console.log('[TEST] Endpoint de prueba llamado');
+    res.json({ message: 'Servidor funcionando correctamente', timestamp: new Date().toISOString() });
+});
+
+// Endpoint de prueba para criterios
+app.post('/api/test-criteria', (req, res) => {
+    try {
+        console.log('[TEST CRITERIA] Iniciando prueba de guardado...');
+        
+        // Insertar un criterio de prueba directamente
+        const stmt = db.prepare('INSERT INTO criteria_checks (evaluation_id, conduct_id, tramo, criterion_index, is_checked) VALUES (?, ?, ?, ?, ?)');
+        const result = stmt.run(83, 'TEST', 't1', 999, 1);
+        
+        console.log('[TEST CRITERIA] Resultado de inserción:', result);
+        
+        // Verificar que se insertó
+        const verify = db.prepare('SELECT * FROM criteria_checks WHERE evaluation_id = 83 AND conduct_id = ?').get('TEST');
+        console.log('[TEST CRITERIA] Verificación:', verify ? 'Exitoso' : 'Fallido');
+        
+        res.json({ success: true, insertedId: result.lastInsertRowid, verified: !!verify });
+    } catch (error) {
+        console.error('[TEST CRITERIA ERROR]', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Guardar criterios
 app.post('/api/evaluations/:evaluationId/criteria', (req, res) => {
     try {
         const { evaluationId } = req.params;
         const { conductId, tramo, criterionIndex, isChecked } = req.body;
 
-        console.log('[CRITERIA SAVE]', { evaluationId, conductId, tramo, criterionIndex, isChecked });
+        console.log('[CRITERIA SAVE] Iniciando guardado...', { evaluationId, conductId, tramo, criterionIndex, isChecked });
+
+        // Verificar que la evaluación existe
+        const evaluation = db.prepare('SELECT * FROM evaluations WHERE id = ?').get(evaluationId);
+        console.log('[CRITERIA SAVE] Evaluación encontrada:', evaluation ? 'Sí' : 'No');
 
         // Eliminar registro existente si existe
         try {
+            console.log('[CRITERIA DELETE] Intentando eliminar registro existente...');
             let stmt = db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ? AND conduct_id = ? AND tramo = ? AND criterion_index = ?');
             const delResult = stmt.run(evaluationId, conductId, tramo, criterionIndex);
-            console.log('[CRITERIA DELETE]', delResult);
+            console.log('[CRITERIA DELETE] Resultado:', delResult);
         } catch (err) {
             console.error('[CRITERIA DELETE ERROR]', err);
         }
 
         // Insertar nuevo registro
         try {
+            console.log('[CRITERIA INSERT] Intentando insertar nuevo registro...');
             let stmt = db.prepare('INSERT INTO criteria_checks (evaluation_id, conduct_id, tramo, criterion_index, is_checked) VALUES (?, ?, ?, ?, ?)');
             const insResult = stmt.run(
                 evaluationId,
@@ -356,11 +462,18 @@ app.post('/api/evaluations/:evaluationId/criteria', (req, res) => {
                 criterionIndex,
                 isChecked ? 1 : 0
             );
-            console.log('[CRITERIA INSERT]', insResult);
+            console.log('[CRITERIA INSERT] Resultado:', insResult);
+            
+            // Verificar que realmente se insertó
+            const verifyStmt = db.prepare('SELECT * FROM criteria_checks WHERE evaluation_id = ? AND conduct_id = ? AND tramo = ? AND criterion_index = ?');
+            const inserted = verifyStmt.get(evaluationId, conductId, tramo, criterionIndex);
+            console.log('[CRITERIA INSERT] Verificación de inserción:', inserted ? 'Exitoso' : 'Fallido');
+            
         } catch (err) {
             console.error('[CRITERIA INSERT ERROR]', err);
         }
 
+        console.log('[CRITERIA SAVE] Enviando respuesta de éxito');
         res.json({ success: true });
     } catch (error) {
         console.error('[CRITERIA ERROR]', error);
@@ -1030,15 +1143,65 @@ app.delete('/api/evidence-files-on-disk', (req, res) => {
 app.delete('/api/evaluations/:evaluationId', (req, res) => {
   try {
     const { evaluationId } = req.params;
+    console.log('Eliminando evaluación:', evaluationId);
+    
+    // Obtener todos los archivos de la evaluación antes de eliminarlos
+    const files = db.prepare('SELECT * FROM evidence_files WHERE evaluation_id = ?').all(evaluationId);
+    console.log(`Encontrados ${files.length} archivos para eliminar`);
+    
+    // Eliminar archivos físicos
+    let deletedFilesCount = 0;
+    let lastConductDirPath = null;
+    
+    for (const file of files) {
+      try {
+        // Construir la ruta del archivo físico
+        const filePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
+        lastConductDirPath = path.dirname(filePath);
+        
+        // Eliminar archivo físico si existe
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log('Archivo físico eliminado:', filePath);
+          deletedFilesCount++;
+        } else {
+          console.log('Archivo físico no encontrado:', filePath);
+        }
+      } catch (error) {
+        console.error(`Error eliminando archivo físico ${file.id}:`, error);
+      }
+    }
+    
+    // Limpiar directorios vacíos recursivamente
+    if (lastConductDirPath) {
+      const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+      removeEmptyDirsRecursively(lastConductDirPath, evidenceRoot);
+    }
+    
     // Eliminar criterios, evidencias, archivos y puntuaciones asociadas
-    db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ?').run(evaluationId);
-    db.prepare('DELETE FROM real_evidence WHERE evaluation_id = ?').run(evaluationId);
-    db.prepare('DELETE FROM evidence_files WHERE evaluation_id = ?').run(evaluationId);
-    db.prepare('DELETE FROM scores WHERE evaluation_id = ?').run(evaluationId);
+    const criteriaResult = db.prepare('DELETE FROM criteria_checks WHERE evaluation_id = ?').run(evaluationId);
+    const evidenceResult = db.prepare('DELETE FROM real_evidence WHERE evaluation_id = ?').run(evaluationId);
+    const filesResult = db.prepare('DELETE FROM evidence_files WHERE evaluation_id = ?').run(evaluationId);
+    const scoresResult = db.prepare('DELETE FROM scores WHERE evaluation_id = ?').run(evaluationId);
+    
     // Eliminar la evaluación
-    db.prepare('DELETE FROM evaluations WHERE id = ?').run(evaluationId);
-    res.json({ success: true });
+    const evaluationResult = db.prepare('DELETE FROM evaluations WHERE id = ?').run(evaluationId);
+    
+    console.log('Eliminación completada:', {
+      criteriaDeleted: criteriaResult.changes,
+      evidenceDeleted: evidenceResult.changes,
+      filesDeleted: filesResult.changes,
+      scoresDeleted: scoresResult.changes,
+      evaluationDeleted: evaluationResult.changes,
+      physicalFilesDeleted: deletedFilesCount
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Evaluación eliminada exitosamente. ${deletedFilesCount} archivos físicos eliminados.`
+    });
   } catch (error) {
+    console.error('Error eliminando evaluación:', error);
     res.status(500).json({ error: error.message });
   }
 });

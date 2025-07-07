@@ -3,6 +3,7 @@ import { Worker } from '../types';
 import { UserPlusIcon } from './icons';
 import { Listbox, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import { RevisionSelectorModal } from './RevisionSelectorModal';
 
 interface HeaderProps {
   workers: Worker[];
@@ -22,71 +23,6 @@ interface HeaderProps {
   onHamburgerClick?: () => void;
   isNewEvaluation?: boolean;
 }
-
-interface VersionSelectorModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  periods: string[];
-  versionsByPeriod: Record<string, { version: number, created_at: string, id: number }[]>;
-  onSelect: (period: string, version: number) => void;
-  onNew: (period: string) => void;
-  currentPeriod: string;
-}
-
-const VersionSelectorModal: React.FC<VersionSelectorModalProps> = ({ isOpen, onClose, periods, versionsByPeriod, onSelect, onNew, currentPeriod }) => {
-  const [selectedPeriod, setSelectedPeriod] = useState(currentPeriod);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative animate-fade-in">
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 focus:outline-none">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Seleccionar periodo y evaluación</h2>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Periodo</label>
-          <select
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 text-base bg-white"
-            value={selectedPeriod}
-            onChange={e => setSelectedPeriod(e.target.value)}
-          >
-            {periods.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Evaluaciones guardadas</label>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {(versionsByPeriod[selectedPeriod] || []).map(v => (
-              <button
-                key={v.version}
-                onClick={() => onSelect(selectedPeriod, v.version)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition-colors text-left"
-              >
-                <span className="font-mono text-sm text-gray-800">v{v.version}</span>
-                <span className="text-xs text-gray-500 ml-2">{new Date(v.created_at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</span>
-              </button>
-            ))}
-            {(!versionsByPeriod[selectedPeriod] || versionsByPeriod[selectedPeriod].length === 0) && (
-              <div className="text-gray-400 text-sm text-center py-2">No hay evaluaciones guardadas</div>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={() => onNew(selectedPeriod)}
-          className="mt-4 w-full py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors shadow"
-        >
-          Nueva evaluación para este periodo
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const generateBiennialPeriods = (startYear: number, count: number): string[] => {
     const periods: string[] = [];
@@ -129,21 +65,44 @@ export const Header: React.FC<HeaderProps & {
 }) => {
   const [isVersionModalOpen, setVersionModalOpen] = useState(false);
 
-  // Agrupar evaluaciones por periodo
-  const versionsByPeriod: Record<string, { version: number, created_at: string, id: number }[]> = {};
-  workerEvaluations.forEach(ev => {
-    if (!versionsByPeriod[ev.period]) versionsByPeriod[ev.period] = [];
-    versionsByPeriod[ev.period].push({ version: ev.version, created_at: ev.created_at, id: ev.id });
-  });
-  const periods = Object.keys(versionsByPeriod).sort().reverse();
-
-  const periodOptions = [...basePeriods];
-  if (!periodOptions.includes(period)) {
-      periodOptions.unshift(period);
-  }
+  // Generar periodos bienales posibles
+  const biennialPeriods = generateBiennialPeriods(2023, 10);
 
   // Estado de guardado
   const showSavedBanner = !isSaving && lastSavedAt && !isNewEvaluation;
+
+  // Log temporal para depurar
+  console.log('Header - Debug estado de guardado:', {
+    isSaving,
+    lastSavedAt,
+    isNewEvaluation,
+    showSavedBanner,
+    condition1: !isSaving,
+    condition2: !!lastSavedAt,
+    condition3: !isNewEvaluation
+  });
+
+  // Handlers para el RevisionSelectorModal
+  const handleContinue = (evaluation: any) => {
+    if (onSelectVersion) {
+      onSelectVersion(evaluation.period, evaluation.version);
+    }
+    setVersionModalOpen(false);
+  };
+
+  const handleNew = (selectedPeriod: string) => {
+    if (onNewVersion) {
+      onNewVersion(selectedPeriod);
+    }
+    setVersionModalOpen(false);
+  };
+
+  const handleSelect = (evaluation: any) => {
+    if (onSelectVersion) {
+      onSelectVersion(evaluation.period, evaluation.version);
+    }
+    setVersionModalOpen(false);
+  };
 
   let userMobileBlock: React.ReactNode = null;
   if (selectedWorkerId) {
@@ -159,6 +118,12 @@ export const Header: React.FC<HeaderProps & {
             <span className="text-[9px] text-indigo-700 font-normal">{worker.worker_group}</span>
             <span className="text-[9px] text-indigo-600 font-medium">•</span>
             <span className="text-[9px] text-indigo-600 font-medium">{period}</span>
+            {version && (
+              <>
+                <span className="text-[9px] text-indigo-600 font-medium">•</span>
+                <span className="text-[9px] text-indigo-600 font-semibold">v{version}</span>
+              </>
+            )}
           </div>
           {isSaving ? (
             <div className="flex items-center gap-1 mt-0.5">
@@ -203,6 +168,12 @@ export const Header: React.FC<HeaderProps & {
               <span className="text-xs text-indigo-700 font-normal">{worker.worker_group}</span>
               <span className="text-xs text-indigo-600 font-medium">•</span>
               <span className="text-xs text-indigo-600 font-medium">{period}</span>
+              {version && (
+                <>
+                  <span className="text-xs text-indigo-600 font-medium">•</span>
+                  <span className="text-xs text-indigo-600 font-semibold">v{version}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -381,14 +352,15 @@ export const Header: React.FC<HeaderProps & {
         </div>
 
       </div>
-      <VersionSelectorModal
+      <RevisionSelectorModal
         isOpen={isVersionModalOpen}
+        evaluations={workerEvaluations}
+        onContinue={handleContinue}
+        onNew={handleNew}
+        onSelect={handleSelect}
         onClose={() => setVersionModalOpen(false)}
-        periods={periodOptions} // <-- Cambiado de periods a periodOptions
-        versionsByPeriod={versionsByPeriod}
-        onSelect={(p, v) => { setVersionModalOpen(false); onSelectVersion && onSelectVersion(p, v); }}
-        onNew={p => { setVersionModalOpen(false); onNewVersion && onNewVersion(p); }}
-        currentPeriod={period}
+        isLoading={isLoading}
+        periods={biennialPeriods}
       />
     </header>
   );

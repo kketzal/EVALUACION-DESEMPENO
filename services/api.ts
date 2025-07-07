@@ -75,7 +75,7 @@ class ApiService {
     return response.json();
   }
 
-  async createWorker(worker: { id: string; name: string; worker_group: 'GRUPO 1-2' | 'GRUPO 3-4' }): Promise<Worker> {
+  async createWorker(worker: { id: string; name: string; worker_group: 'GRUPO 1-2' | 'GRUPO 3-4'; password?: string }): Promise<Worker> {
     const response = await fetch(`${API_BASE_URL}/workers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -104,6 +104,14 @@ class ApiService {
       body: JSON.stringify(body),
     });
     if (!response.ok) throw new Error('Error al actualizar trabajador');
+    return response.json();
+  }
+
+  async deleteWorker(workerId: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/workers/${workerId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Error al eliminar trabajador');
     return response.json();
   }
 
@@ -265,21 +273,31 @@ class ApiService {
   }
 
   async createEvaluation(workerId: string, period: string): Promise<Evaluation> {
+    console.log('createEvaluation llamado con:', { workerId, period });
     const response = await fetch(`${API_BASE_URL}/evaluations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workerId, period }),
     });
-    if (!response.ok) throw new Error('Error al crear evaluación');
-    return response.json();
+    if (!response.ok) {
+      console.error('Error al crear evaluación:', response.status, response.statusText);
+      throw new Error('Error al crear evaluación');
+    }
+    const result = await response.json();
+    console.log('Evaluación creada exitosamente:', result);
+    return result;
   }
 
   // Obtener todas las evaluaciones de un trabajador (todas las versiones y periodos)
   async getEvaluationsByWorker(workerId: string): Promise<any[]> {
+    console.log('getEvaluationsByWorker llamado con workerId:', workerId);
     const response = await fetch(`${API_BASE_URL}/evaluations`);
     if (!response.ok) throw new Error('Error al obtener evaluaciones');
     const all = await response.json();
-    return all.filter((ev: any) => ev.worker_id === workerId);
+    console.log('Todas las evaluaciones obtenidas:', all);
+    const filtered = all.filter((ev: any) => ev.worker_id === workerId);
+    console.log('Evaluaciones filtradas para workerId', workerId, ':', filtered);
+    return filtered;
   }
 
   // Obtener una evaluación concreta por id
