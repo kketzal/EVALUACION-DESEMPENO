@@ -9,7 +9,7 @@ import { UserPlusIcon } from './components/icons';
 import { EvidenceFile, apiService } from './services/api';
 import { Worker } from './types';
 import { EvidenceUploader } from './components/EvidenceUploader';
-import ManageUsersModal from './components/ManageUsersModal';
+
 import ManageUsersPanel from './components/ManageUsersPanel';
 import LogoutConfirmModal from './components/LogoutConfirmModal';
 import { SettingsPage } from './components/SettingsPage';
@@ -247,7 +247,7 @@ function App() {
   const [activeCompetencyId, setActiveCompetencyId] = useState<string>(getInitialActiveCompetencyId());
   const [activePage, setActivePage] = useState<string>(getInitialActivePage());
   const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
-  const [isManageUsersModalOpen, setManageUsersModalOpen] = useState(false);
+
   const [isWorkerSelectorOpen, setIsWorkerSelectorOpen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarClosing, setSidebarClosing] = useState(false);
@@ -466,11 +466,7 @@ function App() {
     }
   };
 
-  React.useEffect(() => {
-    const handler = () => setManageUsersModalOpen(true);
-    window.addEventListener('open-manage-users', handler);
-    return () => window.removeEventListener('open-manage-users', handler);
-  }, []);
+  
 
   // Persistencia de sesión y timeout global
   useEffect(() => {
@@ -1332,7 +1328,7 @@ function App() {
                   activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activePage === 'evaluation-manager' ? 'evaluation-manager' : activeCompetencyId}
                   onCompetencyChange={handleSidebarChange}
                   fixedDesktop={false}
-                  onOpenSettings={() => { setManageUsersModalOpen(true); closeSidebar(); }}
+                  onOpenSettings={() => { setActivePage('manage-users'); closeSidebar(); }}
                   onOpenEvaluationManager={() => { setActivePage('evaluation-manager'); closeSidebar(); }}
                   onSetActivePage={(page) => { setActivePage(page); closeSidebar(); }}
                   activePage={activePage}
@@ -1360,7 +1356,7 @@ function App() {
               activeCompetencyId={activePage === 'settings' ? 'settings' : activePage === 'summary' ? 'summary' : activePage === 'manage-users' ? 'manage-users' : activePage === 'evaluation-manager' ? 'evaluation-manager' : activeCompetencyId}
               onCompetencyChange={handleSidebarChange}
               fixedDesktop={true}
-              onOpenSettings={() => setManageUsersModalOpen(true)}
+              onOpenSettings={() => setActivePage('manage-users')}
               onOpenVersionManager={() => setVersionManagerOpen(true)}
               onOpenEvaluationManager={() => setActivePage('evaluation-manager')}
               onSetActivePage={setActivePage}
@@ -1472,13 +1468,7 @@ function App() {
         isWorkerSelectorLoading={isWorkerSelectorLoading}
       />
 
-      <ManageUsersModal
-        isOpen={isManageUsersModalOpen}
-        onClose={() => setManageUsersModalOpen(false)}
-        workers={evaluation.workers}
-        onUpdateWorker={useEvaluationStateProps.updateWorker}
-        isLoading={useEvaluationStateProps.isLoading}
-      />
+
 
       <LogoutConfirmModal open={isLogoutModalOpen} onConfirm={confirmLogout} onCancel={() => setLogoutModalOpen(false)} />
 

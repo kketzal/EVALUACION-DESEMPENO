@@ -357,122 +357,100 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
                         const conduct = comp.conducts.find(c => c.id === conductId);
                         return (
                           <div key={conductId} className="bg-white rounded-lg p-4 border border-gray-200">
-                            {/* Header de conducta con estadísticas y acciones */}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-4 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-gray-100">
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-8 h-8 bg-indigo-100 rounded-lg">
-                                  <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                </div>
-                                <div>
-                                  <h5 className="text-sm font-semibold text-gray-900">
-                                    Conducta {conductId}
-                                  </h5>
-                                  <p className="text-xs text-gray-500">
-                                    {files.length} archivo{files.length !== 1 ? 's' : ''} • {conduct?.description}
-                                  </p>
-                                </div>
+                            {/* Header de conducta minimalista */}
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 mb-3">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Conducta {conductId} • {files.length} archivo{files.length !== 1 ? 's' : ''}
+                                </span>
                               </div>
                               
                               {onRemoveAllFilesFromConduct && files.length > 0 && (
                                 <button
                                   onClick={() => setConfirmDeleteAll({ conductId, competencyId: comp.id })}
                                   disabled={deletingAll}
-                                  className={`group relative inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                                  className={`p-1.5 rounded-md transition-all duration-200 ${
                                     deletingAll
-                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                      : 'bg-white text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300 shadow-sm hover:shadow-md'
+                                      ? 'text-gray-400 cursor-not-allowed'
+                                      : 'text-red-500 hover:text-red-700 hover:bg-red-50'
                                   }`}
                                   title="Eliminar todos los archivos de esta conducta"
                                 >
                                   {deletingAll ? (
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                                   ) : (
-                                    <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                   )}
-                                  <span className="hidden sm:inline">Eliminar todos</span>
-                                  <span className="sm:hidden">Eliminar</span>
                                 </button>
                               )}
                             </div>
-                            {/* Lista de archivos individuales */}
-                            <div className="space-y-2">
+                            {/* Grid de archivos minimalista */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                               {files.map(file => {
                                 const fileNameOnDisk = (file as any).file_name;
                                 const existsOnDisk = filesOnDisk.some(f => f.endsWith(fileNameOnDisk));
-                                // LOG DE DEPURACIÓN
-                                console.log('[RESUMEN] file_name:', fileNameOnDisk, 'existsOnDisk:', existsOnDisk, 'filesOnDisk:', filesOnDisk);
                                 const fileUrl = existsOnDisk ? `/api/files/${fileNameOnDisk}` : undefined;
+                                
                                 return (
-                                  <div key={file.id} className={`group relative flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
-                                    !existsOnDisk 
-                                      ? 'bg-red-50 border-red-200 opacity-70' 
-                                      : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
-                                  }`}>
-                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                      {/* Icono del archivo */}
-                                      <div className="flex-shrink-0">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
-                                          !existsOnDisk 
-                                            ? 'bg-red-100 border-red-200' 
-                                            : 'bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-100'
-                                        }`}>
-                                          <FileIcon className={`h-5 w-5 ${
-                                            !existsOnDisk ? 'text-red-500' : 'text-indigo-600'
-                                          }`} />
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Información del archivo */}
-                                      <div className="flex-1 min-w-0">
-                                        <button
-                                          onClick={() => existsOnDisk && fileUrl ? handleFileClick(file, fileUrl) : null}
-                                          disabled={!existsOnDisk}
-                                          className={`text-sm font-semibold truncate text-left block w-full ${
-                                            existsOnDisk 
-                                              ? 'text-gray-900 hover:text-indigo-600 transition-colors' 
-                                              : 'text-red-500 line-through cursor-not-allowed'
-                                          }`}
-                                          title={existsOnDisk ? (canViewInBrowser(file.file_type) ? 'Ver archivo' : 'Descargar archivo') : 'Archivo no encontrado en servidor'}
-                                          style={{ cursor: existsOnDisk ? 'pointer' : 'not-allowed' }}
-                                        >
-                                          {(file as any).name}
-                                        </button>
-                                        <div className="flex items-center gap-3 mt-1">
-                                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                            !existsOnDisk 
-                                              ? 'bg-red-100 text-red-600' 
-                                              : 'bg-gray-100 text-gray-600'
-                                          }`}>
-                                            {file.file_type || 'Archivo'}
-                                          </span>
-                                          {!existsOnDisk && (
-                                            <span className="text-xs text-red-600 font-semibold px-2 py-1 bg-red-100 rounded-full">
-                                              No encontrado
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
+                                  <div 
+                                    key={file.id} 
+                                    className={`group relative flex items-center gap-2 p-2 rounded-lg border transition-all duration-200 ${
+                                      !existsOnDisk 
+                                        ? 'bg-red-50 border-red-200 opacity-70' 
+                                        : 'bg-white border-gray-200 hover:border-indigo-300 hover:shadow-sm'
+                                    }`}
+                                    title={existsOnDisk ? (file as any).name : 'Archivo no encontrado en servidor'}
+                                  >
+                                    {/* Icono del archivo */}
+                                    <div className="flex-shrink-0 w-6 h-6 bg-indigo-50 rounded flex items-center justify-center">
+                                      <FileIcon className={`h-3 w-3 ${
+                                        !existsOnDisk ? 'text-red-500' : 'text-indigo-600'
+                                      }`} />
+                                    </div>
+                                    
+                                    {/* Nombre del archivo truncado */}
+                                    <div className="flex-1 min-w-0">
+                                      <button
+                                        onClick={() => existsOnDisk && fileUrl ? handleFileClick(file, fileUrl) : null}
+                                        disabled={!existsOnDisk}
+                                        className={`text-xs font-medium truncate text-left block w-full ${
+                                          existsOnDisk 
+                                            ? 'text-gray-700 hover:text-indigo-600 transition-colors' 
+                                            : 'text-red-500 line-through cursor-not-allowed'
+                                        }`}
+                                        title={existsOnDisk ? (canViewInBrowser(file.file_type) ? 'Ver archivo' : 'Descargar archivo') : 'Archivo no encontrado en servidor'}
+                                        style={{ cursor: existsOnDisk ? 'pointer' : 'not-allowed' }}
+                                      >
+                                        {(file as any).name}
+                                      </button>
+                                      <p className="text-xs text-gray-400">
+                                        {file.file_type || 'Archivo'}
+                                        {!existsOnDisk && (
+                                          <span className="ml-1 text-red-500 font-medium">• No encontrado</span>
+                                        )}
+                                      </p>
                                     </div>
                                     
                                     {/* Acciones */}
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                       {existsOnDisk && fileUrl && (
                                         <button
                                           onClick={() => handleFileClick(file, fileUrl)}
-                                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 group-hover:scale-105"
+                                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                                           title={canViewInBrowser(file.file_type) ? "Ver archivo" : "Descargar archivo"}
                                         >
                                           {canViewInBrowser(file.file_type) ? (
-                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                             </svg>
                                           ) : (
-                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                             </svg>
                                           )}
@@ -481,10 +459,10 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
                                       
                                       <button
                                         type="button"
-                                        className={`p-2 rounded-lg transition-all duration-200 group-hover:scale-105 ${
+                                        className={`p-1 rounded transition-colors ${
                                           !existsOnDisk
-                                            ? 'text-gray-400 cursor-not-allowed'
-                                            : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
+                                            ? 'text-gray-300 cursor-not-allowed'
+                                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                                         }`}
                                         title="Eliminar archivo"
                                         disabled={!existsOnDisk}
@@ -497,7 +475,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
                                           setDeleteTarget({ conductId, file });
                                         }}
                                       >
-                                        <TrashIcon className="h-5 w-5" />
+                                        <TrashIcon className="h-3 w-3" />
                                       </button>
                                     </div>
                                   </div>

@@ -120,14 +120,10 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
     allFiles: evaluation.files
   });
 
-  // Solo mostrar advertencia si hay archivos en la evaluación pero ninguno para esta conducta
-  const hasFilesInEvaluation = Object.keys(evaluation.files).length > 0;
-  const hasFilesForConduct = Boolean(evaluation.files[conductId]);
-  const shouldShowWarning = hasFilesInEvaluation && !hasFilesForConduct && conductId.startsWith('B');
-
-  if (shouldShowWarning) {
-    console.warn(`Hay archivos en el estado, pero no para el conductId actual (${conductId}). Keys disponibles:`, Object.keys(evaluation.files));
-  }
+  // Comentado: Lógica de advertencia removida por solicitud del usuario
+  // const hasFilesInEvaluation = Object.keys(evaluation.files).length > 0;
+  // const hasFilesForConduct = Boolean(evaluation.files[conductId]);
+  // const shouldShowWarning = hasFilesInEvaluation && !hasFilesForConduct && conductId.startsWith('B');
 
   useEffect(() => {
     if (toast) {
@@ -327,17 +323,11 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
     <div className="space-y-4">
       {toast && <Toast message={toast.message} type={toast.type} />}
       
-      {/* Mensaje de advertencia si hay archivos pero no para este conductId */}
-      {shouldShowWarning && (
-        <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded p-2 text-xs">
-          Hay archivos adjuntos en la evaluación, pero no para esta conducta (<b>{conductId}</b>).<br />
-          Conductas con archivos: {Object.keys(evaluation.files).join(', ')}
-        </div>
-      )}
+
       
-      {/* Área de subida de archivos */}
+      {/* Área de subida de archivos con archivos integrados */}
       <div 
-        className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
+        className={`border-2 border-dashed rounded-lg transition-all duration-200 ${
           isDragging 
             ? 'border-indigo-400 bg-indigo-50' 
             : isUploading 
@@ -359,163 +349,153 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
           disabled={isUploading}
         />
         
-        {isUploading ? (
-          <div className="space-y-3">
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">Subiendo archivos...</p>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
+        {/* Contenido principal del área de drag & drop */}
+        <div className="p-6">
+          {isUploading ? (
+            <div className="space-y-3 text-center">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
               </div>
-              <p className="text-xs text-gray-500">{uploadProgress}% completado</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <span>Adjuntar Archivos de Evidencia</span>
-            </button>
-
-            <p className="mt-2 text-xs text-gray-500">
-              Arrastra archivos aquí o haz clic para seleccionar
-            </p>
-            <p className="text-xs text-gray-400">
-              PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
-            </p>
-          </>
-        )}
-      </div>
-
-      {/* Lista de archivos */}
-      {files.length > 0 && (
-        <div className="space-y-3">
-          {/* Header con estadísticas y acciones */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 bg-indigo-100 rounded-lg">
-                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Subiendo archivos...</p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500">{uploadProgress}% completado</p>
               </div>
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900">
-                  Archivos adjuntos
-                </h4>
-                <p className="text-xs text-gray-500">
-                  {files.length} archivo{files.length !== 1 ? 's' : ''} • {formatFileSize(files.reduce((acc: number, file: EvidenceFile) => acc + (file.file_size || 0), 0))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Botón de subida y texto informativo */}
+              <div className="text-center">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span>Adjuntar Archivos de Evidencia</span>
+                </button>
+
+                <p className="mt-2 text-xs text-gray-500">
+                  Arrastra archivos aquí o haz clic para seleccionar
+                </p>
+                <p className="text-xs text-gray-400">
+                  PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
                 </p>
               </div>
-            </div>
-            
-            {removeAllFilesFromConduct && (
-              <button
-                onClick={() => setConfirmDeleteAll(true)}
-                disabled={deletingAll}
-                className={`group relative inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  deletingAll
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300 shadow-sm hover:shadow-md'
-                }`}
-                title="Eliminar todos los archivos"
-              >
-                {deletingAll ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                ) : (
-                  <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                )}
-                <span className="hidden sm:inline">Eliminar todos</span>
-                <span className="sm:hidden">Eliminar</span>
-              </button>
-            )}
-          </div>
-          {/* Lista de archivos individuales */}
-          <div className="space-y-2">
-            {files.map((file: EvidenceFile) => {
-              console.log('Renderizando archivo en EvidenceUploader:', { id: file.id, name: file.name, file_type: file.file_type });
-              return (
-                <div key={file.id} className="group relative flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    {/* Icono del archivo */}
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg flex items-center justify-center border border-indigo-100">
-                        <span className="text-lg">{getFileIcon(file.file_type)}</span>
-                      </div>
+
+              {/* Lista de archivos minimalista */}
+              {files.length > 0 && (
+                <div className="space-y-3">
+                  {/* Header con estadísticas */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-700">
+                        {files.length} archivo{files.length !== 1 ? 's' : ''} adjunto{files.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
                     
-                    {/* Información del archivo */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
-                        {file.name}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          {file.file_type || 'Archivo'}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {formatFileSize(file.file_size)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Acciones */}
-                  <div className="flex items-center gap-1">
-                    {file.url && (
+                    {removeAllFilesFromConduct && (
                       <button
-                        onClick={() => handleFileClick(file)}
-                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 group-hover:scale-105"
-                        title={canViewInBrowser(file.file_type) ? "Ver archivo" : "Descargar archivo"}
+                        onClick={() => setConfirmDeleteAll(true)}
+                        disabled={deletingAll}
+                        className={`p-1.5 rounded-md transition-all duration-200 ${
+                          deletingAll
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                        }`}
+                        title="Eliminar todos los archivos"
                       >
-                        {canViewInBrowser(file.file_type) ? (
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
+                        {deletingAll ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                         ) : (
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         )}
                       </button>
                     )}
-                    <button
-                      onClick={() => handleDeleteFile(file.id as number)}
-                      disabled={deletingFiles.has(file.id as number)}
-                      className={`p-2 rounded-lg transition-all duration-200 group-hover:scale-105 ${
-                        deletingFiles.has(file.id as number)
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                      title="Eliminar archivo"
-                    >
-                      {deletingFiles.has(file.id as number) ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                      ) : (
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      )}
-                    </button>
+                  </div>
+
+                  {/* Grid de archivos compacto */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                    {files.map((file: EvidenceFile) => (
+                      <div 
+                        key={file.id} 
+                        className="group relative flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all duration-200"
+                        title={file.name} // Tooltip con nombre completo
+                      >
+                        {/* Icono del archivo */}
+                        <div className="flex-shrink-0 w-6 h-6 bg-indigo-50 rounded flex items-center justify-center">
+                          <span className="text-xs">{getFileIcon(file.file_type)}</span>
+                        </div>
+                        
+                        {/* Nombre del archivo truncado */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-700 truncate group-hover:text-indigo-600 transition-colors">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {formatFileSize(file.file_size)}
+                          </p>
+                        </div>
+                        
+                        {/* Acciones */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {file.url && (
+                            <button
+                              onClick={() => handleFileClick(file)}
+                              className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                              title={canViewInBrowser(file.file_type) ? "Ver archivo" : "Descargar archivo"}
+                            >
+                              {canViewInBrowser(file.file_type) ? (
+                                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              ) : (
+                                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteFile(file.id as number)}
+                            disabled={deletingFiles.has(file.id as number)}
+                            className={`p-1 rounded transition-colors ${
+                              deletingFiles.has(file.id as number)
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                            title="Eliminar archivo"
+                          >
+                            {deletingFiles.has(file.id as number) ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                            ) : (
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {/* Modal de confirmación para eliminar archivo de evidencia */}
       <ConfirmModal
         open={confirmDeleteId !== null}
