@@ -122,3 +122,13 @@ export const competencies: Competency[] = [
     ],
   },
 ];
+
+// Comprobación defensiva de duplicados SOLO en desarrollo
+if (process.env.NODE_ENV !== 'production') {
+  const allConductIds = competencies.flatMap(c => c.conducts.map(con => con.id));
+  const duplicates = allConductIds.filter((id, idx, arr) => arr.indexOf(id) !== idx);
+  if (duplicates.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn('[EVALUACION] IDs de conductas duplicados detectados:', duplicates);
+  }
+}

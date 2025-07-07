@@ -1,8 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { EvaluationState, Score, Worker, CriteriaCheckState, EvidenceFile } from '../types';
+import { EvaluationState as BaseEvaluationState, Score, Worker, CriteriaCheckState, EvidenceFile } from '../types';
 import { competencies } from '../data/evaluationData';
 import { t1Criteria, t1Criteria7Points, t2Criteria } from '../data/criteriaData';
 import { apiService, EvaluationData, EvidenceFile as ApiEvidenceFile } from '../services/api';
+
+export interface EvaluationState extends BaseEvaluationState {
+  workerEvaluations: any[];
+}
 
 const calculateScores = (checks: CriteriaCheckState, useT1SevenPoints: boolean = false): Score => {
     const t1CheckedCount = checks.t1.filter(Boolean).length;
@@ -36,7 +40,7 @@ function getInitialOpenAccordions() {
   return {};
 }
 
-const getInitialState = (): EvaluationState => {
+const getInitialState = (defaultT1SevenPoints: boolean = true): EvaluationState => {
   const initialState = {
     workerId: null,
     period: "2023-2024",
@@ -46,18 +50,20 @@ const getInitialState = (): EvaluationState => {
     files: {},
     workers: [],
     evaluationId: null,
-    useT1SevenPoints: true, // Por defecto usar TRAMO 1 de 7 puntos
+    useT1SevenPoints: defaultT1SevenPoints, // Por defecto usar TRAMO 1 de 7 puntos
     autoSave: true, // Por defecto activar guardado automático
     openAccordions: getInitialOpenAccordions(), // Estado de accordions abiertos
     isSaving: false,
     lastSavedAt: null,
     lastSavedAtFull: null,
     version: null,
+    workerEvaluations: [],
   };
   console.log('Initial state created:', initialState);
   return initialState;
 };
 
+export { getInitialState };
 export const getVisibleCompetencies = (workerGroup: 'GRUPO 1-2' | 'GRUPO 3-4' | null) => {
   if (!workerGroup) return competencies;
   // Para grupo 1-2: oculta A y E. Para grupo 3-4: oculta B y D
@@ -96,8 +102,8 @@ const cleanInvalidFiles = (files: Record<string, EvidenceFile[]>): Record<string
   return cleanedFiles;
 };
 
-export const useEvaluationState = () => {
-  const [evaluation, setEvaluation] = useState<EvaluationState>(getInitialState);
+export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
+  const [evaluation, setEvaluation] = useState<EvaluationState>(getInitialState(defaultT1SevenPoints));
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingEvaluations, setIsLoadingEvaluations] = useState(false);
   const [workersLoaded, setWorkersLoaded] = useState(false);
@@ -163,12 +169,13 @@ export const useEvaluationState = () => {
 
   // Cargar evaluaciones cuando cambia el trabajador
   useEffect(() => {
-    if (evaluation.workerId) {
+    // Solo recargar evaluaciones si hay workerId y periodo definido (no usar el periodo por defecto si hay uno seleccionado)
+    if (evaluation.workerId && evaluation.period) {
       loadWorkerEvaluations(evaluation.workerId);
     } else {
       setWorkerEvaluations([]);
     }
-  }, [evaluation.workerId, loadWorkerEvaluations]);
+  }, [evaluation.workerId, evaluation.period, loadWorkerEvaluations]);
 
   const setWorkerId = useCallback(async (workerId: string | null, periodOverride?: string) => {
     if (!workersLoaded) {
@@ -190,7 +197,8 @@ export const useEvaluationState = () => {
 
     try {
       setIsLoading(true);
-      const periodToUse = periodOverride ?? evaluation.period;
+      // Si se pasa un periodoOverride, úsalo SIEMPRE (aunque evaluation.period tenga valor por defecto)
+      const periodToUse = periodOverride !== undefined ? periodOverride : evaluation.period;
       const evaluationData = await apiService.getEvaluation(workerId, periodToUse);
       
       console.log('Datos recibidos de la API:', {
@@ -223,12 +231,15 @@ export const useEvaluationState = () => {
       // Inicializar criterios para todas las conductas que no tengan datos guardados
       for (const competency of competencies) {
         for (const conduct of competency.conducts) {
-          const t1CriteriaToUse = evaluation.useT1SevenPoints ? t1Criteria7Points : t1Criteria;
+          // Forzar uso de 7 puntos por defecto en evaluaciones nuevas
+          const isNewEval = (evaluationData.evaluation as any).is_new || false;
+          const useT1Seven = isNewEval ? true : evaluation.useT1SevenPoints;
+          const t1CriteriaToUse = useT1Seven ? t1Criteria7Points : t1Criteria;
           
           if (!criteriaChecks[conduct.id]) {
             // Nueva conducta sin datos guardados - inicializar con TRAMO 1 activado
             criteriaChecks[conduct.id] = {
-              t1: evaluation.useT1SevenPoints ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
+              t1: useT1Seven ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
               t2: Array(t2Criteria.length).fill(false),
             };
           } else {
@@ -242,7 +253,7 @@ export const useEvaluationState = () => {
                 return currentT1[idx];
               }
               // Valor por defecto según configuración
-              return evaluation.useT1SevenPoints ? (idx < 3 ? true : false) : true;
+              return useT1Seven ? (idx < 3 ? true : false) : true;
             });
             
             // Completar TRAMO 2
@@ -254,7 +265,7 @@ export const useEvaluationState = () => {
           }
           
           // Calcular puntuación para esta conducta
-          scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], evaluation.useT1SevenPoints);
+          scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], useT1Seven);
         }
       }
 
@@ -344,7 +355,11 @@ export const useEvaluationState = () => {
           scores,
           files: cleanedFiles,
           period: periodToUse,
-          useT1SevenPoints: isActuallyNew ? prev.useT1SevenPoints : Boolean(evaluationData.evaluation.useT1SevenPoints),
+          useT1SevenPoints: isActuallyNew
+            ? defaultT1SevenPoints
+            : (evaluationData.evaluation.useT1SevenPoints === null || evaluationData.evaluation.useT1SevenPoints === undefined
+                ? defaultT1SevenPoints
+                : Boolean(evaluationData.evaluation.useT1SevenPoints)),
           autoSave: isActuallyNew ? prev.autoSave : Boolean(evaluationData.evaluation.autoSave),
           openAccordions: isActuallyNew ? {} : prev.openAccordions,
           lastSavedAt: isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleDateString('es-ES') : null),
@@ -371,7 +386,44 @@ export const useEvaluationState = () => {
       
       // Si es un error 404 (no existe evaluación), lanzar un error específico
       if (error.status === 404) {
-        throw new Error('NO_EVALUATION_FOUND');
+        // Inicializar estado de evaluación nueva en frontend con el periodo seleccionado (sin fallback)
+        // Inicializar criteriaChecks y scores para todas las conductas según TRAMO 1
+        const criteriaChecks: Record<string, CriteriaCheckState> = {};
+        const scores: Record<string, Score> = {};
+        const useT1Seven = defaultT1SevenPoints;
+        const t1CriteriaToUse = useT1Seven ? t1Criteria7Points : t1Criteria;
+        for (const competency of competencies) {
+          for (const conduct of competency.conducts) {
+            criteriaChecks[conduct.id] = {
+              t1: useT1Seven ? [true, true, true, false] : Array(t1Criteria.length).fill(true),
+              t2: Array(t2Criteria.length).fill(false),
+            };
+            scores[conduct.id] = calculateScores(criteriaChecks[conduct.id], useT1Seven);
+          }
+        }
+        setEvaluationWithLog(prev => ({
+          ...prev,
+          workerId,
+          evaluationId: null,
+          period: periodOverride !== undefined ? periodOverride : evaluation.period,
+          scores,
+          criteriaChecks,
+          realEvidences: {},
+          files: {},
+          isNewEvaluation: true,
+          lastSavedAt: null,
+          lastSavedAtFull: null,
+          version: null,
+          useT1SevenPoints: defaultT1SevenPoints,
+          openAccordions: {},
+        }));
+        // Actualizar localStorage para reflejar el periodo seleccionado
+        try {
+          if (workerId && (periodOverride !== undefined ? periodOverride : evaluation.period)) {
+            localStorage.setItem('userEvaluation', JSON.stringify({ workerId, period: periodOverride !== undefined ? periodOverride : evaluation.period, evaluationId: null }));
+          }
+        } catch {}
+        return;
       }
       
       // Para otros errores, mantener el comportamiento actual
@@ -379,7 +431,7 @@ export const useEvaluationState = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [evaluation.period, evaluation.useT1SevenPoints, workersLoaded]);
+  }, [evaluation.period, evaluation.useT1SevenPoints, workersLoaded, defaultT1SevenPoints]);
 
   // Cargar una evaluación concreta por id
   const loadEvaluationById = useCallback(async (evaluationId: number) => {
@@ -499,8 +551,8 @@ export const useEvaluationState = () => {
           hasData
         });
         
-        // Una evaluación NO es nueva si tiene datos o tiene updated_at
-        const isActuallyNew = isNew && !hasData && !hasUpdatedAt;
+        // Una evaluación solo es nueva si NO tiene updated_at y NO tiene datos
+        const isActuallyNew = !hasUpdatedAt && !hasData;
         
         console.log('loadEvaluationById - Evaluación realmente nueva:', {
           isNew,
@@ -527,7 +579,7 @@ export const useEvaluationState = () => {
           scores,
           files: cleanedFiles,
           period: evaluationData.evaluation.period,
-          useT1SevenPoints: isActuallyNew ? prev.useT1SevenPoints : Boolean(evaluationData.evaluation.useT1SevenPoints),
+          useT1SevenPoints: isActuallyNew ? defaultT1SevenPoints : Boolean(evaluationData.evaluation.useT1SevenPoints),
           autoSave: isActuallyNew ? prev.autoSave : Boolean(evaluationData.evaluation.autoSave),
           lastSavedAt,
           lastSavedAtFull,
@@ -582,7 +634,19 @@ export const useEvaluationState = () => {
   }, [evaluation.evaluationId, evaluation.autoSave]);
 
   const updateCriteriaCheck = useCallback(async (conductId: string, tramo: 't1' | 't2', criterionIndex: number, isChecked: boolean) => {
-    if (!evaluation.evaluationId) return;
+    let evalId = evaluation.evaluationId;
+    let usedPeriod = evaluation.period;
+    if (!evalId) {
+      if (!evaluation.workerId || !evaluation.period) {
+        throw new Error('No hay workerId o periodo definido para crear la evaluación');
+      }
+      // Crear evaluación en la base de datos usando SIEMPRE el periodo actual del estado
+      const created = await apiService.createEvaluation(evaluation.workerId, evaluation.period);
+      evalId = created.id;
+      usedPeriod = created.period;
+      setEvaluationWithLog(prev => ({ ...prev, evaluationId: evalId, isNewEvaluation: false, period: usedPeriod }));
+    }
+
     console.log('updateCriteriaCheck called:', { conductId, tramo, criterionIndex, isChecked });
     setEvaluationWithLog(prev => {
       console.log('Antes de updateCriteriaCheck, criteriaChecks:', JSON.stringify(prev.criteriaChecks));
@@ -620,7 +684,7 @@ export const useEvaluationState = () => {
     });
 
     // Guardar en la API de forma asíncrona
-    await apiService.saveCriteria(evaluation.evaluationId, {
+    await apiService.saveCriteria(evalId, {
       conductId,
       tramo,
       criterionIndex,
@@ -640,7 +704,7 @@ export const useEvaluationState = () => {
       };
       const newScore = calculateScores(updatedConductChecks, evaluation.useT1SevenPoints);
       
-      await apiService.saveScore(evaluation.evaluationId, {
+      await apiService.saveScore(evalId, {
         conductId,
         t1Score: newScore.t1,
         t2Score: newScore.t2,
@@ -652,13 +716,24 @@ export const useEvaluationState = () => {
     if (evaluation.autoSave) {
       await autoSaveEvaluation();
     }
-  }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints, evaluation.autoSave, autoSaveEvaluation]);
+  }, [evaluation.evaluationId, evaluation.criteriaChecks, evaluation.useT1SevenPoints, evaluation.autoSave, autoSaveEvaluation, evaluation.workerId, evaluation.period]);
 
   const updateRealEvidence = useCallback(async (conductId: string, text: string) => {
-    if (!evaluation.evaluationId) return;
+    let evalId = evaluation.evaluationId;
+    let usedPeriod = evaluation.period;
+    if (!evalId) {
+      if (!evaluation.workerId || !evaluation.period) {
+        throw new Error('No hay workerId o periodo definido para crear la evaluación');
+      }
+      // Crear evaluación en la base de datos usando SIEMPRE el periodo actual del estado
+      const created = await apiService.createEvaluation(evaluation.workerId, evaluation.period);
+      evalId = created.id;
+      usedPeriod = created.period;
+      setEvaluationWithLog(prev => ({ ...prev, evaluationId: evalId, isNewEvaluation: false, period: usedPeriod }));
+    }
 
     try {
-      await apiService.saveEvidence(evaluation.evaluationId, {
+      await apiService.saveEvidence(evalId, {
         conductId,
         evidenceText: text,
       });
@@ -678,7 +753,7 @@ export const useEvaluationState = () => {
     } catch (error) {
       console.error('Error al guardar evidencia:', error);
     }
-  }, [evaluation.evaluationId, evaluation.autoSave, autoSaveEvaluation]);
+  }, [evaluation.evaluationId, evaluation.autoSave, autoSaveEvaluation, evaluation.workerId, evaluation.period]);
 
   const addFiles = useCallback(async ({ competencyId, conductId, fileCount, evaluationId, files }: {
     competencyId: string;
@@ -687,20 +762,24 @@ export const useEvaluationState = () => {
     evaluationId: number | null;
     files: FileList | File[];
   }) => {
-    console.log('=== addFiles ENTER ===');
-    console.log('addFiles called:', { competencyId, conductId, fileCount, evaluationId });
-    
-    // Verificar que tenemos un evaluationId válido (no null y no 0)
-    if (!evaluationId || evaluationId === 0) {
-      console.log('No hay evaluationId disponible');
-      return;
+    let evalId = evaluationId;
+    let usedPeriod = evaluation.period;
+    if (!evalId || evalId === 0) {
+      if (!evaluation.workerId || !evaluation.period) {
+        throw new Error('No hay workerId o periodo definido para crear la evaluación');
+      }
+      // Crear evaluación en la base de datos usando SIEMPRE el periodo actual del estado
+      const created = await apiService.createEvaluation(evaluation.workerId, evaluation.period);
+      evalId = created.id;
+      usedPeriod = created.period;
+      setEvaluationWithLog(prev => ({ ...prev, evaluationId: evalId, isNewEvaluation: false, period: usedPeriod }));
     }
 
-    console.log('Procesando archivos para:', { competencyId, conductId, evaluationId });
+    console.log('Procesando archivos para:', { competencyId, conductId, evaluationId: evalId });
 
     try {
       // Subir archivos al servidor
-      const uploadedFiles = await apiService.uploadFiles(evaluationId, files, competencyId, conductId);
+      const uploadedFiles = await apiService.uploadFiles(evalId, files, competencyId, conductId);
       console.log('Archivos subidos al servidor:', uploadedFiles);
 
       // Actualizar el estado con los archivos reales
@@ -742,7 +821,7 @@ export const useEvaluationState = () => {
       console.error('Error al subir archivos:', error);
       throw error;
     }
-  }, []);
+  }, [evaluation.evaluationId, evaluation.workerId, evaluation.period]);
   
   const removeFile = useCallback(async (competencyId: string, conductId: string, fileIdToRemove: string) => {
     console.log('=== removeFile ENTER ===');
@@ -1000,7 +1079,7 @@ export const useEvaluationState = () => {
   // Nuevo método para guardar workerId y token juntos
   const setWorkerSession = useCallback(({ workerId, token }: { workerId: string | null, token: string | null }) => {
     if (workerId === null) {
-      setEvaluation(getInitialState());
+      setEvaluation(getInitialState(evaluation.useT1SevenPoints));
     } else {
       setEvaluationWithLog(prev => ({
         ...prev,
@@ -1008,7 +1087,7 @@ export const useEvaluationState = () => {
         token
       }));
     }
-  }, []);
+  }, [evaluation.useT1SevenPoints]);
 
   // Guardar openAccordions en localStorage cada vez que cambie
   useEffect(() => {

@@ -13,18 +13,23 @@ interface RevisionSelectorModalProps {
   isOpen: boolean;
   evaluations: Evaluation[];
   onContinue: (evaluation: Evaluation) => void;
-  onNew: () => void;
+  onNew: (period: string) => void;
   onSelect: (evaluation: Evaluation) => void;
   onClose: () => void;
   isLoading?: boolean;
+  periods?: string[]; // Lista de periodos bienales posibles
 }
 
-export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, onSelect, onClose, isLoading = false }: RevisionSelectorModalProps) {
+export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, onSelect, onClose, isLoading = false, periods = [] }: RevisionSelectorModalProps) {
   console.log('RevisionSelectorModal renderizado:', { isOpen, evaluationsLength: evaluations?.length, isLoading });
   
   if (!isOpen) return null;
 
-  const lastEval = evaluations && evaluations.length > 0 ? evaluations[0] : null;
+  const [selectedPeriod, setSelectedPeriod] = React.useState(periods[0] || '2023-2024');
+
+  // Filtrar evaluaciones por el periodo seleccionado
+  const filteredEvaluations = evaluations.filter(ev => ev.period === selectedPeriod);
+  const lastEval = filteredEvaluations.length > 0 ? filteredEvaluations[0] : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -58,9 +63,23 @@ export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, 
             )}
           </button>
         )}
+        {/* Selector de periodo bienal */}
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Periodo bienal</label>
+          <select
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 text-base bg-white"
+            value={selectedPeriod}
+            onChange={e => setSelectedPeriod(e.target.value)}
+            disabled={isLoading}
+          >
+            {periods.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
         <button
           className="w-full mb-6 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold shadow hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={onNew}
+          onClick={() => onNew(selectedPeriod)}
           disabled={isLoading}
         >
           {isLoading ? (
@@ -79,8 +98,8 @@ export function RevisionSelectorModal({ isOpen, evaluations, onContinue, onNew, 
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
               <p className="text-sm text-gray-600">Cargando evaluaciones...</p>
             </div>
-          ) : evaluations && evaluations.length > 0 ? (
-            evaluations.map((ev: Evaluation) => (
+          ) : filteredEvaluations.length > 0 ? (
+            filteredEvaluations.map((ev: Evaluation) => (
               <button
                 key={ev.id}
                 className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -57,7 +57,7 @@ export const ConductRow: React.FC<ConductRowProps> = ({
     const t1CriteriaToUse = t1Criteria;
     // Asegura que t1Checks y t2Checks sean arrays de longitud correcta y sin undefined
     const t1Checks = Array(4).fill(false).map((_, i) => criteriaChecks.t1 && typeof criteriaChecks.t1[i] === 'boolean' ? criteriaChecks.t1[i] : false);
-    const t2Checks = Array(3).fill(false).map((_, i) => criteriaChecks.t2 && typeof criteriaChecks.t2[i] === 'boolean' ? criteriaChecks.t2[i] : false);
+    const t2Checks = Array(t2Criteria.length).fill(false).map((_, i) => criteriaChecks.t2 && typeof criteriaChecks.t2[i] === 'boolean' ? criteriaChecks.t2[i] : false);
 
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border border-gray-200">

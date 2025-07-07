@@ -295,6 +295,21 @@ class ApiService {
     });
     if (!response.ok) throw new Error('Error al eliminar evaluación');
   }
+
+  async getGlobalEvaluationSettings(): Promise<{ useT1SevenPoints: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/settings/evaluation`);
+    if (!response.ok) throw new Error('Error al obtener configuración global de evaluación');
+    return response.json();
+  }
+
+  async setGlobalEvaluationSettings(settings: { useT1SevenPoints: boolean }): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/settings/evaluation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) throw new Error('Error al guardar configuración global de evaluación');
+  }
 }
 
 export const apiService = new ApiService(); 

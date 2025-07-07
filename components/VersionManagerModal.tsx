@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Evaluation } from '../services/api';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface VersionManagerModalProps {
   isOpen: boolean;
@@ -14,6 +15,9 @@ interface VersionManagerModalProps {
 
 const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClose, evaluations, onOpen, onDelete, onDeleteAll, onCreateNewVersion, isLoading = false }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -23,18 +27,28 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
 
   const handleDelete = () => {
     if (selectedIds.length > 0) {
-      if (window.confirm('¿Seguro que quieres eliminar las evaluaciones seleccionadas?')) {
-        onDelete(selectedIds);
-        setSelectedIds([]);
-      }
+      setShowDeleteModal(true);
     }
   };
 
   const handleDeleteAll = () => {
-    if (window.confirm('¿Seguro que quieres eliminar TODAS las evaluaciones? Esta acción no se puede deshacer.')) {
-      onDeleteAll();
-      setSelectedIds([]);
-    }
+    setShowDeleteAllModal(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    await onDelete(selectedIds);
+    setIsDeleting(false);
+    setShowDeleteModal(false);
+    setSelectedIds([]);
+  };
+
+  const confirmDeleteAll = async () => {
+    setIsDeleting(true);
+    await onDeleteAll();
+    setIsDeleting(false);
+    setShowDeleteAllModal(false);
+    setSelectedIds([]);
   };
 
   return (
@@ -111,6 +125,24 @@ const VersionManagerModal: React.FC<VersionManagerModalProps> = ({ isOpen, onClo
         >
           Eliminar TODAS las evaluaciones
         </button>
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDelete}
+          title="Eliminar evaluaciones seleccionadas"
+          message="¿Estás seguro de que deseas eliminar las evaluaciones seleccionadas? Esta acción no se puede deshacer."
+          evaluationCount={selectedIds.length}
+          isDeleting={isDeleting}
+        />
+        <DeleteConfirmModal
+          isOpen={showDeleteAllModal}
+          onClose={() => setShowDeleteAllModal(false)}
+          onConfirm={confirmDeleteAll}
+          title="Eliminar TODAS las evaluaciones"
+          message="¿Estás seguro de que deseas eliminar TODAS las evaluaciones? Esta acción no se puede deshacer."
+          evaluationCount={evaluations.length}
+          isDeleting={isDeleting}
+        />
       </div>
       <style>{`
         @keyframes fade-in { from { opacity: 0; transform: scale(0.97);} to { opacity: 1; transform: scale(1);} }

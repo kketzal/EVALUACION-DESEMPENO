@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { CompetencyBlock } from './components/CompetencyBlock';
-import { useEvaluationState, getVisibleCompetencies as getVisibleCompetenciesFromHook } from './hooks/useEvaluationState';
+import { useEvaluationState, getVisibleCompetencies as getVisibleCompetenciesFromHook, getInitialState } from './hooks/useEvaluationState';
 import { Sidebar } from './components/Sidebar';
 import { SummaryPage } from './components/SummaryPage';
 import { AddWorkerModal } from './components/AddWorkerModal';
@@ -230,31 +230,15 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
 }
 
 function App() {
-  const {
-    evaluation,
-    isLoading,
-    isLoadingEvaluations,
-    setWorkerId,
-    setWorkerSession,
-    setPeriod: setPeriodFromHook,
-    updateCriteriaCheck,
-    updateRealEvidence,
-    addFiles,
-    removeFile,
-    removeAllFilesFromConduct,
-    saveEvaluation,
-    addWorker,
-    updateWorkerGroup,
-    setUseT1SevenPoints,
-    setAutoSave,
-    toggleAccordion,
-    updateWorker,
-    getVisibleCompetencies,
-    setEvaluation,
-    workerEvaluations,
-    loadWorkerEvaluations,
-    loadEvaluationById
-  } = useEvaluationState();
+  const [globalT1SevenPoints, setGlobalT1SevenPoints] = useState<boolean>(true);
+  // Al iniciar la app, obtener la configuración global
+  useEffect(() => {
+    apiService.getGlobalEvaluationSettings().then(cfg => {
+      setGlobalT1SevenPoints(cfg.useT1SevenPoints);
+    }).catch(() => setGlobalT1SevenPoints(true));
+  }, []);
+
+  const { evaluation, ...useEvaluationStateProps } = useEvaluationState(globalT1SevenPoints);
 
   // Leer valores iniciales de localStorage
   const getInitialActivePage = () => localStorage.getItem('activePage') || 'competency';
@@ -290,10 +274,10 @@ function App() {
     console.log('Estado del modal de revisión:', {
       showRevisionModal,
       pendingWorkerId,
-      workerEvaluationsLength: workerEvaluations.length,
+      workerEvaluationsLength: evaluation.workerEvaluations.length,
       isProcessingEvaluation
     });
-  }, [showRevisionModal, pendingWorkerId, workerEvaluations.length, isProcessingEvaluation]);
+  }, [showRevisionModal, pendingWorkerId, evaluation.workerEvaluations.length, isProcessingEvaluation]);
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -357,7 +341,7 @@ function App() {
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
     try {
-      await setWorkerId(workerId);
+      await useEvaluationStateProps.setWorkerId(workerId);
       const worker = evaluation.workers.find(w => w.id === workerId);
       // Establecer la primera competencia visible como activa
       if (worker) {
@@ -387,10 +371,10 @@ function App() {
   };
 
   const handleAddWorker = async (name: string, group: 'GRUPO 1-2' | 'GRUPO 3-4', password: string) => {
-    const newWorkerId = await addWorker(name, group, password);
+    const newWorkerId = await useEvaluationStateProps.addWorker(name, group, password);
     setAddWorkerModalOpen(false);
     if (newWorkerId) {
-      await setWorkerId(newWorkerId);
+      await useEvaluationStateProps.setWorkerId(newWorkerId);
       // Selecciona la primera competencia visible
       const worker = evaluation.workers.find(w => w.id === newWorkerId);
       const visibleCompetencies = getVisibleCompetenciesFromHook(worker?.worker_group ?? null);
@@ -416,7 +400,7 @@ function App() {
     }
     localStorage.removeItem('sessionToken');
     clearUserEvaluation(); // Limpiar la evaluación guardada
-    setWorkerSession({ workerId: null, token: null });
+    useEvaluationStateProps.setWorkerSession({ workerId: null, token: null });
     setActiveCompetencyId('B');
     setLogoutModalOpen(false);
     setWorkerSelectorResetKey(k => k + 1); // Forzar reset del modal
@@ -476,14 +460,14 @@ function App() {
   // Cambiar periodo y recargar evaluación
   const handlePeriodChange = async (newPeriod: string) => {
     if (evaluation.workerId) {
-      await setWorkerId(evaluation.workerId, newPeriod);
+      await useEvaluationStateProps.setWorkerId(evaluation.workerId, newPeriod);
     }
   };
 
   // Función local para cambiar periodo
   const setPeriod = async (period: string) => {
     if (evaluation.workerId) {
-      await setWorkerId(evaluation.workerId, period);
+      await useEvaluationStateProps.setWorkerId(evaluation.workerId, period);
     }
   };
 
@@ -505,7 +489,7 @@ function App() {
       
       localStorage.removeItem('sessionToken');
       clearUserEvaluation(); // Limpiar la evaluación guardada
-      setWorkerSession({ workerId: null, token: null });
+      useEvaluationStateProps.setWorkerSession({ workerId: null, token: null });
       setActiveCompetencyId('B');
       
       // Mostrar mensaje más elegante en lugar de alert
@@ -557,10 +541,10 @@ function App() {
         const data = await res.json();
         
         // Establecer la sesión del trabajador inmediatamente
-        setWorkerSession({ workerId: data.id, token });
+        useEvaluationStateProps.setWorkerSession({ workerId: data.id, token });
         
         // Cargar el histórico de evaluaciones primero
-        await loadWorkerEvaluations(data.id);
+        await useEvaluationStateProps.loadWorkerEvaluations(data.id);
         
         // Intentar restaurar la evaluación específica del usuario
         const savedEvaluation = getUserEvaluation();
@@ -570,7 +554,7 @@ function App() {
           // Intentar cargar la evaluación específica guardada
           try {
             console.log('Intentando cargar evaluación guardada:', savedEvaluation);
-            await setWorkerId(data.id, savedEvaluation.period);
+            await useEvaluationStateProps.setWorkerId(data.id, savedEvaluation.period);
             evaluationLoaded = true;
             console.log('Evaluación guardada cargada exitosamente');
           } catch (error: any) {
@@ -590,7 +574,7 @@ function App() {
               // Usar la evaluación más reciente (primera en la lista)
               const latestEvaluation = workerEvaluations[0];
               console.log('Cargando evaluación más reciente:', latestEvaluation);
-              await setWorkerId(data.id, latestEvaluation.period);
+              await useEvaluationStateProps.setWorkerId(data.id, latestEvaluation.period);
               
               // Guardar esta evaluación como la del usuario
               saveUserEvaluation(data.id, latestEvaluation.period, latestEvaluation.id);
@@ -630,7 +614,7 @@ function App() {
         setSessionRestored(true);
       } catch {
         localStorage.removeItem('sessionToken');
-        setWorkerSession({ workerId: null, token: null });
+        useEvaluationStateProps.setWorkerSession({ workerId: null, token: null });
         setActiveCompetencyId('B');
         setSessionRestored(true);
       }
@@ -660,7 +644,7 @@ function App() {
         // Logout por timeout
         localStorage.removeItem('sessionToken');
         clearUserEvaluation();
-        setWorkerSession({ workerId: null, token: null });
+        useEvaluationStateProps.setWorkerSession({ workerId: null, token: null });
         setActiveCompetencyId('B');
       }, timeoutMinutes * 60 * 1000);
     };
@@ -789,7 +773,7 @@ function App() {
         try {
           const json = JSON.parse(e.target?.result as string);
           if (json && typeof json === 'object' && 'workerId' in json && 'scores' in json) {
-            setEvaluation(json);
+            useEvaluationStateProps.setEvaluation(json);
             setDbMessage('Backup JSON importado correctamente.');
           } else {
             setDbMessage('El archivo no tiene el formato esperado.');
@@ -897,22 +881,22 @@ function App() {
 
   // Wrapper para eliminar archivos desde la página de resumen
   const handleRemoveFileFromSummary = (conductId: string, fileId: number | string) => {
-    removeFile('', conductId, fileId.toString());
+    useEvaluationStateProps.removeFile('', conductId, fileId.toString());
   };
 
   // Handler para seleccionar una evaluación concreta
   const handleSelectVersion = async (period: string, version: number) => {
     // Buscar la evaluación con ese periodo y versión
-    const ev = workerEvaluations.find(e => e.period === period && e.version === version);
+    const ev = evaluation.workerEvaluations.find(e => e.period === period && e.version === version);
     if (ev) {
       try {
-        await loadEvaluationById(ev.id);
+        await useEvaluationStateProps.loadEvaluationById(ev.id);
         console.log('Evaluación cargada correctamente:', { id: ev.id, period, version });
       } catch (error) {
         console.error('Error al cargar la evaluación:', error);
       }
     } else {
-      console.error('No se encontró la evaluación:', { period, version, availableEvaluations: workerEvaluations });
+      console.error('No se encontró la evaluación:', { period, version, availableEvaluations: evaluation.workerEvaluations });
     }
   };
 
@@ -927,9 +911,9 @@ function App() {
     });
     if (res.ok) {
       const data = await res.json();
-      await setWorkerId(evaluation.workerId, period); // Cargar la nueva evaluación
+      await useEvaluationStateProps.setWorkerId(evaluation.workerId, period); // Cargar la nueva evaluación
       setPeriod(period);
-      loadWorkerEvaluations(evaluation.workerId);
+      useEvaluationStateProps.loadWorkerEvaluations(evaluation.workerId);
     }
   };
 
@@ -948,12 +932,12 @@ function App() {
     console.log('Login exitoso, estableciendo sesión y cargando evaluaciones del trabajador:', workerId);
     
     // Establecer la sesión del trabajador inmediatamente
-    setWorkerSession({ workerId, token });
+    useEvaluationStateProps.setWorkerSession({ workerId, token });
     
     // Cargar las evaluaciones del trabajador
     try {
       console.log('Cargando evaluaciones del trabajador...');
-      await loadWorkerEvaluations(workerId);
+      await useEvaluationStateProps.loadWorkerEvaluations(workerId);
       console.log('Evaluaciones cargadas, mostrando modal de selección');
       setPendingWorkerId(workerId);
       setPendingToken(token);
@@ -973,7 +957,7 @@ function App() {
     setIsProcessingEvaluation(true);
     try {
       // Cargar la evaluación específica por ID
-      await loadEvaluationById(evaluation.id);
+      await useEvaluationStateProps.loadEvaluationById(evaluation.id);
       // Guardar la evaluación seleccionada
       saveUserEvaluation(evaluation.worker_id, evaluation.period, evaluation.id);
       setShowRevisionModal(false);
@@ -986,31 +970,35 @@ function App() {
     }
   };
 
-  const handleNew = async () => {
+  // Generar periodos bienales posibles (igual que en Header)
+  const generateBiennialPeriods = (startYear: number, count: number): string[] => {
+    const periods: string[] = [];
+    let currentStartYear = startYear;
+    for (let i = 0; i < count; i++) {
+      periods.push(`${currentStartYear}-${currentStartYear + 1}`);
+      currentStartYear += 2;
+    }
+    return periods;
+  };
+
+  const biennialPeriods = generateBiennialPeriods(2023, 10);
+
+  // Nuevo handler: recibe el periodo seleccionado
+  const handleNew = async (period: string) => {
     if (!pendingWorkerId) return;
-    console.log('Creando nueva evaluación para trabajador:', pendingWorkerId);
+    console.log('Creando nueva evaluación para trabajador:', pendingWorkerId, 'y periodo:', period);
     setIsProcessingEvaluation(true);
-    
-    // Cerrar el modal inmediatamente
     setShowRevisionModal(false);
-    
     try {
-      // Usar el periodo más reciente o uno por defecto
-      const period = workerEvaluations.length > 0 ? workerEvaluations[0].period : '2023-2024';
-      console.log('Creando evaluación con periodo:', period);
-      const newEval = await apiService.createEvaluation(pendingWorkerId, period);
-      console.log('Nueva evaluación creada:', newEval);
-      
-      // Cargar la nueva evaluación específica por ID
-      console.log('Cargando nueva evaluación por ID:', newEval.id);
-      await loadEvaluationById(newEval.id);
-      
-      // Guardar la nueva evaluación
-      saveUserEvaluation(pendingWorkerId, period, newEval.id);
-      console.log('Nueva evaluación creada y cargada exitosamente');
+      // NO crear la evaluación en la base de datos todavía, solo inicializar el estado en frontend
+      // Esperar a que el usuario haga el primer cambio para crearla realmente
+      useEvaluationStateProps.setWorkerId(pendingWorkerId, period); // Esto inicializa el estado en frontend
+      // No llamar a apiService.createEvaluation aquí
+      // Guardar la selección en localStorage
+      saveUserEvaluation(pendingWorkerId, period, null);
+      console.log('Evaluación inicializada en frontend, esperando cambios para crear en backend');
     } catch (error) {
-      console.error('Error al crear nueva evaluación:', error);
-      // Mostrar error al usuario si es necesario
+      console.error('Error al preparar nueva evaluación:', error);
     } finally {
       setIsProcessingEvaluation(false);
     }
@@ -1021,7 +1009,7 @@ function App() {
     setIsProcessingEvaluation(true);
     try {
       // Cargar la evaluación específica
-      await loadEvaluationById(selectedEval.id);
+      await useEvaluationStateProps.loadEvaluationById(selectedEval.id);
 
       // Esperar un poco para que el estado se actualice
       setTimeout(() => {
@@ -1050,16 +1038,27 @@ function App() {
     for (const id of ids) {
       await apiService.deleteEvaluation(id);
     }
-    if (evaluation.workerId) await loadWorkerEvaluations(evaluation.workerId);
+    if (evaluation.workerId) await useEvaluationStateProps.loadWorkerEvaluations(evaluation.workerId);
+
+    // Resetear si la evaluación activa fue borrada o si ya no hay evaluaciones
+    const remaining = evaluation.workerEvaluations.filter(ev => !ids.includes(ev.id));
+    if (
+      ids.includes(evaluation.evaluationId) ||
+      remaining.length === 0
+    ) {
+      clearUserEvaluation();
+      useEvaluationStateProps.setEvaluation(getInitialState(globalT1SevenPoints));
+      setActivePage('competency');
+    }
   };
 
   // Eliminar todas las evaluaciones
   const handleDeleteAllEvaluations = async () => {
-    if (workerEvaluations.length > 0) {
-      for (const ev of workerEvaluations) {
+    if (evaluation.workerEvaluations.length > 0) {
+      for (const ev of evaluation.workerEvaluations) {
         await apiService.deleteEvaluation(ev.id);
       }
-      if (evaluation.workerId) await loadWorkerEvaluations(evaluation.workerId);
+      if (evaluation.workerId) await useEvaluationStateProps.loadWorkerEvaluations(evaluation.workerId);
     }
   };
 
@@ -1068,7 +1067,7 @@ function App() {
       console.log('🔍 handleOpenEvaluation - Iniciando:', evaluationId);
       console.log('🔍 Estado antes de cargar:', { workerId: evaluation.workerId, period: evaluation.period, evaluationId: evaluation.evaluationId });
       
-      await loadEvaluationById(evaluationId);
+      await useEvaluationStateProps.loadEvaluationById(evaluationId);
       
       console.log('🔍 loadEvaluationById completado');
       console.log('🔍 Estado después de cargar:', { workerId: evaluation.workerId, period: evaluation.period, evaluationId: evaluation.evaluationId });
@@ -1114,15 +1113,15 @@ function App() {
         evaluation.openAccordions = {};
       }
       // Forzar re-render
-      setWorkerId(evaluation.workerId, evaluation.period);
+      useEvaluationStateProps.setWorkerId(evaluation.workerId, evaluation.period);
       setNextEvaluationIsNew(false);
     }
-  }, [nextEvaluationIsNew, evaluation, setWorkerId]);
+  }, [nextEvaluationIsNew, evaluation, useEvaluationStateProps.setWorkerId]);
 
   const [isVersionManagerOpen, setVersionManagerOpen] = useState(false);
 
   // Funciones para guardar y restaurar la evaluación específica del usuario
-  const saveUserEvaluation = (workerId: string, period: string, evaluationId: number) => {
+  const saveUserEvaluation = (workerId: string, period: string, evaluationId: number | null) => {
     localStorage.setItem('userEvaluation', JSON.stringify({ workerId, period, evaluationId }));
   };
 
@@ -1133,6 +1132,14 @@ function App() {
 
   const clearUserEvaluation = () => {
     localStorage.removeItem('userEvaluation');
+  };
+
+  // Al cambiar la configuración global desde SettingsPage
+  const handleGlobalT1SevenPointsChange = async (value: boolean) => {
+    setGlobalT1SevenPoints(value);
+    try {
+      await apiService.setGlobalEvaluationSettings({ useT1SevenPoints: value });
+    } catch {}
   };
 
   if (loadingSession) {
@@ -1204,17 +1211,17 @@ function App() {
             }}
             onExitApp={() => setLogoutModalOpen(true)}
             useT1SevenPoints={evaluation.useT1SevenPoints}
-            onT1SevenPointsChange={setUseT1SevenPoints}
+            onT1SevenPointsChange={useEvaluationStateProps.setUseT1SevenPoints}
             isSaving={evaluation.isSaving}
             lastSavedAt={evaluation.lastSavedAt}
             lastSavedAtFull={evaluation.lastSavedAtFull}
             version={evaluation.version}
             isNewEvaluation={evaluation.isNewEvaluation}
             onHamburgerClick={() => setSidebarOpen(true)}
-            workerEvaluations={workerEvaluations}
+            workerEvaluations={evaluation.workerEvaluations}
             onSelectVersion={handleSelectVersion}
             onNewVersion={handleCreateNewEvaluation}
-            isLoading={isLoading}
+            isLoading={useEvaluationStateProps.isLoading}
           />
           
           {/* Log para depurar el estado de evaluación nueva */}
@@ -1292,13 +1299,13 @@ function App() {
               {activePage === 'evaluation-manager' ? (
                 <div className="bg-white shadow-md rounded-xl p-6">
                   <EvaluationManagerPage
-                    evaluations={workerEvaluations}
+                    evaluations={evaluation.workerEvaluations}
                     onOpen={handleOpenEvaluation}
                     onDelete={handleDeleteEvaluations}
                     onDeleteAll={handleDeleteAllEvaluations}
                     onCreateNew={handleCreateNewEvaluation}
                     onClose={() => setActivePage('competency')}
-                    isLoading={isLoading}
+                    isLoading={useEvaluationStateProps.isLoading}
                   />
                 </div>
               ) : activePage === 'settings' ? (
@@ -1311,19 +1318,19 @@ function App() {
                     fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
                     dbLoading={dbLoading}
                     dbMessage={dbMessage}
-                    useT1SevenPoints={evaluation.useT1SevenPoints}
-                    onT1SevenPointsChange={setUseT1SevenPoints}
+                    useT1SevenPoints={globalT1SevenPoints}
+                    onT1SevenPointsChange={handleGlobalT1SevenPointsChange}
                     autoSave={evaluation.autoSave}
-                    onAutoSaveChange={setAutoSave}
+                    onAutoSaveChange={useEvaluationStateProps.setAutoSave}
                   />
                 </div>
               ) : activePage === 'summary' ? (
                 <div className="bg-white shadow-md rounded-xl p-6">
                   <SummaryPage 
                     evaluation={evaluation} 
-                    onSave={saveEvaluation} 
+                    onSave={useEvaluationStateProps.saveEvaluation} 
                     onRemoveFile={handleRemoveFileFromSummary}
-                    onRemoveAllFilesFromConduct={removeAllFilesFromConduct}
+                    onRemoveAllFilesFromConduct={useEvaluationStateProps.removeAllFilesFromConduct}
                   />
                 </div>
               ) : activePage === 'manage-users' ? (
@@ -1335,12 +1342,12 @@ function App() {
                   <CompetencyBlock
                     competency={activeCompetency}
                     evaluation={evaluation}
-                    onCriteriaChange={(conductId, tramo, index, isChecked) => updateCriteriaCheck(conductId, tramo, index, isChecked)}
-                    onEvidenceChange={updateRealEvidence}
-                    addFiles={addFiles}
-                    removeFile={removeFile}
-                    removeAllFilesFromConduct={removeAllFilesFromConduct}
-                    onToggleAccordion={toggleAccordion}
+                    onCriteriaChange={(conductId, tramo, index, isChecked) => useEvaluationStateProps.updateCriteriaCheck(conductId, tramo, index, isChecked)}
+                    onEvidenceChange={useEvaluationStateProps.updateRealEvidence}
+                    addFiles={useEvaluationStateProps.addFiles}
+                    removeFile={useEvaluationStateProps.removeFile}
+                    removeAllFilesFromConduct={useEvaluationStateProps.removeAllFilesFromConduct}
+                    onToggleAccordion={useEvaluationStateProps.toggleAccordion}
                   />
                 </div>
               ) : (
@@ -1377,12 +1384,12 @@ function App() {
       />
 
       <WorkerSelectorModal
-        key={workerSelectorResetKey}
+        key={`worker-selector-${workerSelectorResetKey}`}
         workers={evaluation.workers}
         isOpen={isWorkerSelectorOpen}
         onSelect={handleLoginSuccess}
         onClose={() => setIsWorkerSelectorOpen(false)}
-        setWorkerSession={setWorkerSession}
+        setWorkerSession={useEvaluationStateProps.setWorkerSession}
         isLoading={isWorkerSelectorLoading || loadingSession || !evaluation.workers.length}
         isWorkerSelectorLoading={isWorkerSelectorLoading}
       />
@@ -1391,8 +1398,8 @@ function App() {
         isOpen={isManageUsersModalOpen}
         onClose={() => setManageUsersModalOpen(false)}
         workers={evaluation.workers}
-        onUpdateWorker={updateWorker}
-        isLoading={isLoading}
+        onUpdateWorker={useEvaluationStateProps.updateWorker}
+        isLoading={useEvaluationStateProps.isLoading}
       />
 
       <LogoutConfirmModal open={isLogoutModalOpen} onConfirm={confirmLogout} onCancel={() => setLogoutModalOpen(false)} />
@@ -1414,27 +1421,28 @@ function App() {
 
       <RevisionSelectorModal
         isOpen={showRevisionModal}
-        evaluations={workerEvaluations}
+        evaluations={evaluation.workerEvaluations.filter(ev => ev.period === evaluation.period)}
         onContinue={handleContinue}
         onNew={handleNew}
         onSelect={handleSelect}
         onClose={() => setShowRevisionModal(false)}
-        isLoading={isLoadingEvaluations || isProcessingEvaluation}
+        isLoading={useEvaluationStateProps.isLoadingEvaluations || isProcessingEvaluation}
+        periods={biennialPeriods}
       />
       
       {/* Log para depurar el modal */}
       {console.log('Renderizando RevisionSelectorModal:', {
         showRevisionModal,
-        workerEvaluationsLength: workerEvaluations.length,
-        isLoadingEvaluations,
+        workerEvaluationsLength: evaluation.workerEvaluations.length,
+        isLoadingEvaluations: useEvaluationStateProps.isLoadingEvaluations,
         isProcessingEvaluation
       })}
 
       <VersionManagerModal
         isOpen={isVersionManagerOpen}
         onClose={() => setVersionManagerOpen(false)}
-        evaluations={workerEvaluations}
-        onOpen={loadEvaluationById}
+        evaluations={evaluation.workerEvaluations}
+        onOpen={useEvaluationStateProps.loadEvaluationById}
         onDelete={handleDeleteEvaluations}
         onDeleteAll={handleDeleteAllEvaluations}
         onCreateNewVersion={() => {
@@ -1443,7 +1451,7 @@ function App() {
             setVersionManagerOpen(false);
           }
         }}
-        isLoading={isLoading}
+        isLoading={useEvaluationStateProps.isLoading}
       />
     </>
   );

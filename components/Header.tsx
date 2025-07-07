@@ -384,7 +384,7 @@ export const Header: React.FC<HeaderProps & {
       <VersionSelectorModal
         isOpen={isVersionModalOpen}
         onClose={() => setVersionModalOpen(false)}
-        periods={periods}
+        periods={periodOptions} // <-- Cambiado de periods a periodOptions
         versionsByPeriod={versionsByPeriod}
         onSelect={(p, v) => { setVersionModalOpen(false); onSelectVersion && onSelectVersion(p, v); }}
         onNew={p => { setVersionModalOpen(false); onNewVersion && onNewVersion(p); }}

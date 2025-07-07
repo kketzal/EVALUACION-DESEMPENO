@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Evaluation } from '../types';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface EvaluationManagerPageProps {
   evaluations: Evaluation[];
@@ -24,6 +25,9 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'period' | 'worker'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filtrar evaluaciones por término de búsqueda
   const filteredEvaluations = evaluations.filter(evaluation => {
@@ -70,22 +74,27 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
 
   const handleDelete = () => {
     if (selectedIds.length === 0) return;
-    
-    const message = selectedIds.length === 1 
-      ? '¿Seguro que quieres eliminar la evaluación seleccionada?'
-      : `¿Seguro que quieres eliminar las ${selectedIds.length} evaluaciones seleccionadas?`;
-    
-    if (window.confirm(message)) {
-      onDelete(selectedIds);
-      setSelectedIds([]);
-    }
+    setShowDeleteModal(true);
   };
 
   const handleDeleteAll = () => {
-    if (window.confirm('¿Seguro que quieres eliminar TODAS las evaluaciones? Esta acción no se puede deshacer.')) {
-      onDeleteAll();
-      setSelectedIds([]);
-    }
+    setShowDeleteAllModal(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    await onDelete(selectedIds);
+    setIsDeleting(false);
+    setShowDeleteModal(false);
+    setSelectedIds([]);
+  };
+
+  const confirmDeleteAll = async () => {
+    setIsDeleting(true);
+    await onDelete(evaluations.map(e => e.id));
+    setIsDeleting(false);
+    setShowDeleteAllModal(false);
+    setSelectedIds([]);
   };
 
   const formatDate = (dateString: string) => {
@@ -296,7 +305,10 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
                         Abrir
                       </button>
                       <button
-                        onClick={() => onDelete([evaluation.id])}
+                        onClick={() => {
+                          setSelectedIds([evaluation.id]);
+                          setShowDeleteModal(true);
+                        }}
                         className="px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,6 +323,24 @@ export const EvaluationManagerPage: React.FC<EvaluationManagerPageProps> = ({
           )}
         </div>
       </div>
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title={selectedIds.length === 1 ? "Eliminar evaluación seleccionada" : "Eliminar evaluaciones seleccionadas"}
+        message={selectedIds.length === 1 ? "¿Estás seguro de que deseas eliminar la evaluación seleccionada? Esta acción no se puede deshacer." : `¿Estás seguro de que deseas eliminar las ${selectedIds.length} evaluaciones seleccionadas? Esta acción no se puede deshacer.`}
+        evaluationCount={selectedIds.length}
+        isDeleting={isDeleting}
+      />
+      <DeleteConfirmModal
+        isOpen={showDeleteAllModal}
+        onClose={() => setShowDeleteAllModal(false)}
+        onConfirm={confirmDeleteAll}
+        title="Eliminar TODAS las evaluaciones"
+        message="¿Estás seguro de que deseas eliminar TODAS las evaluaciones? Esta acción no se puede deshacer."
+        evaluationCount={evaluations.length}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }; 

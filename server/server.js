@@ -1348,6 +1348,32 @@ app.post('/api/fix-original-names', (req, res) => {
     }
 });
 
+// Obtener configuración global de evaluación
+app.get('/api/settings/evaluation', (req, res) => {
+  try {
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('useT1SevenPoints');
+    const useT1SevenPoints = row ? row.value === 'true' || row.value === '1' : true;
+    res.json({ useT1SevenPoints });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Actualizar configuración global de evaluación
+app.post('/api/settings/evaluation', (req, res) => {
+  try {
+    const { useT1SevenPoints } = req.body;
+    if (typeof useT1SevenPoints === 'undefined') {
+      return res.status(400).json({ error: 'Falta el campo useT1SevenPoints' });
+    }
+    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .run('useT1SevenPoints', useT1SevenPoints ? '1' : '0');
+    res.json({ success: true, useT1SevenPoints });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
 }); 
