@@ -181,17 +181,28 @@ export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave
       ['', '', '', '', '', '', '', ''],
       // Fila con las cabeceras
       ['COMPETENCIA', 'ID', 'DESCRIPCIÓN', 'NOTA T1', 'NOTA T2', 'NOTA FINAL', 'EVIDENCIA ESCRITA', 'ARCHIVOS ADJUNTOS'],
-      // Datos de la evaluación
-      ...tableData.map(row => [
-        row['Competencia'],
-        row['ID'],
-        row['Descripción'],
-        row['Nota T1'],
-        row['Nota T2'],
-        row['Nota Final'],
-        row['Evidencia Escrita'],
-        row['Archivos Adjuntos']
-      ]),
+      // Aquí insertamos los datos de la evaluación, añadiendo una fila vacía entre bloques de competencias
+      ...(() => {
+        const rows: any[][] = [];
+        let lastCompetency: string | null = null;
+        tableData.forEach((row, idx) => {
+          if (lastCompetency !== null && row['Competencia'] !== lastCompetency) {
+            rows.push(['', '', '', '', '', '', '', '']); // Fila vacía entre bloques
+          }
+          rows.push([
+            row['Competencia'],
+            row['ID'],
+            row['Descripción'],
+            row['Nota T1'],
+            row['Nota T2'],
+            row['Nota Final'],
+            row['Evidencia Escrita'],
+            row['Archivos Adjuntos']
+          ]);
+          lastCompetency = row['Competencia'];
+        });
+        return rows;
+      })(),
       // Fila vacía para separar
       ['', '', '', '', '', '', '', ''],
       // Fila con el total de puntos

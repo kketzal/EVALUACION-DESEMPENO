@@ -137,7 +137,7 @@ export const ConductRow: React.FC<ConductRowProps> = ({
                     rows={2}
                     value={realEvidence}
                     onChange={(e) => onEvidenceChange(e.target.value)}
-                    className="mt-1 block w-full rounded-md bg-white text-gray-900 border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3"
+                    className="mt-1 block w-full rounded-md bg-violet-50 text-gray-900 border border-violet-200 shadow-sm focus:border-indigo-400 focus:ring-indigo-400 sm:text-sm p-3 transition-colors"
                     placeholder="Describa aquí las conductas observadas..."
                 />
             </div>
