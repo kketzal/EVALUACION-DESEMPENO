@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3');
 const { db } = require('./database');
+const { getEvaluationById } = require('./evalById.route.js');
 
 // GET /api/evaluations
 async function getEvaluations(req, res) {
@@ -60,15 +61,9 @@ async function postEvaluation(req, res) {
       updated_at_null: savedEvaluation.updated_at === null
     });
     
-    res.status(201).json({
-      id: result.lastInsertRowid,
-      worker_id: workerId,
-      period,
-      version: newVersion,
-      created_at: spanishTimeFormatted,
-      updated_at: null,
-      is_new: true
-    });
+    req.params.id = result.lastInsertRowid;
+    await getEvaluationById(req, res);
+    return;
   } catch (error) {
     console.error('Error en POST /api/evaluations:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

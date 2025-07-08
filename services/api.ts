@@ -133,25 +133,27 @@ class ApiService {
     tramo: 't1' | 't2';
     criterionIndex: number;
     isChecked: boolean;
-  }): Promise<void> {
+  }): Promise<EvaluationData> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/criteria`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(criteria),
     });
     if (!response.ok) throw new Error('Error al guardar criterio');
+    return response.json();
   }
 
   async saveEvidence(evaluationId: number, evidence: {
     conductId: string;
     evidenceText: string;
-  }): Promise<void> {
+  }): Promise<EvaluationData> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/evidence`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(evidence),
     });
     if (!response.ok) throw new Error('Error al guardar evidencia');
+    return response.json();
   }
 
   async uploadFiles(
@@ -235,13 +237,14 @@ class ApiService {
     t1Score: number | null;
     t2Score: number | null;
     finalScore: number;
-  }): Promise<void> {
+  }): Promise<EvaluationData> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/scores`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(score),
     });
     if (!response.ok) throw new Error('Error al guardar puntuación');
+    return response.json();
   }
 
   async updateEvaluation(evaluationId: number): Promise<void> {
@@ -249,6 +252,14 @@ class ApiService {
       method: 'PUT',
     });
     if (!response.ok) throw new Error('Error al actualizar evaluación');
+  }
+
+  async createNewVersion(evaluationId: number): Promise<Evaluation> {
+    const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/version`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Error al crear nueva versión');
+    return response.json();
   }
 
   async authenticateWorker(id: string, password: string): Promise<{ success: boolean; id?: string; name?: string; worker_group?: string; token?: string }> {
@@ -263,13 +274,14 @@ class ApiService {
     return response.json();
   }
 
-  async updateEvaluationSettings(evaluationId: number, settings: { useT1SevenPoints?: boolean; autoSave?: boolean }): Promise<void> {
+  async updateEvaluationSettings(evaluationId: number, settings: { useT1SevenPoints?: boolean; autoSave?: boolean }): Promise<EvaluationData> {
     const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
     if (!response.ok) throw new Error('Error al guardar configuración de evaluación');
+    return response.json();
   }
 
   async createEvaluation(workerId: string, period: string): Promise<Evaluation> {

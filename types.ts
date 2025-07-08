@@ -68,4 +68,9 @@ export interface EvaluationState {
   version: number | null;
   isNewEvaluation?: boolean;
   token?: string | null;
+  hasUnsavedChanges: boolean;
+  originalEvaluationSnapshot: any | null;
+  versionAlreadyIncremented: boolean;
+  originalVersionId: number | null;
+  versionFlow: string;
 }

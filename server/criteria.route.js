@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3');
 const { db } = require('./database');
+const { getEvaluationById } = require('./evalById.route.js');
 
 // GET /api/evaluations/:id/criteria
 async function getCriteria(req, res) {
@@ -42,12 +43,12 @@ async function postCriteria(req, res) {
     if (row) {
       // Actualizar registro existente
       db.prepare('UPDATE criteria_checks SET is_checked = ? WHERE id = ?').run(isChecked ? 1 : 0, row.id);
-      res.json({ id: row.id, isChecked });
     } else {
       // Crear nuevo registro
       const result = db.prepare('INSERT INTO criteria_checks (evaluation_id, conduct_id, tramo, criterion_index, is_checked) VALUES (?, ?, ?, ?, ?)').run(evaluationId, conductId, tramo, criterionIndex, isChecked ? 1 : 0);
-      res.status(201).json({ id: result.lastInsertRowid, isChecked });
     }
+    // Devolver evaluación completa
+    await getEvaluationById(req, res);
   } catch (error) {
     console.error('Error en POST /api/evaluations/:id/criteria:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

@@ -52,25 +52,27 @@ const storage = multer.diskStorage({
         // Obtener información de la evaluación para crear la estructura de carpetas
         let evaluation;
         try {
-            evaluation = db.prepare('SELECT e.*, w.name as worker_name FROM evaluations e JOIN workers w ON e.worker_id = w.id WHERE e.id = ?').get(evaluationId);
+            evaluation = db.prepare('SELECT e.*, w.name as worker_name, e.version FROM evaluations e JOIN workers w ON e.worker_id = w.id WHERE e.id = ?').get(evaluationId);
         } catch (err) {
             console.error('Error obteniendo información de evaluación:', err);
-            evaluation = { period: 'unknown', worker_name: 'unknown' };
+            evaluation = { period: 'unknown', worker_name: 'unknown', version: 1 };
         }
         
-        // Crear estructura de carpetas: uploads/evidence/PERIODO/USUARIO/COMPETENCIA/CONDUCTA/
+        // Crear estructura de carpetas: uploads/evidence/PERIODO/USUARIO/VERSION/COMPETENCIA/CONDUCTA/
         const periodDir = evaluation.period || 'unknown';
         const userDir = sanitizeUsername(evaluation.worker_name || 'unknown');
+        const versionDir = `v${evaluation.version || 1}`;
         const competencyDir = competencyId || 'unknown';
         const conductDir = conductId || 'unknown';
         
-        const dir = path.join(__dirname, 'uploads', 'evidence', periodDir, userDir, competencyDir, conductDir);
+        const dir = path.join(__dirname, 'uploads', 'evidence', periodDir, userDir, versionDir, competencyDir, conductDir);
         
         // LOG DETALLADO
         console.log('[MULTER DESTINATION]', {
           evaluationId,
           periodDir,
           userDir,
+          versionDir,
           competencyDir,
           conductDir,
           finalDir: dir
@@ -502,7 +504,7 @@ app.post('/api/evaluations/:evaluationId/evidence', (req, res) => {
 });
 
 // Subir archivos de evidencia
-app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req, res) => {
+app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), async (req, res) => {
     const { evaluationId } = req.params;
     const { competencyId, conductId } = req.body;
     const files = req.files;
@@ -558,12 +560,18 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 hour12: false
             }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
             
+            // Obtener la versión de la evaluación
+            const versionStmt = db.prepare('SELECT version FROM evaluations WHERE id = ?');
+            const versionResult = versionStmt.get(evaluationId);
+            const version = versionResult ? versionResult.version : 1;
+            
             // Construir la ruta relativa completa para guardar en la BD
             const periodDir = evaluation.period || 'unknown';
             const userDir = sanitizeUsername(evaluation.worker_name || 'unknown');
+            const versionDir = `v${version}`; // Agregar directorio de versión
             const competencyDir = competencyId || 'unknown';
             const conductDir = conductId || 'unknown';
-            const relativeFilePath = path.join(periodDir, userDir, competencyDir, conductDir, file.filename);
+            const relativeFilePath = path.join(periodDir, userDir, versionDir, competencyDir, conductDir, file.filename);
             
             // Construir la URL con la nueva estructura de carpetas
             const fileUrl = `/api/files/${relativeFilePath}`;
@@ -624,13 +632,17 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
                 file: file,
                 periodDir: periodDir,
                 userDir: userDir,
+                versionDir: versionDir,
                 competencyDir: competencyDir,
                 conductDir: conductDir
             });
         }
         
         console.log('Archivos subidos exitosamente:', uploadedFiles.length);
-        res.json(uploadedFiles);
+        // Devolver evaluación completa
+        req.params.id = evaluationId; // Para compatibilidad con getEvaluationById
+        await getEvaluationById(req, res);
+        return;
         
     } catch (error) {
         console.error('Error uploading files:', error);
@@ -642,7 +654,7 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), (req
         for (const fileInfo of filesToRollback) {
             try {
                 const filePath = path.join(__dirname, 'uploads', 'evidence', 
-                    fileInfo.periodDir, fileInfo.userDir, fileInfo.competencyDir, fileInfo.conductDir, 
+                    fileInfo.periodDir, fileInfo.userDir, fileInfo.versionDir, fileInfo.competencyDir, fileInfo.conductDir, 
                     fileInfo.file.filename);
                 
                 if (fs.existsSync(filePath)) {
@@ -755,8 +767,11 @@ function removeEmptyDirsRecursively(dirPath, stopAt) {
         const files = fs.readdirSync(dirPath);
         if (files.length === 0) {
             fs.rmdirSync(dirPath);
+            console.log('Directorio vacío eliminado:', dirPath);
             // Subir un nivel y repetir
             removeEmptyDirsRecursively(path.dirname(dirPath), stopAt);
+        } else {
+            console.log(`Directorio no vacío (${files.length} elementos):`, dirPath);
         }
     } catch (err) {
         console.log('No se pudo eliminar directorio:', dirPath, err.message);
@@ -767,7 +782,9 @@ function removeEmptyDirsRecursively(dirPath, stopAt) {
 app.delete('/api/files/:fileId', (req, res) => {
     try {
         const { fileId } = req.params;
+        console.log('=== ELIMINACIÓN DE ARCHIVO INICIADA ===');
         console.log('Eliminando archivo con ID:', fileId);
+        console.log('Headers de la petición:', req.headers);
         
         // Obtener información del archivo
         let stmt = db.prepare(`
@@ -808,8 +825,10 @@ app.delete('/api/files/:fileId', (req, res) => {
         const result = stmt.run(fileId);
         console.log('Registro eliminado de BD, filas afectadas:', result.changes);
         
+        console.log('=== ELIMINACIÓN DE ARCHIVO COMPLETADA ===');
         res.json({ success: true, message: 'Archivo eliminado exitosamente' });
     } catch (error) {
+        console.error('=== ERROR EN ELIMINACIÓN DE ARCHIVO ===');
         console.error('Error al eliminar archivo:', error);
         res.status(500).json({ error: error.message });
     }
@@ -1046,7 +1065,7 @@ app.post('/api/import-zip', upload.single('file'), (req, res) => {
 });
 
 // Guardar configuración de evaluación (useT1SevenPoints y autoSave)
-app.patch('/api/evaluations/:evaluationId/settings', (req, res) => {
+app.patch('/api/evaluations/:evaluationId/settings', async (req, res) => {
     try {
         const { evaluationId } = req.params;
         const { useT1SevenPoints, autoSave } = req.body;
@@ -1071,7 +1090,9 @@ app.patch('/api/evaluations/:evaluationId/settings', (req, res) => {
         values.push(evaluationId);
         const stmt = db.prepare(`UPDATE evaluations SET ${setClauses.join(', ')} WHERE id = ?`);
         stmt.run(...values);
-        res.json({ success: true });
+        // Devolver evaluación completa
+        req.params.id = evaluationId;
+        await getEvaluationById(req, res);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -1151,19 +1172,20 @@ app.delete('/api/evaluations/:evaluationId', (req, res) => {
     
     // Eliminar archivos físicos
     let deletedFilesCount = 0;
-    let lastConductDirPath = null;
+    let deletedDirPaths = new Set(); // Usar Set para evitar duplicados
     
     for (const file of files) {
       try {
         // Construir la ruta del archivo físico
         const filePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
-        lastConductDirPath = path.dirname(filePath);
+        const conductDirPath = path.dirname(filePath);
         
         // Eliminar archivo físico si existe
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
           console.log('Archivo físico eliminado:', filePath);
           deletedFilesCount++;
+          deletedDirPaths.add(conductDirPath);
         } else {
           console.log('Archivo físico no encontrado:', filePath);
         }
@@ -1172,10 +1194,11 @@ app.delete('/api/evaluations/:evaluationId', (req, res) => {
       }
     }
     
-    // Limpiar directorios vacíos recursivamente
-    if (lastConductDirPath) {
-      const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
-      removeEmptyDirsRecursively(lastConductDirPath, evidenceRoot);
+    // Limpiar directorios vacíos recursivamente desde todos los directorios de archivos eliminados
+    const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+    for (const dirPath of deletedDirPaths) {
+      console.log('Limpiando directorio vacío:', dirPath);
+      removeEmptyDirsRecursively(dirPath, evidenceRoot);
     }
     
     // Eliminar criterios, evidencias, archivos y puntuaciones asociadas
@@ -1263,7 +1286,7 @@ app.delete('/api/evaluations/:evaluationId/conducts/:conductId/files', (req, res
         
         // Obtener todos los archivos de la conducta
         let stmt = db.prepare(`
-            SELECT ef.*, e.period, w.name as worker_name
+            SELECT ef.*, e.period, e.version, w.name as worker_name
             FROM evidence_files ef 
             JOIN evaluations e ON ef.evaluation_id = e.id 
             JOIN workers w ON e.worker_id = w.id
@@ -1279,19 +1302,22 @@ app.delete('/api/evaluations/:evaluationId/conducts/:conductId/files', (req, res
         
         let deletedCount = 0;
         let errors = [];
-        let lastConductDirPath = null;
+        let deletedDirPaths = new Set(); // Usar Set para evitar duplicados
         
         for (const file of files) {
             try {
                 // Construir la ruta del archivo físico
                 // El file_name ya contiene la ruta completa desde la raíz de evidence
                 const filePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
-                lastConductDirPath = path.dirname(filePath);
+                const conductDirPath = path.dirname(filePath);
+                
                 // Eliminar archivo físico si existe
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
                     console.log('Archivo físico eliminado:', filePath);
+                    deletedDirPaths.add(conductDirPath);
                 }
+                
                 // Eliminar registro de la base de datos
                 const deleteStmt = db.prepare('DELETE FROM evidence_files WHERE id = ?');
                 const result = deleteStmt.run(file.id);
@@ -1304,10 +1330,12 @@ app.delete('/api/evaluations/:evaluationId/conducts/:conductId/files', (req, res
                 errors.push({ fileId: file.id, error: error.message });
             }
         }
-        // Limpiar directorios vacíos recursivamente
-        if (lastConductDirPath) {
-            const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
-            removeEmptyDirsRecursively(lastConductDirPath, evidenceRoot);
+        
+        // Limpiar directorios vacíos recursivamente desde todos los directorios de archivos eliminados
+        const evidenceRoot = path.join(__dirname, 'uploads', 'evidence');
+        for (const dirPath of deletedDirPaths) {
+            console.log('Limpiando directorio vacío:', dirPath);
+            removeEmptyDirsRecursively(dirPath, evidenceRoot);
         }
         console.log(`Eliminación completada: ${deletedCount} archivos eliminados, ${errors.length} errores`);
         res.json({ 
@@ -1535,6 +1563,152 @@ app.post('/api/settings/evaluation', (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Crear nueva versión de evaluación existente
+app.post('/api/evaluations/:evaluationId/version', (req, res) => {
+    try {
+        const { evaluationId } = req.params;
+        
+        // Obtener la evaluación original
+        const originalEvaluation = db.prepare('SELECT * FROM evaluations WHERE id = ?').get(evaluationId);
+        if (!originalEvaluation) {
+            return res.status(404).json({ error: 'Evaluación no encontrada' });
+        }
+        
+        // Obtener la versión máxima para este trabajador y periodo
+        const row = db.prepare('SELECT MAX(version) as maxVersion FROM evaluations WHERE worker_id = ? AND period = ?').get(originalEvaluation.worker_id, originalEvaluation.period);
+        const maxVersion = row && row.maxVersion ? row.maxVersion : 0;
+        const newVersion = maxVersion + 1;
+        
+        const now = new Date();
+        const spanishTimeFormatted = now.toLocaleString("en-US", {
+            timeZone: "Europe/Madrid",
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(',', '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+        
+        // Crear nueva evaluación con versión incrementada
+        const result = db.prepare('INSERT INTO evaluations (worker_id, period, version, created_at, updated_at, useT1SevenPoints, autoSave) VALUES (?, ?, ?, ?, NULL, ?, ?)').run(
+            originalEvaluation.worker_id,
+            originalEvaluation.period,
+            newVersion,
+            spanishTimeFormatted,
+            originalEvaluation.useT1SevenPoints,
+            originalEvaluation.autoSave
+        );
+        
+        const newEvaluationId = result.lastInsertRowid;
+        
+        // Copiar criterios de la evaluación original
+        const criteriaChecks = db.prepare('SELECT * FROM criteria_checks WHERE evaluation_id = ?').all(evaluationId);
+        for (const check of criteriaChecks) {
+            db.prepare('INSERT INTO criteria_checks (evaluation_id, conduct_id, tramo, criterion_index, is_checked) VALUES (?, ?, ?, ?, ?)').run(
+                newEvaluationId,
+                check.conduct_id,
+                check.tramo,
+                check.criterion_index,
+                check.is_checked
+            );
+        }
+        
+        // Copiar evidencia real
+        const realEvidence = db.prepare('SELECT * FROM real_evidence WHERE evaluation_id = ?').all(evaluationId);
+        for (const evidence of realEvidence) {
+            db.prepare('INSERT INTO real_evidence (evaluation_id, conduct_id, evidence_text) VALUES (?, ?, ?)').run(
+                newEvaluationId,
+                evidence.conduct_id,
+                evidence.evidence_text
+            );
+        }
+        
+        // Copiar puntuaciones
+        const scores = db.prepare('SELECT * FROM scores WHERE evaluation_id = ?').all(evaluationId);
+        for (const score of scores) {
+            db.prepare('INSERT INTO scores (evaluation_id, conduct_id, t1_score, t2_score, final_score) VALUES (?, ?, ?, ?, ?)').run(
+                newEvaluationId,
+                score.conduct_id,
+                score.t1_score,
+                score.t2_score,
+                score.final_score
+            );
+        }
+        
+        // Copiar archivos de evidencia
+        const evidenceFiles = db.prepare('SELECT * FROM evidence_files WHERE evaluation_id = ?').all(evaluationId);
+        for (const file of evidenceFiles) {
+            // Obtener información de la evaluación original para construir la nueva ruta
+            const originalEval = db.prepare('SELECT period, worker_id FROM evaluations WHERE id = ?').get(evaluationId);
+            const worker = db.prepare('SELECT name FROM workers WHERE id = ?').get(originalEval.worker_id);
+            
+            // Construir la nueva ruta con la versión actualizada
+            const pathParts = file.file_name.split(path.sep);
+            const newPathParts = [...pathParts];
+            
+            // Buscar y reemplazar el directorio de versión
+            for (let i = 0; i < newPathParts.length; i++) {
+                if (newPathParts[i].startsWith('v') && /^v\d+$/.test(newPathParts[i])) {
+                    newPathParts[i] = `v${newVersion}`;
+                    break;
+                }
+            }
+            
+            const newFilePath = newPathParts.join(path.sep);
+            
+            // Copiar archivo físico si existe
+            const originalFilePath = path.join(__dirname, 'uploads', 'evidence', file.file_name);
+            const newPhysicalPath = path.join(__dirname, 'uploads', 'evidence', newFilePath);
+            
+            if (fs.existsSync(originalFilePath)) {
+                // Crear directorios si no existen
+                const newDir = path.dirname(newPhysicalPath);
+                if (!fs.existsSync(newDir)) {
+                    fs.mkdirSync(newDir, { recursive: true });
+                }
+                
+                // Copiar archivo
+                fs.copyFileSync(originalFilePath, newPhysicalPath);
+                console.log(`Archivo copiado: ${originalFilePath} → ${newPhysicalPath}`);
+            }
+            
+            // Insertar en BD con la nueva ruta
+            db.prepare('INSERT INTO evidence_files (evaluation_id, conduct_id, file_name, original_name, file_type, file_size, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+                newEvaluationId,
+                file.conduct_id,
+                newFilePath,
+                file.original_name,
+                file.file_type,
+                file.file_size,
+                file.uploaded_at
+            );
+        }
+        
+        console.log('Nueva versión creada:', {
+            originalId: evaluationId,
+            newId: newEvaluationId,
+            version: newVersion,
+            worker_id: originalEvaluation.worker_id,
+            period: originalEvaluation.period
+        });
+        
+        res.status(201).json({
+            id: newEvaluationId,
+            worker_id: originalEvaluation.worker_id,
+            period: originalEvaluation.period,
+            version: newVersion,
+            created_at: spanishTimeFormatted,
+            updated_at: null,
+            is_new_version: true
+        });
+    } catch (error) {
+        console.error('Error al crear nueva versión:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 app.listen(PORT, () => {

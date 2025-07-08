@@ -9,6 +9,7 @@ interface SummaryPageProps {
   onSave: () => void;
   onRemoveFile: (conductId: string, fileId: number) => void;
   onRemoveAllFilesFromConduct?: (competencyId: string, conductId: string) => Promise<any>;
+  onOpenVersionHistory?: () => void;
 }
 
 // Función para limpiar archivos sin ID válido
@@ -78,7 +79,7 @@ const ConfirmModal: React.FC<{
   );
 };
 
-export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, onRemoveFile, onRemoveAllFilesFromConduct }) => {
+export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, onRemoveFile, onRemoveAllFilesFromConduct, onOpenVersionHistory }) => {
   const [deleteTarget, setDeleteTarget] = useState<{conductId: string, file: any} | null>(null);
   const [filesOnDisk, setFilesOnDisk] = useState<string[]>([]);
   const [orphanFiles, setOrphanFiles] = useState<any[]>([]);
@@ -510,6 +511,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
           evaluation={evaluation}
           onSave={onSave}
           isSavable={evaluation.workerId !== null}
+          onOpenVersionHistory={onOpenVersionHistory}
         />
       </div>
 

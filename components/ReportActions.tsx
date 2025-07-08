@@ -7,11 +7,13 @@ import { EvaluationState, Worker } from '../types';
 import { competencies } from '../data/evaluationData';
 import { SaveIcon } from './icons';
 import { getVisibleCompetencies } from '../hooks/useEvaluationState';
+import { VersionFlowIndicator } from './VersionFlowIndicator';
 
 interface ReportActionsProps {
   evaluation: EvaluationState;
   onSave: () => void;
   isSavable: boolean;
+  onOpenVersionHistory?: () => void;
 }
 
 const getWorkerName = (workers: Worker[], workerId: string | null): string => {
@@ -19,7 +21,7 @@ const getWorkerName = (workers: Worker[], workerId: string | null): string => {
     return workers.find(w => w.id === workerId)?.name || 'Desconocido';
 };
 
-export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave, isSavable }) => {
+export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave, isSavable, onOpenVersionHistory }) => {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
   const getExportData = () => {
@@ -116,16 +118,52 @@ export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave
       second: '2-digit'
     });
 
-    // Formatear la fecha del último guardado
-    const lastSavedFormatted = evaluation.lastSavedAt ? 
-      new Date(evaluation.lastSavedAt).toLocaleString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }) : 'N/A';
+    // Formatear la fecha del último guardado (aceptar varios formatos)
+    let lastSavedFormatted = 'N/A';
+    if (evaluation.lastSavedAt) {
+      try {
+        const date = new Date(evaluation.lastSavedAt);
+        if (!isNaN(date.getTime())) {
+          lastSavedFormatted = date.toLocaleString('es-ES', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+        } else {
+          // Intentar parsear como string tipo 'YYYY-MM-DD HH:mm:ss'
+          const parts = evaluation.lastSavedAt.split(/[- :]/);
+          if (parts.length >= 6) {
+            const d = new Date(
+              Number(parts[0]),
+              Number(parts[1]) - 1,
+              Number(parts[2]),
+              Number(parts[3]),
+              Number(parts[4]),
+              Number(parts[5])
+            );
+            if (!isNaN(d.getTime())) {
+              lastSavedFormatted = d.toLocaleString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              });
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Obtener versión (si no hay, mostrar '1' si existe evaluationId)
+    let versionToShow = evaluation.version;
+    if (!versionToShow && evaluation.evaluationId) versionToShow = 1;
+    if (!versionToShow) versionToShow = 'N/A';
+    if (typeof versionToShow === 'number') versionToShow = versionToShow.toString();
 
     // Crear datos para el Excel usando arrays para evitar cabeceras automáticas
     const excelData = [
@@ -134,7 +172,7 @@ export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave
       // Fila con grupo del trabajador
       ['GRUPO', worker?.worker_group || 'N/A', '', '', '', '', '', ''],
       // Fila con versión de evaluación
-      ['VERSIÓN', evaluation.version || 'N/A', '', '', '', '', '', ''],
+      ['VERSIÓN', String(versionToShow), '', '', '', '', '', ''],
       // Fila con fecha de exportación
       ['FECHA EXPORTACIÓN', currentDateTime, '', '', '', '', '', ''],
       // Fila con último guardado
@@ -412,7 +450,7 @@ export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave
       )}
       
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        {/* Información de última guardado */}
+        {/* Información de última guardado y cambios */}
         <div className="text-sm text-gray-600">
           {evaluation.lastSavedAt && (
             <span className="flex items-center gap-2">
@@ -422,10 +460,35 @@ export const ReportActions: React.FC<ReportActionsProps> = ({ evaluation, onSave
               Última guardado: {evaluation.lastSavedAt}
             </span>
           )}
+          {evaluation.hasUnsavedChanges && (
+            <span className="flex items-center gap-2 text-orange-600 mt-1">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Cambios sin guardar - se creará nueva versión
+            </span>
+          )}
+          {evaluation.versionFlow && (
+            <div className="mt-2">
+              <VersionFlowIndicator
+                versionFlow={evaluation.versionFlow}
+                currentVersion={evaluation.version}
+                originalVersionId={evaluation.originalVersionId}
+              />
+            </div>
+          )}
         </div>
         
         {/* Botones de acción */}
         <div className="flex flex-col sm:flex-row items-center gap-4">
+          {onOpenVersionHistory && evaluation.evaluationId && (
+            <button
+              onClick={onOpenVersionHistory}
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Historial de Versiones
+            </button>
+          )}
           <button
             onClick={handleGeneratePDF}
             disabled={!isSavable}

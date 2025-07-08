@@ -18,6 +18,7 @@ import { RevisionSelectorModal } from './components/RevisionSelectorModal';
 import { Evaluation as TypesEvaluation } from './types';
 import { Evaluation } from './services/api';
 import VersionManagerModal from './components/VersionManagerModal';
+import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { EvaluationManagerPage } from './components/EvaluationManagerPage';
 
 function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession, isLoading = false, isWorkerSelectorLoading = false }: {
@@ -904,15 +905,12 @@ function App() {
       console.log('Cargando evaluaciones del trabajador...');
       await useEvaluationStateProps.loadWorkerEvaluations(workerId);
       
-      // Mostrar modal si no hay evaluación cargada y no se acaba de cerrar
-      if (!evaluation.evaluationId && !modalJustClosed) {
-        setPendingWorkerId(workerId);
-        setPendingToken(token);
-        setShowRevisionModal(true);
-      }
+      // No mostrar modal automáticamente después del login
+      // El modal se mostrará solo si el usuario navega a una página que requiera una evaluación
+      console.log('Login completado, no mostrando modal automáticamente');
     } catch (error) {
       console.error('Error al cargar evaluaciones desde login:', error);
-      // Mostrar modal en caso de error también
+      // Solo mostrar modal en caso de error crítico
       if (!modalJustClosed) {
         setPendingWorkerId(workerId);
         setPendingToken(token);
@@ -923,15 +921,12 @@ function App() {
 
   // --- HANDLERS PARA EL MODAL DE EVALUACIÓN ---
   const handleContinue = async (evaluation: Evaluation) => {
-    console.log('Continuando con evaluación:', evaluation);
     setIsProcessingEvaluation(true);
     try {
       await useEvaluationStateProps.loadEvaluationById(evaluation.id);
       saveUserEvaluation(evaluation.worker_id, evaluation.period, evaluation.id);
       setShowRevisionModal(false);
-      setModalJustClosed(true); // Bloquear reapertura inmediata
-      setTimeout(() => setModalJustClosed(false), 500); // Permitir futuras aperturas tras 500ms
-      console.log('Evaluación continuada exitosamente');
+      setModalJustClosed(true);
     } catch (error) {
       console.error('Error al continuar evaluación:', error);
     } finally {
@@ -940,17 +935,12 @@ function App() {
   };
 
   const handleSelect = async (selectedEval: Evaluation) => {
-    console.log('🔄 handleSelect - Iniciando selección de evaluación:', selectedEval);
     setIsProcessingEvaluation(true);
     try {
       await useEvaluationStateProps.loadEvaluationById(selectedEval.id);
-      setTimeout(() => {
-        saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
-        setShowRevisionModal(false);
-        setModalJustClosed(true); // Bloquear reapertura inmediata
-        setTimeout(() => setModalJustClosed(false), 500);
-        console.log('✅ Evaluación seleccionada y cargada exitosamente');
-      }, 200);
+      saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
+      setShowRevisionModal(false);
+      setModalJustClosed(true);
     } catch (error) {
       console.error('❌ Error al seleccionar evaluación:', error);
     } finally {
@@ -1153,6 +1143,7 @@ function App() {
   }, [nextEvaluationIsNew, evaluation, useEvaluationStateProps.setWorkerId]);
 
   const [isVersionManagerOpen, setVersionManagerOpen] = useState(false);
+  const [isVersionHistoryOpen, setVersionHistoryOpen] = useState(false);
 
   // Funciones para guardar y restaurar la evaluación específica del usuario
   const saveUserEvaluation = (workerId: string, period: string, evaluationId: number | null) => {
@@ -1181,27 +1172,57 @@ function App() {
     setPendingWorkerId(evaluation.workerId); // workerId actual
   };
 
+  const handleOpenVersionHistory = () => {
+    setVersionHistoryOpen(true);
+  };
+
+  const handleSelectVersionFromHistory = async (evaluationId: number) => {
+    try {
+      await useEvaluationStateProps.loadEvaluationById(evaluationId);
+      setVersionHistoryOpen(false);
+    } catch (error) {
+      console.error('Error al cargar versión del historial:', error);
+    }
+  };
+
+  const handleDeleteVersionFromHistory = async (evaluationId: number) => {
+    try {
+      await apiService.deleteEvaluation(evaluationId);
+      if (evaluation.workerId) {
+        await useEvaluationStateProps.loadWorkerEvaluations(evaluation.workerId);
+      }
+    } catch (error) {
+      console.error('Error al eliminar versión:', error);
+    }
+  };
+
   // Efecto para mostrar automáticamente el modal cuando no hay evaluación cargada
   useEffect(() => {
     // Solo mostrar si hay un trabajador, no hay evaluación cargada, hay evaluaciones disponibles, y no se acaba de cerrar
+    // Y además, solo si no estamos procesando una evaluación
+    // Y solo si estamos en una página que requiere una evaluación (competency, summary)
+    // Y NO si es una evaluación nueva (isNewEvaluation = true)
     if (evaluation.workerId && 
         !evaluation.evaluationId && 
+        !evaluation.isNewEvaluation &&
         evaluation.workerEvaluations.length > 0 && 
         !modalJustClosed && 
-        !showRevisionModal) {
-      console.log('Mostrando modal automáticamente - no hay evaluación cargada');
+        !showRevisionModal &&
+        !isProcessingEvaluation &&
+        (activePage === 'competency' || activePage === 'summary')) {
+      console.log('Mostrando modal automáticamente - no hay evaluación cargada y estamos en página que la requiere');
       setPendingWorkerId(evaluation.workerId);
       setShowRevisionModal(true);
     }
-  }, [evaluation.workerId, evaluation.evaluationId, evaluation.workerEvaluations.length, modalJustClosed, showRevisionModal]);
+  }, [evaluation.workerId, evaluation.evaluationId, evaluation.isNewEvaluation, evaluation.workerEvaluations.length, modalJustClosed, showRevisionModal, isProcessingEvaluation, activePage]);
 
   // Efecto para cerrar automáticamente el modal cuando se cargue una evaluación
   useEffect(() => {
-    if (evaluation.evaluationId && showRevisionModal) {
-      console.log('Evaluación cargada, cerrando modal automáticamente');
+    if ((evaluation.evaluationId || evaluation.isNewEvaluation) && showRevisionModal) {
+      console.log('Evaluación cargada o nueva evaluación creada, cerrando modal automáticamente');
       setShowRevisionModal(false);
     }
-  }, [evaluation.evaluationId, showRevisionModal]);
+  }, [evaluation.evaluationId, evaluation.isNewEvaluation, showRevisionModal]);
 
   // Log para depurar el estado del modal
   useEffect(() => {
@@ -1210,11 +1231,13 @@ function App() {
       pendingWorkerId,
       workerEvaluationsLength: evaluation.workerEvaluations.length,
       evaluationId: evaluation.evaluationId,
+      isNewEvaluation: evaluation.isNewEvaluation,
       workerId: evaluation.workerId,
       isProcessingEvaluation,
-      modalJustClosed
+      modalJustClosed,
+      activePage
     });
-  }, [showRevisionModal, pendingWorkerId, evaluation.workerEvaluations.length, evaluation.evaluationId, evaluation.workerId, isProcessingEvaluation, modalJustClosed]);
+  }, [showRevisionModal, pendingWorkerId, evaluation.workerEvaluations.length, evaluation.evaluationId, evaluation.isNewEvaluation, evaluation.workerId, isProcessingEvaluation, modalJustClosed, activePage]);
 
   if (loadingSession) {
     return (
@@ -1405,6 +1428,7 @@ function App() {
                     onSave={useEvaluationStateProps.saveEvaluation} 
                     onRemoveFile={handleRemoveFileFromSummary}
                     onRemoveAllFilesFromConduct={useEvaluationStateProps.removeAllFilesFromConduct}
+                    onOpenVersionHistory={handleOpenVersionHistory}
                   />
                 </div>
               ) : activePage === 'manage-users' ? (
@@ -1522,6 +1546,19 @@ function App() {
           }
         }}
         isLoading={useEvaluationStateProps.isLoading}
+      />
+
+      {/* Modal de Historial de Versiones */}
+      <VersionHistoryModal
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setVersionHistoryOpen(false)}
+        evaluations={evaluation.workerEvaluations}
+        currentVersion={evaluation.version}
+        onSelectVersion={handleSelectVersionFromHistory}
+        onDeleteVersion={handleDeleteVersionFromHistory}
+        isLoading={useEvaluationStateProps.isLoading}
+        versionFlow={evaluation.versionFlow}
+        originalVersionId={evaluation.originalVersionId}
       />
     </>
   );

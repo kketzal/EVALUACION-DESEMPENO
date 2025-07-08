@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3');
 const { db } = require('./database');
+const { getEvaluationById } = require('./evalById.route.js');
 
 /**
  * @param {import('express').Request} req
@@ -46,11 +47,11 @@ async function postScore(req, res) {
     const row = db.prepare('SELECT id FROM scores WHERE evaluation_id = ? AND conduct_id = ?').get(evaluationId, conductId);
     if (row) {
       db.prepare('UPDATE scores SET score = ? WHERE id = ?').run(score, row.id);
-      res.json({ id: row.id, score });
     } else {
-      const result = db.prepare('INSERT INTO scores (evaluation_id, conduct_id, score) VALUES (?, ?, ?)').run(evaluationId, conductId, score);
-      res.status(201).json({ id: result.lastInsertRowid, score });
+      db.prepare('INSERT INTO scores (evaluation_id, conduct_id, score) VALUES (?, ?, ?)').run(evaluationId, conductId, score);
     }
+    // Devolver evaluación completa
+    await getEvaluationById(req, res);
   } catch (error) {
     console.error('Error en POST /api/evaluations/:id/scores:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

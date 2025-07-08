@@ -14,9 +14,13 @@ const calculateScores = (checks: CriteriaCheckState, useT1SevenPoints: boolean =
 
     let t1Score: number | null = null;
     if (t1CheckedCount > 0) {
-        // Siempre contar todos los criterios activos del TRAMO 1
-        // El modo 7 puntos solo afecta la puntuación inicial, no el cálculo
-        t1Score = 4 + t1CheckedCount;
+        if (useT1SevenPoints) {
+            // En modo 7 puntos, la puntuación mínima es 7
+            t1Score = 6 + t1CheckedCount;
+        } else {
+            // En modo normal, la puntuación mínima es 5
+            t1Score = 4 + t1CheckedCount;
+        }
     }
 
     let t2Score: number | null = null;
@@ -58,6 +62,11 @@ const getInitialState = (defaultT1SevenPoints: boolean = true): EvaluationState 
     lastSavedAtFull: null,
     version: null,
     workerEvaluations: [],
+    hasUnsavedChanges: false, // Nuevo estado para trackear cambios
+    originalEvaluationSnapshot: null, // Snapshot de la evaluación original
+    versionAlreadyIncremented: false, // Evitar múltiples incrementos en la misma sesión
+    originalVersionId: null, // ID de la versión original de la que viene
+    versionFlow: '', // Flujo de versiones: "v1 -> v5", "v5 -> v6", etc.
   };
   console.log('Initial state created:', initialState);
   return initialState;
@@ -612,8 +621,23 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
           isActuallyNew
         });
         
-        const lastSavedAt = isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleDateString('es-ES') : null);
-        const lastSavedAtFull = isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleString('es-ES') : null);
+        const lastSavedAt = isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleString('es-ES', { 
+          timeZone: 'Europe/Madrid',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : null);
+        const lastSavedAtFull = isActuallyNew ? null : (evaluationData.evaluation.updated_at ? new Date(evaluationData.evaluation.updated_at).toLocaleString('es-ES', {
+          timeZone: 'Europe/Madrid',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }) : null);
         
         console.log('🔍 Timestamps calculados:', {
           updated_at: evaluationData.evaluation.updated_at,
@@ -637,6 +661,18 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
           lastSavedAtFull,
           version: evaluationData.evaluation.version || null,
           isNewEvaluation: isActuallyNew,
+          // Crear snapshot de la evaluación original para detectar cambios
+          originalEvaluationSnapshot: isActuallyNew ? null : {
+            criteriaChecks,
+            realEvidences,
+            scores,
+            files: cleanedFiles
+          },
+          hasUnsavedChanges: false,
+          // Resetear estado de versiones al cargar una evaluación diferente
+          versionAlreadyIncremented: false,
+          originalVersionId: null,
+          versionFlow: '',
         };
         
         console.log('loadEvaluationById - Estado final:', {
@@ -677,12 +713,27 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       await apiService.updateEvaluation(evaluation.evaluationId);
       
       // Actualizar estado con timestamp de guardado automático
-      const now = new Date().toLocaleString('es-ES');
-      const nowDate = new Date().toLocaleDateString('es-ES');
+      const now = new Date().toLocaleString('es-ES', {
+        timeZone: 'Europe/Madrid',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const nowFull = new Date().toLocaleString('es-ES', {
+        timeZone: 'Europe/Madrid',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
       setEvaluationWithLog(prev => ({
         ...prev,
-        lastSavedAt: nowDate,
-        lastSavedAtFull: now,
+        lastSavedAt: now,
+        lastSavedAtFull: nowFull,
         isNewEvaluation: false // Marcar como no nueva después del primer guardado
       }));
 
@@ -722,6 +773,12 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       // Guardar automáticamente todos los toggles activados del TRAMO 1 para la nueva evaluación
       const currentCriteriaChecks = evaluation.criteriaChecks;
       await saveAllActiveT1Toggles(evalId, currentCriteriaChecks);
+    } else {
+      // Verificar si necesitamos crear una nueva versión
+      const newEvalId = await createNewVersionIfNeeded();
+      if (newEvalId) {
+        evalId = newEvalId;
+      }
     }
 
     console.log('updateCriteriaCheck called:', { conductId, tramo, criterionIndex, isChecked });
@@ -753,20 +810,42 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       
       console.log('Después de updateCriteriaCheck, criteriaChecks:', JSON.stringify(newCriteriaChecks));
       
-      return {
+      const newState = {
         ...prev,
         criteriaChecks: newCriteriaChecks,
         scores: newScores
       };
+
+      // Detectar cambios
+      const hasChanges = detectChanges(newState);
+      if (hasChanges) {
+        newState.hasUnsavedChanges = true;
+      }
+
+      return newState;
     });
 
     // Guardar en la API de forma asíncrona
-    await apiService.saveCriteria(evalId, {
+    const updatedEval = await apiService.saveCriteria(evalId, {
       conductId,
       tramo,
       criterionIndex,
       isChecked,
     });
+
+    // Actualizar el estado con la evaluación devuelta
+    setEvaluationWithLog(prev => ({
+      ...prev,
+      ...updatedEval.evaluation,
+      criteriaChecks: arrayToCriteriaChecksObj(updatedEval.criteriaChecks),
+      realEvidences: arrayToRealEvidencesObj(updatedEval.realEvidence),
+      files: arrayToEvidenceFilesObj(updatedEval.evidenceFiles),
+      scores: arrayToScoresObj(updatedEval.scores),
+      version: updatedEval.evaluation.version ?? null,
+      lastSavedAt: updatedEval.evaluation.updated_at ?? null,
+      lastSavedAtFull: updatedEval.evaluation.updated_at ?? null,
+      isNewEvaluation: false
+    }));
 
     // Guardar puntuación actualizada
     const currentConductChecks = evaluation.criteriaChecks[conductId];
@@ -850,6 +929,12 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         await loadWorkerEvaluations(evaluation.workerId);
         console.log('Evaluaciones recargadas después de crear evaluación nueva');
       }
+    } else {
+      // Verificar si necesitamos crear una nueva versión
+      const newEvalId = await createNewVersionIfNeeded();
+      if (newEvalId) {
+        evalId = newEvalId;
+      }
     }
 
     try {
@@ -858,13 +943,23 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         evidenceText: text,
       });
 
-      setEvaluationWithLog(prev => ({
-        ...prev,
-        realEvidences: {
-          ...prev.realEvidences,
-          [conductId]: text,
-        },
-      }));
+      setEvaluationWithLog(prev => {
+        const newState = {
+          ...prev,
+          realEvidences: {
+            ...prev.realEvidences,
+            [conductId]: text,
+          },
+        };
+
+        // Detectar cambios
+        const hasChanges = detectChanges(newState);
+        if (hasChanges) {
+          newState.hasUnsavedChanges = true;
+        }
+
+        return newState;
+      });
 
       // Guardado automático si está habilitado
       if (evaluation.autoSave) {
@@ -907,6 +1002,22 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         await loadWorkerEvaluations(evaluation.workerId);
         console.log('Evaluaciones recargadas después de crear evaluación nueva');
       }
+    } else {
+      // Verificar si necesitamos crear una nueva versión
+      // Para archivos, verificamos si la evaluación ya tiene contenido (criterios, evidencias, archivos, etc.)
+      const hasExistingContent = 
+        Object.keys(evaluation.criteriaChecks).length > 0 ||
+        Object.keys(evaluation.realEvidences).length > 0 ||
+        Object.keys(evaluation.files).length > 0 ||
+        evaluation.hasUnsavedChanges;
+      
+      if (hasExistingContent) {
+        console.log('🔄 Evaluación con contenido existente detectada, verificando si necesita nueva versión');
+        const newEvalId = await createNewVersionIfNeeded();
+        if (newEvalId) {
+          evalId = newEvalId;
+        }
+      }
     }
 
     console.log('Procesando archivos para:', { competencyId, conductId, evaluationId: evalId });
@@ -941,13 +1052,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         const allFiles = [...currentFiles, ...newFilesList];
         const cleanedFiles = cleanInvalidFiles({ [conductId]: allFiles });
         
-        return {
+        const newState = {
           ...prev,
           files: {
             ...prev.files,
             [conductId]: cleanedFiles[conductId] || []
           }
         };
+
+        // Detectar cambios
+        const hasChanges = detectChanges(newState);
+        if (hasChanges) {
+          newState.hasUnsavedChanges = true;
+        }
+
+        return newState;
       });
 
       console.log('Estado actualizado con archivos reales');
@@ -975,13 +1094,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
           remainingFiles: updatedFiles.length
         });
         
-        return {
+        const newState = {
           ...prev,
           files: {
             ...prev.files,
             [conductId]: updatedFiles,
           },
         };
+
+        // Detectar cambios
+        const hasChanges = detectChanges(newState);
+        if (hasChanges) {
+          newState.hasUnsavedChanges = true;
+        }
+
+        return newState;
       });
       
       console.log('Estado actualizado después de eliminar archivo');
@@ -1004,13 +1131,21 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       console.log('Archivos eliminados del servidor:', result);
       
       setEvaluationWithLog(prev => {
-        return {
+        const newState = {
           ...prev,
           files: {
             ...prev.files,
             [conductId]: [], // Vaciar la lista de archivos de esta conducta
           },
         };
+
+        // Detectar cambios
+        const hasChanges = detectChanges(newState);
+        if (hasChanges) {
+          newState.hasUnsavedChanges = true;
+        }
+
+        return newState;
       });
       
       console.log('Estado actualizado después de eliminar todos los archivos');
@@ -1075,7 +1210,14 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         ...prev,
         isSaving: false,
         lastSavedAt: nowDate,
-        lastSavedAtFull: now
+        lastSavedAtFull: now,
+        hasUnsavedChanges: false,
+        originalEvaluationSnapshot: {
+          criteriaChecks: prev.criteriaChecks,
+          realEvidences: prev.realEvidences,
+          scores: prev.scores,
+          files: prev.files
+        }
       }));
 
       // No mostrar alert de éxito - ya tenemos la notificación visual
@@ -1251,6 +1393,113 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
     }));
   }, [workerEvaluations]);
 
+  // Función para crear automáticamente una nueva versión si hay cambios
+  const createNewVersionIfNeeded = useCallback(async () => {
+    if (!evaluation.evaluationId || evaluation.isNewEvaluation || evaluation.versionAlreadyIncremented) {
+      return evaluation.evaluationId;
+    }
+
+    // Verificar si hay cambios sin guardar
+    const hasChanges = evaluation.hasUnsavedChanges || detectChanges(evaluation);
+    if (!hasChanges) {
+      return evaluation.evaluationId;
+    }
+
+    try {
+      console.log('🔄 Creando nueva versión automáticamente debido a cambios detectados');
+      const newVersion = await apiService.createNewVersion(evaluation.evaluationId);
+      
+      // Calcular el flujo de versiones
+      const originalVersion = evaluation.version || 0;
+      const newVersionNumber = newVersion.version || 0;
+      const versionFlow = `v${originalVersion} → v${newVersionNumber}`;
+      
+      // Actualizar el estado con la nueva evaluación
+      setEvaluationWithLog(prev => ({
+        ...prev,
+        evaluationId: newVersion.id,
+        version: newVersion.version || null,
+        hasUnsavedChanges: false,
+        originalEvaluationSnapshot: null,
+        isNewEvaluation: false,
+        versionAlreadyIncremented: true, // Marcar que ya se incrementó en esta sesión
+        originalVersionId: evaluation.evaluationId, // Guardar el ID de la versión original
+        versionFlow: versionFlow, // Guardar el flujo de versiones
+      }));
+
+      // Recargar la lista de evaluaciones del trabajador
+      if (evaluation.workerId) {
+        await loadWorkerEvaluations(evaluation.workerId);
+      }
+
+      console.log('✅ Nueva versión creada:', newVersion, 'Flujo:', versionFlow);
+      return newVersion.id;
+    } catch (error) {
+      console.error('❌ Error al crear nueva versión:', error);
+      return evaluation.evaluationId;
+    }
+  }, [evaluation.evaluationId, evaluation.isNewEvaluation, evaluation.hasUnsavedChanges, evaluation.versionAlreadyIncremented, evaluation.version, evaluation.workerId, loadWorkerEvaluations]);
+
+  // Función para detectar cambios en la evaluación
+  const detectChanges = useCallback((currentState: any) => {
+    if (!evaluation.originalEvaluationSnapshot) return false;
+    
+    const original = evaluation.originalEvaluationSnapshot;
+    const current = {
+      criteriaChecks: currentState.criteriaChecks,
+      realEvidences: currentState.realEvidences,
+      scores: currentState.scores,
+      files: currentState.files
+    };
+
+    // Comparar criterios
+    const criteriaChanged = JSON.stringify(original.criteriaChecks) !== JSON.stringify(current.criteriaChecks);
+    const evidenceChanged = JSON.stringify(original.realEvidences) !== JSON.stringify(current.realEvidences);
+    const scoresChanged = JSON.stringify(original.scores) !== JSON.stringify(current.scores);
+    const filesChanged = JSON.stringify(original.files) !== JSON.stringify(current.files);
+
+    const hasChanges = criteriaChanged || evidenceChanged || scoresChanged || filesChanged;
+    
+    console.log('🔍 Detección de cambios:', {
+      criteriaChanged,
+      evidenceChanged,
+      scoresChanged,
+      filesChanged,
+      hasChanges
+    });
+
+    return hasChanges;
+  }, [evaluation.originalEvaluationSnapshot]);
+
+  // Utilidades para transformar arrays a objetos
+  function arrayToCriteriaChecksObj(arr: any[]): Record<string, CriteriaCheckState> {
+    const obj: Record<string, CriteriaCheckState> = {};
+    arr.forEach(item => {
+      if (!obj[item.conduct_id]) obj[item.conduct_id] = { t1: [], t2: [] };
+      if (item.tramo === 't1') obj[item.conduct_id].t1[item.criterion_index] = !!item.is_checked;
+      if (item.tramo === 't2') obj[item.conduct_id].t2[item.criterion_index] = !!item.is_checked;
+    });
+    return obj;
+  }
+  function arrayToRealEvidencesObj(arr: any[]): Record<string, string> {
+    const obj: Record<string, string> = {};
+    arr.forEach(item => { obj[item.conduct_id] = item.evidence_text; });
+    return obj;
+  }
+  function arrayToEvidenceFilesObj(arr: any[]): Record<string, EvidenceFile[]> {
+    const obj: Record<string, EvidenceFile[]> = {};
+    arr.forEach(file => {
+      if (!obj[file.conduct_id]) obj[file.conduct_id] = [];
+      obj[file.conduct_id].push(file);
+    });
+    return obj;
+  }
+  function arrayToScoresObj(arr: any[]): Record<string, Score> {
+    const obj: Record<string, Score> = {};
+    arr.forEach(score => { obj[score.conduct_id] = { t1: score.t1_score, t2: score.t2_score, final: score.final_score }; });
+    return obj;
+  }
+
   return {
     evaluation,
     isLoading,
@@ -1278,5 +1527,7 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
     workerEvaluations, // <-- Exponer evaluaciones históricas
     loadWorkerEvaluations, // <-- Exponer función para recargar
     loadEvaluationById,
+    createNewVersionIfNeeded,
+    detectChanges,
   };
 };

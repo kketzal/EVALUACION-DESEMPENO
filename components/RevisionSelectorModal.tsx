@@ -55,16 +55,35 @@ export function RevisionSelectorModal({
   };
 
   const [selectedPeriod, setSelectedPeriod] = React.useState(getMostRecentPeriod());
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   // Actualizar periodo seleccionado cuando cambien las evaluaciones
   React.useEffect(() => {
     setSelectedPeriod(getMostRecentPeriod());
   }, [evaluations, periods]);
 
-  // Filtrar evaluaciones por periodo
+  // Filtrar evaluaciones por término de búsqueda (mostrar todas, no por periodo)
   const filteredEvaluations = React.useMemo(() => {
-    return evaluations.filter(ev => ev.period === selectedPeriod);
-  }, [evaluations, selectedPeriod]);
+    if (!searchTerm.trim()) {
+      return evaluations.sort((a, b) => {
+        const aDate = a.updated_at ? new Date(a.updated_at).getTime() : new Date(a.created_at).getTime();
+        const bDate = b.updated_at ? new Date(b.updated_at).getTime() : new Date(b.created_at).getTime();
+        return bDate - aDate;
+      });
+    }
+    
+    return evaluations
+      .filter(ev => 
+        ev.period.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ev.version.toString().includes(searchTerm) ||
+        new Date(ev.updated_at || ev.created_at).toLocaleDateString('es-ES').includes(searchTerm)
+      )
+      .sort((a, b) => {
+        const aDate = a.updated_at ? new Date(a.updated_at).getTime() : new Date(a.created_at).getTime();
+        const bDate = b.updated_at ? new Date(b.updated_at).getTime() : new Date(b.created_at).getTime();
+        return bDate - aDate;
+      });
+  }, [evaluations, searchTerm]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-200">
@@ -109,9 +128,9 @@ export function RevisionSelectorModal({
           </div>
         )}
 
-        {/* Selector de periodo */}
+        {/* Selector de periodo para crear nueva evaluación */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Periodo bienal</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Crear nueva evaluación para periodo:</label>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 text-base bg-white transition-colors duration-150"
             value={selectedPeriod}
@@ -136,13 +155,46 @@ export function RevisionSelectorModal({
               <span>Creando nueva evaluación...</span>
             </div>
           ) : (
-            'Crear nueva evaluación'
+            `Crear nueva evaluación (${selectedPeriod})`
           )}
         </button>
 
         {/* Lista de evaluaciones guardadas */}
         <div className="mb-4">
-          <div className="text-gray-700 font-medium mb-2">O abrir una guardada:</div>
+          <div className="text-gray-700 font-medium mb-2">
+            Evaluaciones guardadas ({filteredEvaluations.length}):
+          </div>
+          
+          {/* Campo de búsqueda para evaluaciones */}
+          <div className="mb-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar por periodo, versión o fecha..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 pl-10 pr-10 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 text-base bg-white transition-colors duration-150"
+                disabled={isLoading}
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              {searchTerm && (
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500 focus:outline-none transition-colors duration-150"
+                  onClick={() => setSearchTerm('')}
+                  aria-label="Borrar búsqueda"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
           <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 rounded-lg border border-gray-200 bg-gray-50">
             {isLoading ? (
               <div className="py-8 text-center">
@@ -174,7 +226,9 @@ export function RevisionSelectorModal({
                 </button>
               ))
             ) : (
-              <div className="py-4 text-gray-400 text-center">No hay evaluaciones guardadas para este periodo</div>
+              <div className="py-4 text-gray-400 text-center">
+                {searchTerm ? 'No se encontraron evaluaciones con ese criterio' : 'No hay evaluaciones guardadas'}
+              </div>
             )}
           </div>
         </div>
