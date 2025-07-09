@@ -11,6 +11,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const SESSION_MAX_AGE_DAYS = 7;
+const { decodeFileName } = require('./fix_file_names');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -158,41 +159,14 @@ const handleMulterError = (error, req, res, next) => {
 
 // Función elegante para corregir nombres corruptos de archivos
 function fixCorruptedFileName(name) {
-    if (!name) return name;
-    // Patrones corruptos típicos: vocal + \xCC\x81 (NFD mal interpretado como UTF-8)
-    // Ejemplo: o + \xCC\x81 = oÌ
-    const patterns = [
-        { re: /aÌ\x81/g, to: 'á' },
-        { re: /eÌ\x81/g, to: 'é' },
-        { re: /iÌ\x81/g, to: 'í' },
-        { re: /oÌ\x81/g, to: 'ó' },
-        { re: /uÌ\x81/g, to: 'ú' },
-        { re: /nÌ\x83/g, to: 'ñ' },
-        { re: /uÌ\x88/g, to: 'ü' },
-        // Mayúsculas
-        { re: /AÌ\x81/g, to: 'Á' },
-        { re: /EÌ\x81/g, to: 'É' },
-        { re: /IÌ\x81/g, to: 'Í' },
-        { re: /OÌ\x81/g, to: 'Ó' },
-        { re: /UÌ\x81/g, to: 'Ú' },
-        { re: /NÌ\x83/g, to: 'Ñ' },
-        { re: /UÌ\x88/g, to: 'Ü' },
-    ];
-    let fixed = name;
-    let changed = false;
-    for (const { re, to } of patterns) {
-        if (re.test(fixed)) {
-            fixed = fixed.replace(re, to);
-            changed = true;
-        }
-    }
-    // Si no se detectó ningún patrón, devolver el original normalizado
-    return changed ? fixed.normalize('NFC') : name.normalize('NFC');
+  if (!name) return name;
+  return decodeFileName(name);
 }
 
-// Función para limpiar nombres de archivos (mantener compatibilidad)
-function cleanFileName(fileName) {
-    return fixCorruptedFileName(fileName);
+function cleanFileName(name) {
+  if (!name) return name;
+  // Elimina caracteres no válidos para nombres de archivo en la mayoría de sistemas
+  return name.replace(/[\\/:*?"<>|]/g, '');
 }
 
 // Exportar funciones para pruebas
@@ -1229,18 +1203,27 @@ app.delete('/api/evaluations/:evaluationId', (req, res) => {
   }
 });
 
-const evaluationsHandlers = require('./evaluations.route.js');
+const { makeEvaluationsRoutes } = require('./evaluations.route.js');
+const { makeCriteriaRoutes } = require('./criteria.route.js');
+const { makeEvidenceRoutes } = require('./evidence.route.js');
+const { makeFilesRoutes } = require('./files.route.js');
+const { makeScoresRoutes } = require('./scores.route.js');
+const { makeGetEvaluationById, makeTestDatabaseState } = require('./evalById.route.js');
 
 // Evaluaciones (listado y creación)
-app.get('/api/evaluations', evaluationsHandlers.getEvaluations);
-app.post('/api/evaluations', evaluationsHandlers.postEvaluation);
+app.get('/api/evaluations', makeEvaluationsRoutes(db).getEvaluations);
+app.post('/api/evaluations', makeEvaluationsRoutes(db).postEvaluation);
 
 // --- ENDPOINTS MIGRADOS DESDE src/app/api/evaluations/[id] ---
-const criteriaHandlers = require('./criteria.route.js');
-const evidenceHandlers = require('./evidence.route.js');
-const filesHandlers = require('./files.route.js');
-const scoresHandlers = require('./scores.route.js');
-const evalByIdHandler = require('./evalById.route.js');
+
+const criteriaHandlers = makeCriteriaRoutes(db);
+const evidenceHandlers = makeEvidenceRoutes(db);
+const filesHandlers = makeFilesRoutes(db);
+const evalByIdHandler = {
+  getEvaluationById: makeGetEvaluationById(db),
+  testDatabaseState: makeTestDatabaseState(db)
+};
+const scoresHandlers = makeScoresRoutes(db);
 
 // Criterios
 app.get('/api/evaluations/:id/criteria', criteriaHandlers.getCriteria);

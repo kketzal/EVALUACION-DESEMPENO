@@ -3,32 +3,32 @@ const { db } = require('./database');
 // Función para decodificar nombres de archivos con problemas de codificación
 function decodeFileName(fileName) {
     if (!fileName) return fileName;
-    
     try {
-        // Intentar decodificar caracteres mal codificados
         let decoded = fileName;
-        
         // Corregir secuencias específicas de caracteres mal codificados
-        decoded = decoded.replace(/Ì\x81/g, 'á');
-        decoded = decoded.replace(/Ì\x83/g, 'ó');
-        decoded = decoded.replace(/Ì\x89/g, 'é');
-        decoded = decoded.replace(/Ì\x8D/g, 'í');
-        decoded = decoded.replace(/Ì\x9A/g, 'ú');
-        decoded = decoded.replace(/Ì\x91/g, 'ñ');
-        decoded = decoded.replace(/Ì\x80/g, 'à');
-        decoded = decoded.replace(/Ì\x82/g, 'ò');
-        decoded = decoded.replace(/Ì\x88/g, 'è');
-        decoded = decoded.replace(/Ì\x8C/g, 'ì');
-        decoded = decoded.replace(/Ì\x99/g, 'ù');
-        
-        // Corregir nombres específicos que sabemos que están mal
+        // Incluye variantes con y sin byte extra
+        decoded = decoded.replace(/aÌ[\x81]?/g, 'á');
+        decoded = decoded.replace(/eÌ[\x81]?/g, 'é');
+        decoded = decoded.replace(/iÌ[\x81]?/g, 'í');
+        decoded = decoded.replace(/oÌ[\x81]?/g, 'ó');
+        decoded = decoded.replace(/uÌ[\x81]?/g, 'ú');
+        decoded = decoded.replace(/nÌ[\x83]?/g, 'ñ');
+        decoded = decoded.replace(/AÌ[\x81]?/g, 'Á');
+        decoded = decoded.replace(/EÌ[\x81]?/g, 'É');
+        decoded = decoded.replace(/IÌ[\x81]?/g, 'Í');
+        decoded = decoded.replace(/OÌ[\x81]?/g, 'Ó');
+        decoded = decoded.replace(/UÌ[\x81]?/g, 'Ú');
+        decoded = decoded.replace(/NÌ[\x83]?/g, 'Ñ');
+        // Otros patrones
+        decoded = decoded.replace(/nÌ~/g, 'ñ');
+        decoded = decoded.replace(/NÌ~/g, 'Ñ');
+        decoded = decoded.replace(/ñ~/g, 'ñ');
+        decoded = decoded.replace(/Ñ~/g, 'Ñ');
+        decoded = decoded.replace(/Ì/g, ''); // Elimina secuencias residuales
         decoded = decoded.replace(/EvaluacioÌn DesempenÌo por Competencias/g, 'Evaluación Desempeño por Competencias');
-        
-        // Eliminar caracteres Ì extra que aparecen antes de las tildes (solo si no se corrigieron arriba)
-        if (!decoded.includes('á') && !decoded.includes('ó') && !decoded.includes('é') && !decoded.includes('í') && !decoded.includes('ú') && !decoded.includes('ñ')) {
-            decoded = decoded.replace(/Ì/g, '');
-        }
-        
+        // Reemplazo robusto para ñ corrupta: n seguido de uno o más caracteres no alfanuméricos y luego 'or'
+        decoded = decoded.replace(/n[^a-zA-Z0-9]+or/g, 'ñor');
+        decoded = decoded.replace(/N[^a-zA-Z0-9]+or/g, 'Ñor');
         return decoded;
     } catch (error) {
         console.error('Error decodificando nombre de archivo:', error);
@@ -87,3 +87,5 @@ function fixAllFileNames() {
 
 // Ejecutar la corrección
 fixAllFileNames(); 
+
+module.exports = { decodeFileName }; 

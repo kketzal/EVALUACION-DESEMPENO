@@ -8,7 +8,7 @@ export interface EvaluationState extends BaseEvaluationState {
   workerEvaluations: any[];
 }
 
-const calculateScores = (checks: CriteriaCheckState, useT1SevenPoints: boolean = false): Score => {
+export const calculateScores = (checks: CriteriaCheckState, useT1SevenPoints: boolean = false): Score => {
     const t1CheckedCount = checks.t1.filter(Boolean).length;
     const t2CheckedCount = checks.t2.filter(Boolean).length;
 
@@ -109,6 +109,45 @@ const cleanInvalidFiles = (files: Record<string, EvidenceFile[]>): Record<string
   });
   
   return cleanedFiles;
+};
+
+function arrayToCriteriaChecksObj(arr: any[]): Record<string, CriteriaCheckState> {
+  if (!Array.isArray(arr)) arr = [];
+  const obj: Record<string, CriteriaCheckState> = {};
+  arr.forEach(item => {
+    if (!obj[item.conduct_id]) obj[item.conduct_id] = { t1: [], t2: [] };
+    if (item.tramo === 't1') obj[item.conduct_id].t1[item.criterion_index] = !!item.is_checked;
+    if (item.tramo === 't2') obj[item.conduct_id].t2[item.criterion_index] = !!item.is_checked;
+  });
+  return obj;
+}
+function arrayToRealEvidencesObj(arr: any[]): Record<string, string> {
+  if (!Array.isArray(arr)) arr = [];
+  const obj: Record<string, string> = {};
+  arr.forEach(item => { obj[item.conduct_id] = item.evidence_text; });
+  return obj;
+}
+function arrayToEvidenceFilesObj(arr: any[]): Record<string, EvidenceFile[]> {
+  if (!Array.isArray(arr)) arr = [];
+  const obj: Record<string, EvidenceFile[]> = {};
+  arr.forEach(file => {
+    if (!obj[file.conduct_id]) obj[file.conduct_id] = [];
+    obj[file.conduct_id].push(file);
+  });
+  return obj;
+}
+function arrayToScoresObj(arr: any[]): Record<string, Score> {
+  if (!Array.isArray(arr)) arr = [];
+  const obj: Record<string, Score> = {};
+  arr.forEach(score => { obj[score.conduct_id] = { t1: score.t1_score, t2: score.t2_score, final: score.final_score }; });
+  return obj;
+}
+
+export {
+  arrayToCriteriaChecksObj,
+  arrayToRealEvidencesObj,
+  arrayToEvidenceFilesObj,
+  arrayToScoresObj
 };
 
 export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
@@ -1470,35 +1509,6 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
 
     return hasChanges;
   }, [evaluation.originalEvaluationSnapshot]);
-
-  // Utilidades para transformar arrays a objetos
-  function arrayToCriteriaChecksObj(arr: any[]): Record<string, CriteriaCheckState> {
-    const obj: Record<string, CriteriaCheckState> = {};
-    arr.forEach(item => {
-      if (!obj[item.conduct_id]) obj[item.conduct_id] = { t1: [], t2: [] };
-      if (item.tramo === 't1') obj[item.conduct_id].t1[item.criterion_index] = !!item.is_checked;
-      if (item.tramo === 't2') obj[item.conduct_id].t2[item.criterion_index] = !!item.is_checked;
-    });
-    return obj;
-  }
-  function arrayToRealEvidencesObj(arr: any[]): Record<string, string> {
-    const obj: Record<string, string> = {};
-    arr.forEach(item => { obj[item.conduct_id] = item.evidence_text; });
-    return obj;
-  }
-  function arrayToEvidenceFilesObj(arr: any[]): Record<string, EvidenceFile[]> {
-    const obj: Record<string, EvidenceFile[]> = {};
-    arr.forEach(file => {
-      if (!obj[file.conduct_id]) obj[file.conduct_id] = [];
-      obj[file.conduct_id].push(file);
-    });
-    return obj;
-  }
-  function arrayToScoresObj(arr: any[]): Record<string, Score> {
-    const obj: Record<string, Score> = {};
-    arr.forEach(score => { obj[score.conduct_id] = { t1: score.t1_score, t2: score.t2_score, final: score.final_score }; });
-    return obj;
-  }
 
   return {
     evaluation,
