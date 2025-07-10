@@ -23,6 +23,15 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "test:e2e:fast": "playwright test --grep \"Login con trabajador válido|Navegación a resumen|Navegación a gestión de usuarios|Cambio de trabajador|Regreso a competencias\" --project=chromium",
+    "test:e2e:smoke": "playwright test --grep \"Flujo completo de la aplicación en una sola sesión\" --project=chromium",
+    "test:e2e:login": "playwright test --grep \"Login con trabajador válido\" --project=chromium",
+    "test:e2e:navigation": "playwright test --grep \"Navegación\" --project=chromium",
+    "test:e2e:worker": "playwright test --grep \"Cambio de trabajador\" --project=chromium",
+    "test:e2e:accordions": "playwright test --grep \"Despliegue de accordions y funcionalidad de expandir/colapsar\" --project=chromium",
+    "test:e2e:toggles": "playwright test --grep \"Configuración TRAMO-1 y funcionamiento de toggles|Funcionamiento completo de todos los toggles\" --project=chromium",
+    "test:e2e:tramo1": "playwright test --grep \"Configuración TRAMO-1 de 7 puntos desde settings\" --project=chromium",
+    "test:e2e:ui-components": "playwright test --grep \"Despliegue de accordions|Configuración TRAMO-1|Funcionamiento completo de todos los toggles\" --project=chromium",
     "setup:e2e": "node server/setup_test_data.js"
   },
   "dependencies": {

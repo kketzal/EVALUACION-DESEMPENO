@@ -28,13 +28,24 @@ export default defineConfig({
     
     /* Record video on failure */
     video: 'retain-on-failure',
+
+    /* Configuraciones para hacer las pruebas más lentas y visibles */
+    actionTimeout: 60000, // 60 segundos para cada acción
+    navigationTimeout: 120000, // 120 segundos para navegación
   },
 
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Configuraciones específicas para Chromium
+        launchOptions: {
+          slowMo: 2000, // Pausa de 2 segundos entre acciones
+          headless: false, // Siempre mostrar el navegador
+        },
+      },
     },
 
     {

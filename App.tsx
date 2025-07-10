@@ -21,7 +21,7 @@ import VersionManagerModal from './components/VersionManagerModal';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { EvaluationManagerPage } from './components/EvaluationManagerPage';
 
-function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession, isLoading = false, isWorkerSelectorLoading = false }: {
+function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSession, isLoading = false, isWorkerSelectorLoading = false, showRevisionModal = false, isWorkerChangeMode = false, setIsAuthenticatingWorker }: {
   workers: Worker[];
   isOpen: boolean;
   onSelect: (id: string, token: string) => void;
@@ -29,6 +29,9 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
   setWorkerSession: (args: { workerId: string, token: string }) => void;
   isLoading?: boolean;
   isWorkerSelectorLoading?: boolean;
+  showRevisionModal?: boolean;
+  isWorkerChangeMode?: boolean;
+  setIsAuthenticatingWorker?: (value: boolean) => void;
 }) {
   const [search, setSearch] = useState('');
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
@@ -51,9 +54,19 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
   
   const filtered = workers.filter((w: Worker) => w.name.toLowerCase().includes(search.toLowerCase()));
   
-  if (!isOpen) return null;
+  // Verificación adicional: si el modal de revisión está abierto, no mostrar este modal
+  if (!isOpen || showRevisionModal) {
+    console.log('[WorkerSelectorModal] No renderizando porque:', {
+      isOpen,
+      showRevisionModal,
+      reason: !isOpen ? 'isOpen = false' : 'showRevisionModal = true'
+    });
+    return null;
+  }
 
   const handleWorkerSelect = (worker: Worker) => {
+    // Siempre seleccionar el trabajador para mostrar la pantalla de contraseña
+    // La diferencia entre login y cambio de trabajador se maneja en el backend
     setSelectedWorker(worker);
     setPasswordInput('');
     setPasswordError('');
@@ -67,19 +80,30 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
       return;
     }
     setIsAuthenticating(true);
+    setIsAuthenticatingWorker?.(true);
     try {
       const result = await apiService.authenticateWorker(selectedWorker.id, passwordInput);
       if (!result.success || !result.token) {
         setPasswordError('Contraseña incorrecta.');
         return;
       }
-      setWorkerSession({ workerId: selectedWorker.id, token: result.token });
-      onSelect(selectedWorker.id, result.token);
-      onClose();
+      
+      // Si es modo cambio de trabajador, no establecer la sesión, solo cambiar el trabajador
+      if (isWorkerChangeMode) {
+        console.log('[WorkerSelectorModal] Cambio de trabajador autenticado:', selectedWorker.id);
+        onSelect(selectedWorker.id, result.token || '');
+        // No cerrar el modal aquí, dejar que handleLoginSuccess lo maneje
+      } else {
+        // Login normal
+        console.log('[WorkerSelectorModal] Login normal autenticado:', selectedWorker.id);
+        onSelect(selectedWorker.id, result.token || '');
+        // No cerrar el modal aquí, dejar que handleLoginSuccess lo maneje
+      }
     } catch (error) {
       setPasswordError('Error de conexión. Inténtalo de nuevo.');
     } finally {
       setIsAuthenticating(false);
+      setIsAuthenticatingWorker?.(false);
     }
   };
 
@@ -94,7 +118,7 @@ function WorkerSelectorModal({ workers, isOpen, onSelect, onClose, setWorkerSess
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-gray-900">
-            {selectedWorker ? 'Introduce tu contraseña' : 'Seleccionar Trabajador/a'}
+            {selectedWorker ? 'Introduce tu contraseña' : (isWorkerChangeMode ? 'Cambiar Trabajador/a' : 'Seleccionar Trabajador/a')}
           </h3>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -243,13 +267,18 @@ function App() {
 
   // Leer valores iniciales de localStorage
   const getInitialActivePage = () => localStorage.getItem('activePage') || 'competency';
-  const getInitialActiveCompetencyId = () => localStorage.getItem('activeCompetencyId') || 'B';
+  const getInitialActiveCompetencyId = () => {
+    const id = localStorage.getItem('activeCompetencyId');
+    // Solo devolver si es una letra mayúscula (A-H)
+    return id && /^[A-Z]$/.test(id) ? id : 'B';
+  };
 
   const [activeCompetencyId, setActiveCompetencyId] = useState<string>(getInitialActiveCompetencyId());
   const [activePage, setActivePage] = useState<string>(getInitialActivePage());
   const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
 
   const [isWorkerSelectorOpen, setIsWorkerSelectorOpen] = useState(false);
+  const [isWorkerChangeMode, setIsWorkerChangeMode] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarClosing, setSidebarClosing] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -264,6 +293,7 @@ function App() {
   const [workerSelectorResetKey, setWorkerSelectorResetKey] = useState(0); // Para forzar reset del modal
   const [addWorkerModalKey, setAddWorkerModalKey] = useState(0); // Para forzar reset del modal de añadir trabajador
   const [isWorkerSelectorLoading, setIsWorkerSelectorLoading] = useState(false);
+  const [isAuthenticatingWorker, setIsAuthenticatingWorker] = useState(false);
 
   // --- NUEVO ESTADO PARA EL MODAL DE EVALUACIÓN ---
   const [showRevisionModal, setShowRevisionModal] = useState(false);
@@ -271,6 +301,48 @@ function App() {
   const [isProcessingEvaluation, setIsProcessingEvaluation] = useState(false);
   // Bandera simple para evitar reapertura inmediata del modal
   const [modalJustClosed, setModalJustClosed] = useState(false);
+
+  const [appReady, setAppReady] = useState(false);
+
+  useEffect(() => {
+    if (!loadingSession && sessionRestored) {
+      setAppReady(true);
+    } else {
+      setAppReady(false);
+    }
+  }, [loadingSession, sessionRestored]);
+
+  // --- Sincronización profesional de modales: solo uno abierto a la vez ---
+  useEffect(() => {
+    console.log('[ModalManager] Estado actual:', {
+      showRevisionModal,
+      isWorkerSelectorOpen,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (showRevisionModal && isWorkerSelectorOpen) {
+      console.log('[ModalManager] 🚨 CONFLICTO DETECTADO: Ambos modales abiertos');
+      console.log('[ModalManager] Cerrando WorkerSelectorModal automáticamente...');
+      setIsWorkerSelectorOpen(false);
+      console.log('[ModalManager] ✅ WorkerSelectorModal cerrado automáticamente');
+    }
+  }, [showRevisionModal, isWorkerSelectorOpen]);
+
+  // --- SOLUCIÓN FINAL: Timeout de seguridad para cerrar modal de trabajadores ---
+  useEffect(() => {
+    // No aplicar timeout si estamos en modo cambio de trabajador, autenticando, o en pantalla inicial
+    if (isWorkerSelectorOpen && !isWorkerChangeMode && !isAuthenticatingWorker && evaluation.workerId) {
+      const timeout = setTimeout(() => {
+        console.log('[ModalManager] ⏰ TIMEOUT DE SEGURIDAD: Cerrando WorkerSelectorModal después de 5 segundos');
+        setIsWorkerSelectorOpen(false);
+      }, 5000);
+      
+      return () => {
+        clearTimeout(timeout);
+        console.log('[ModalManager] Timeout de seguridad cancelado');
+      };
+    }
+  }, [isWorkerSelectorOpen, isWorkerChangeMode, isAuthenticatingWorker, evaluation.workerId]);
 
   // Sincronizar timeout con el servidor
   useEffect(() => {
@@ -334,7 +406,17 @@ function App() {
   const handleWorkerChange = async (workerId: string) => {
     console.log('Seleccionando trabajador:', workerId);
     try {
-      await useEvaluationStateProps.setWorkerId(workerId);
+      // Limpiar la evaluación actual antes de cambiar de trabajador
+      clearUserEvaluation();
+      
+      // Limpiar el estado de evaluación en el hook
+      const initialState = getInitialState(globalT1SevenPoints);
+      useEvaluationStateProps.setEvaluation({
+        ...initialState,
+        workerId: workerId,
+        workers: evaluation.workers // Mantener la lista de trabajadores
+      });
+      
       const worker = evaluation.workers.find(w => w.id === workerId);
       // Establecer la primera competencia visible como activa
       if (worker) {
@@ -343,23 +425,33 @@ function App() {
           setActiveCompetencyId(visibleCompetencies[0].id);
         }
       }
-      // Guardar la evaluación actual
-      if (evaluation.evaluationId) {
-        saveUserEvaluation(workerId, evaluation.period, evaluation.evaluationId);
-      }
+      
+      // Cerrar completamente el modal de trabajadores
       setIsWorkerSelectorOpen(false);
+      setIsWorkerChangeMode(false);
+      setIsAuthenticatingWorker(false);
+      
+      // Cargar las evaluaciones del nuevo trabajador
+      console.log('Cargando evaluaciones del nuevo trabajador:', workerId);
+      await useEvaluationStateProps.loadWorkerEvaluations(workerId);
+      
+      // Pequeño delay para asegurar que el modal de trabajadores se haya cerrado completamente
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Mostrar modal de selección de evaluación automáticamente después del cambio de trabajador
+      setPendingWorkerId(workerId);
+      setPendingToken(''); // Token vacío para cambio de trabajador
+      setShowRevisionModal(true);
+      console.log('[handleWorkerChange] Modal de revisión abierto automáticamente después del cambio de trabajador');
+      
+      console.log('Trabajador cambiado exitosamente:', workerId);
     } catch (error: any) {
-      if (error.message === 'NO_EVALUATION_FOUND') {
-        // No hay evaluación para este trabajador/periodo, mostrar modal de selección de evaluación
-        console.log('No se encontró evaluación al cambiar trabajador, mostrando modal de selección');
-        setPendingWorkerId(workerId);
-        setPendingToken(evaluation.token || '');
-        setShowRevisionModal(true);
-        setIsWorkerSelectorOpen(false);
-      } else {
-        console.error('Error al cambiar trabajador:', error);
-        // Mostrar error al usuario si es necesario
-      }
+      console.error('Error al cambiar trabajador:', error);
+      // Mostrar modal incluso en caso de error para permitir crear nueva evaluación
+      setPendingWorkerId(workerId);
+      setPendingToken(''); // Token vacío para cambio de trabajador
+      setShowRevisionModal(true);
+      console.log('[handleWorkerChange] Modal de revisión abierto debido a error');
     }
   };
 
@@ -402,6 +494,56 @@ function App() {
     setModalJustClosed(false);
   };
 
+  const handleChangeUser = async () => {
+    console.log('Iniciando cambio de usuario - logout completo');
+    const token = localStorage.getItem('sessionToken');
+    if (token) {
+      try {
+        await fetch('/api/session/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: token },
+        });
+      } catch (e) { /* ignorar error */ }
+    }
+    localStorage.removeItem('sessionToken');
+    clearUserEvaluation(); // Limpiar la evaluación guardada
+    useEvaluationStateProps.setWorkerSession({ workerId: null, token: null });
+    setActiveCompetencyId('B');
+    setActivePage('competency');
+    
+    // Limpiar todos los modales y estados
+    setIsWorkerSelectorOpen(false);
+    setIsWorkerChangeMode(false);
+    setIsAuthenticatingWorker(false);
+    setShowRevisionModal(false);
+    setModalJustClosed(false);
+    setSidebarOpen(false);
+    setSidebarClosing(false);
+    setAddWorkerModalOpen(false);
+    setLogoutModalOpen(false);
+    setIsExportModalOpen(false);
+    setVersionManagerOpen(false);
+    setVersionHistoryOpen(false);
+    
+    // Forzar reset de los modales
+    setWorkerSelectorResetKey(k => k + 1);
+    setAddWorkerModalKey(k => k + 1);
+    
+    console.log('Cambio de usuario completado - mostrando pantalla inicial');
+    
+    // Abrir automáticamente el modal de selección de trabajadores después de un breve delay
+    setTimeout(() => {
+      console.log('Abriendo modal de selección de trabajadores automáticamente');
+      setIsWorkerSelectorOpen(true);
+      setIsWorkerSelectorLoading(true);
+      
+      // Simular un pequeño delay para mostrar el spinner de carga
+      setTimeout(() => {
+        setIsWorkerSelectorLoading(false);
+      }, 500);
+    }, 100); // Pequeño delay para asegurar que el estado se haya actualizado
+  };
+
   const handleFilesUploaded = (conductId: string, files: EvidenceFile[]) => {
     console.log('Archivos subidos para conducta:', conductId, files);
   };
@@ -439,18 +581,32 @@ function App() {
       return undefined;
     }
     
-    // Si no hay competencia activa válida y hay competencias visibles, usar la primera
-    const found = visibleCompetencies.find(c => c.id === activeCompetencyId);
-    if (!found && visibleCompetencies.length > 0 && evaluation.workerId && !loadingSession && activePage === 'competency') {
-      console.log('No se encontró competencia activa, usando la primera:', visibleCompetencies[0].id);
-      // Usar setTimeout para evitar actualizaciones durante el render
-      setTimeout(() => {
-        setActiveCompetencyId(visibleCompetencies[0].id);
-      }, 0);
-      return visibleCompetencies[0];
+    // Si estamos en la página de competencias, siempre buscar la competencia activa
+    if (activePage === 'competency') {
+      const found = visibleCompetencies.find(c => c.id === activeCompetencyId);
+      if (found) {
+        console.log('Competencia activa encontrada:', found.id);
+        return found;
+      } else if (visibleCompetencies.length > 0 && evaluation.workerId && !loadingSession) {
+        console.log('No se encontró competencia activa, usando la primera:', visibleCompetencies[0].id);
+        // Usar setTimeout para evitar actualizaciones durante el render
+        setTimeout(() => {
+          setActiveCompetencyId(visibleCompetencies[0].id);
+        }, 0);
+        return visibleCompetencies[0];
+      }
     }
     
-    return found;
+    // Si no estamos en una página especial pero tampoco en competency, y tenemos una competencia válida, usarla
+    if (activeCompetencyId && /^[A-Z]$/.test(activeCompetencyId)) {
+      const found = visibleCompetencies.find(c => c.id === activeCompetencyId);
+      if (found) {
+        console.log('Usando competencia válida aunque no estemos en página competency:', found.id);
+        return found;
+      }
+    }
+    
+    return undefined;
   }, [activeCompetencyId, activePage, visibleCompetencies, evaluation.workerId, loadingSession]);
 
   // Cambiar periodo y recargar evaluación
@@ -577,6 +733,7 @@ function App() {
               if (!modalJustClosed) {
                 setPendingWorkerId(data.id);
                 setPendingToken(token);
+                setIsWorkerSelectorOpen(false);
                 setShowRevisionModal(true);
               }
             }
@@ -588,6 +745,7 @@ function App() {
               if (!modalJustClosed) {
                 setPendingWorkerId(data.id);
                 setPendingToken(token);
+                setIsWorkerSelectorOpen(false);
                 setShowRevisionModal(true);
               }
             } else {
@@ -596,6 +754,7 @@ function App() {
               if (!modalJustClosed) {
                 setPendingWorkerId(data.id);
                 setPendingToken(token);
+                setIsWorkerSelectorOpen(false);
                 setShowRevisionModal(true);
               }
             }
@@ -814,45 +973,41 @@ function App() {
 
   const handleSidebarChange = (id: string) => {
     if (isSidebarOpen) closeSidebar();
-    
-    // Guardar la competencia activa actual antes de cambiar de página
-    const currentCompetencyId = activeCompetencyId;
-    
     if (id === 'settings') {
       setActivePage('settings');
-      setActiveCompetencyId('settings');
     } else if (id === 'summary') {
       setActivePage('summary');
-      setActiveCompetencyId('summary');
     } else if (id === 'manage-users') {
       setActivePage('manage-users');
-      setActiveCompetencyId('manage-users');
     } else if (id === 'evaluation-manager') {
       setActivePage('evaluation-manager');
-      setActiveCompetencyId('evaluation-manager');
     } else {
       // Navegación a competencias
+      console.log('[handleSidebarChange] Navegando a competencias, ID:', id);
       setActivePage('competency');
       
-      // Si el ID es una competencia válida, usarlo
-      // Si no, restaurar la competencia anterior o usar la primera disponible
+      // Validar competencia
       const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
       if (worker) {
         const visibleCompetencies = getVisibleCompetenciesFromHook(worker.worker_group ?? null);
         const isValidCompetency = visibleCompetencies.find(c => c.id === id);
+        console.log('[handleSidebarChange] Competencias visibles:', visibleCompetencies.map(c => c.id));
+        console.log('[handleSidebarChange] ¿Es competencia válida?', isValidCompetency ? 'Sí' : 'No');
         
         if (isValidCompetency) {
+          console.log('[handleSidebarChange] Estableciendo competencia activa:', id);
           setActiveCompetencyId(id);
-        } else {
-          // Restaurar competencia anterior si era válida, o usar la primera
-          const wasPreviousValid = visibleCompetencies.find(c => c.id === currentCompetencyId);
-          if (wasPreviousValid && currentCompetencyId !== 'summary' && currentCompetencyId !== 'manage-users' && currentCompetencyId !== 'evaluation-manager' && currentCompetencyId !== 'settings') {
-            setActiveCompetencyId(currentCompetencyId);
-          } else if (visibleCompetencies.length > 0) {
-            setActiveCompetencyId(visibleCompetencies[0].id);
-          }
+        } else if (visibleCompetencies.length > 0) {
+          console.log('[handleSidebarChange] Usando primera competencia disponible:', visibleCompetencies[0].id);
+          setActiveCompetencyId(visibleCompetencies[0].id);
         }
       }
+      
+      // Forzar re-render después de un pequeño delay
+      setTimeout(() => {
+        console.log('[handleSidebarChange] Forzando re-render después de timeout');
+        setActivePage('competency');
+      }, 100);
     }
   };
 
@@ -915,31 +1070,53 @@ function App() {
   // Guardar en localStorage cada vez que cambian
   useEffect(() => {
     localStorage.setItem('activePage', activePage);
+    console.log('[App] activePage cambiado a:', activePage);
   }, [activePage]);
 
   useEffect(() => {
     localStorage.setItem('activeCompetencyId', activeCompetencyId);
+    console.log('[App] activeCompetencyId cambiado a:', activeCompetencyId);
   }, [activeCompetencyId]);
 
   // --- MODIFICAR FLUJO DE LOGIN ---
   const handleLoginSuccess = async (workerId: string, token: string) => {
     console.log('Login exitoso, estableciendo sesión y cargando evaluaciones del trabajador:', workerId);
+    
+    // Cerrar inmediatamente el modal de trabajadores
+    setIsWorkerSelectorOpen(false);
+    setIsWorkerChangeMode(false);
+    console.log('[LoginSuccess] Modal de trabajadores cerrado inmediatamente');
+    
+    // Si es modo cambio de trabajador (token vacío), usar handleWorkerChange
+    if (!token) {
+      console.log('[LoginSuccess] Modo cambio de trabajador detectado');
+      await handleWorkerChange(workerId);
+      return;
+    }
+    
     useEvaluationStateProps.setWorkerSession({ workerId, token });
     try {
       console.log('Cargando evaluaciones del trabajador...');
       await useEvaluationStateProps.loadWorkerEvaluations(workerId);
       
-      // No mostrar modal automáticamente después del login
-      // El modal se mostrará solo si el usuario navega a una página que requiera una evaluación
-      console.log('Login completado, no mostrando modal automáticamente');
+      // Pequeño delay para asegurar que el modal de trabajadores se haya cerrado completamente
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Mostrar modal de selección de evaluación automáticamente después del login
+      setPendingWorkerId(workerId);
+      setPendingToken(token);
+      setShowRevisionModal(true);
+      console.log('[LoginSuccess] Modal de revisión abierto automáticamente después del login');
     } catch (error) {
       console.error('Error al cargar evaluaciones desde login:', error);
-      // Solo mostrar modal en caso de error crítico
-      if (!modalJustClosed) {
-        setPendingWorkerId(workerId);
-        setPendingToken(token);
-        setShowRevisionModal(true);
-      }
+      // Pequeño delay para asegurar que el modal de trabajadores se haya cerrado completamente
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Mostrar modal incluso en caso de error para permitir crear nueva evaluación
+      setPendingWorkerId(workerId);
+      setPendingToken(token);
+      setShowRevisionModal(true);
+      console.log('[LoginSuccess] Modal de revisión abierto debido a error');
     }
   };
 
@@ -950,12 +1127,22 @@ function App() {
       await useEvaluationStateProps.loadEvaluationById(evaluation.id);
       saveUserEvaluation(evaluation.worker_id, evaluation.period, evaluation.id);
       setShowRevisionModal(false);
+      setIsWorkerSelectorOpen(false);
       setModalJustClosed(true);
+      // Limpiar estados pendientes para evitar reapertura automática
+      setPendingWorkerId(null);
+      setPendingToken(null);
+      setIsWorkerChangeMode(false);
       console.log('Modal de revisión cerrado tras continuar evaluación');
     } catch (error) {
       console.error('Error al continuar evaluación:', error);
       setShowRevisionModal(false); // Forzar cierre aunque haya error
+      setIsWorkerSelectorOpen(false);
       setModalJustClosed(true);
+      // Limpiar estados pendientes para evitar reapertura automática
+      setPendingWorkerId(null);
+      setPendingToken(null);
+      setIsWorkerChangeMode(false);
       console.log('Modal de revisión forzado a cerrar tras error en continuar evaluación');
     } finally {
       setIsProcessingEvaluation(false);
@@ -968,12 +1155,22 @@ function App() {
       await useEvaluationStateProps.loadEvaluationById(selectedEval.id);
       saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
       setShowRevisionModal(false);
+      setIsWorkerSelectorOpen(false);
       setModalJustClosed(true);
+      // Limpiar estados pendientes para evitar reapertura automática
+      setPendingWorkerId(null);
+      setPendingToken(null);
+      setIsWorkerChangeMode(false);
       console.log('Modal de revisión cerrado tras seleccionar evaluación');
     } catch (error) {
       console.error('❌ Error al seleccionar evaluación:', error);
       setShowRevisionModal(false); // Forzar cierre aunque haya error
+      setIsWorkerSelectorOpen(false);
       setModalJustClosed(true);
+      // Limpiar estados pendientes para evitar reapertura automática
+      setPendingWorkerId(null);
+      setPendingToken(null);
+      setIsWorkerChangeMode(false);
       console.log('Modal de revisión forzado a cerrar tras error en seleccionar evaluación');
     } finally {
       setIsProcessingEvaluation(false);
@@ -999,6 +1196,7 @@ function App() {
     console.log('Creando nueva evaluación para trabajador:', pendingWorkerId, 'y periodo:', period);
     setIsProcessingEvaluation(true);
     setShowRevisionModal(false);
+    setIsWorkerSelectorOpen(false);
     try {
       // Inicializar estado de evaluación nueva sin cargar desde el backend
       const initialState = getInitialState(globalT1SevenPoints);
@@ -1051,10 +1249,18 @@ function App() {
       
       console.log('Evaluación nueva inicializada en frontend:', newState);
       console.log('Modal de revisión cerrado tras crear nueva evaluación');
+      // Limpiar estados pendientes para evitar reapertura automática
+      setPendingWorkerId(null);
+      setPendingToken(null);
+      setIsWorkerChangeMode(false);
     } catch (error) {
       console.error('Error al preparar nueva evaluación:', error);
       setShowRevisionModal(false); // Forzar cierre aunque haya error
       setModalJustClosed(true);
+      // Limpiar estados pendientes para evitar reapertura automática
+      setPendingWorkerId(null);
+      setPendingToken(null);
+      setIsWorkerChangeMode(false);
       console.log('Modal de revisión forzado a cerrar tras error en crear nueva evaluación');
     } finally {
       setIsProcessingEvaluation(false);
@@ -1087,6 +1293,7 @@ function App() {
       
       // Si se eliminaron todas las evaluaciones, mostrar el modal para crear una nueva
       if (remaining.length === 0) {
+        setIsWorkerSelectorOpen(false);
         setShowRevisionModal(true);
         setPendingWorkerId(currentWorkerId);
       } else {
@@ -1117,6 +1324,7 @@ function App() {
       });
       
       // Mostrar el modal para crear una nueva evaluación
+      setIsWorkerSelectorOpen(false);
       setShowRevisionModal(true);
       setPendingWorkerId(currentWorkerId);
     }
@@ -1204,6 +1412,7 @@ function App() {
   };
 
   const handleOpenRevisionModal = () => {
+    setIsWorkerSelectorOpen(false);
     setShowRevisionModal(true);
     setPendingWorkerId(evaluation.workerId); // workerId actual
   };
@@ -1234,23 +1443,33 @@ function App() {
 
   // Efecto para mostrar automáticamente el modal cuando no hay evaluación cargada
   useEffect(() => {
+    // Solo mostrar si la app está completamente lista
+    if (!appReady) return;
     // Solo mostrar si hay un trabajador, no hay evaluación cargada, hay evaluaciones disponibles, y no se acaba de cerrar
-    // Y además, solo si no estamos procesando una evaluación
+    // Y además, solo si no estamos procesando una evaluación ni cargando la sesión
     // Y solo si estamos en una página que requiere una evaluación (competency, summary)
     // Y NO si es una evaluación nueva (isNewEvaluation = true)
-    if (evaluation.workerId && 
-        !evaluation.evaluationId && 
-        !evaluation.isNewEvaluation &&
-        evaluation.workerEvaluations.length > 0 && 
-        !modalJustClosed && 
-        !showRevisionModal &&
-        !isProcessingEvaluation &&
-        (activePage === 'competency' || activePage === 'summary')) {
+    // Y NO si el modal de trabajadores está abierto (para evitar conflictos)
+    // Y NO si estamos en proceso de autenticación
+    if (
+      evaluation.workerId &&
+      !evaluation.evaluationId &&
+      !evaluation.isNewEvaluation &&
+      evaluation.workerEvaluations.length > 0 &&
+      !modalJustClosed &&
+      !showRevisionModal &&
+      !isProcessingEvaluation &&
+      !isWorkerSelectorOpen &&
+      !loadingSession &&
+      !isAuthenticatingWorker &&
+      (activePage === 'competency' || activePage === 'summary')
+    ) {
       console.log('Mostrando modal automáticamente - no hay evaluación cargada y estamos en página que la requiere');
       setPendingWorkerId(evaluation.workerId);
+      setIsWorkerSelectorOpen(false);
       setShowRevisionModal(true);
     }
-  }, [evaluation.workerId, evaluation.evaluationId, evaluation.isNewEvaluation, evaluation.workerEvaluations.length, modalJustClosed, showRevisionModal, isProcessingEvaluation, activePage]);
+  }, [appReady, evaluation.workerId, evaluation.evaluationId, evaluation.isNewEvaluation, evaluation.workerEvaluations.length, modalJustClosed, showRevisionModal, isProcessingEvaluation, isWorkerSelectorOpen, loadingSession, isAuthenticatingWorker, activePage]);
 
   // Refuerzo del efecto de cierre del modal de selección de evaluación
   useEffect(() => {
@@ -1276,6 +1495,17 @@ function App() {
       return () => clearTimeout(timeout);
     }
   }, [modalJustClosed]);
+
+  // Efecto para cerrar el modal de trabajadores cuando se selecciona una evaluación
+  // Solo si NO estamos en proceso de autenticación y hay un trabajador seleccionado
+  useEffect(() => {
+    if (evaluation.workerId && (evaluation.evaluationId || evaluation.isNewEvaluation) && isWorkerSelectorOpen && !isAuthenticatingWorker) {
+      console.log('Cerrando modal de trabajadores porque se seleccionó una evaluación');
+      setIsWorkerSelectorOpen(false);
+      setIsWorkerChangeMode(false);
+      setIsAuthenticatingWorker(false);
+    }
+  }, [evaluation.workerId, evaluation.evaluationId, evaluation.isNewEvaluation, isWorkerSelectorOpen, isAuthenticatingWorker]);
 
   // Log para depurar el estado del modal
   useEffect(() => {
@@ -1303,7 +1533,7 @@ function App() {
   return (
     <>
       {/* Pantalla de login centrada, fuera del dashboard */}
-      {!evaluation.workerId && (
+      {!evaluation.workerId && !loadingSession && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50">
           <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center w-full max-w-md">
             <div className="flex justify-center items-center gap-6 mb-6">
@@ -1338,22 +1568,14 @@ function App() {
         </div>
       )}
       {/* Dashboard layout solo si hay trabajador */}
-      {evaluation.workerId && (
+      {evaluation.workerId && !loadingSession && (
         <div className="min-h-screen bg-gray-100 flex flex-col w-full overflow-x-hidden">
           {/* Header fijo */}
           <Header
             workers={evaluation.workers}
             selectedWorkerId={evaluation.workerId}
             onWorkerChange={handleWorkerChange}
-            onChangeWorkerClick={() => {
-          console.log('Abriendo modal de selección de trabajador');
-          setIsWorkerSelectorLoading(true);
-          setIsWorkerSelectorOpen(true);
-          // Simular un pequeño delay para mostrar el spinner
-          setTimeout(() => {
-            setIsWorkerSelectorLoading(false);
-          }, 500);
-        }}
+            onChangeWorkerClick={handleChangeUser}
             period={evaluation.period}
             onPeriodChange={handlePeriodChange}
             onAddWorkerClick={() => {
@@ -1502,6 +1724,40 @@ function App() {
                     onToggleAccordion={useEvaluationStateProps.toggleAccordion}
                   />
                 </div>
+              ) : !evaluation.evaluationId && !evaluation.isNewEvaluation ? (
+                <div className="bg-white shadow-md rounded-xl p-6 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="mb-6">
+                      <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No hay evaluación activa</h3>
+                    <p className="text-gray-600 mb-6">
+                      Para comenzar a trabajar, selecciona una evaluación existente o crea una nueva.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <button
+                        onClick={() => setActivePage('evaluation-manager')}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Gestionar Evaluaciones
+                      </button>
+                      <button
+                        onClick={handleOpenRevisionModal}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Crear Nueva Evaluación
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="bg-white shadow-md rounded-xl p-6 flex items-center justify-center">
                   <div className="text-center">
@@ -1540,10 +1796,16 @@ function App() {
         workers={evaluation.workers}
         isOpen={isWorkerSelectorOpen}
         onSelect={handleLoginSuccess}
-        onClose={() => setIsWorkerSelectorOpen(false)}
+        onClose={() => {
+          setIsWorkerSelectorOpen(false);
+          setIsWorkerChangeMode(false);
+        }}
         setWorkerSession={useEvaluationStateProps.setWorkerSession}
         isLoading={isWorkerSelectorLoading || loadingSession || !evaluation.workers.length}
         isWorkerSelectorLoading={isWorkerSelectorLoading}
+        showRevisionModal={showRevisionModal}
+        isWorkerChangeMode={isWorkerChangeMode}
+        setIsAuthenticatingWorker={setIsAuthenticatingWorker}
       />
 
 
