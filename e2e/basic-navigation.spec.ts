@@ -58,23 +58,14 @@ test.describe('Navegación Básica', () => {
       if (await continueButton.isVisible({ timeout: 5000 })) {
         console.log('Modal de continuar evaluación encontrado, haciendo clic...');
         await continueButton.click();
+        // Esperar a que desaparezca el modal
+        await page.waitForSelector('button:has-text("Continuar")', { state: 'detached', timeout: 10000 });
+        console.log('Modal de continuar evaluación cerrado');
       }
       
-      // Esperar a que cargue la evaluación con timeout más largo
-      console.log('Esperando a que carguen los bloques de competencias...');
-      try {
-        await page.waitForSelector('[data-testid="competency-block"]', { timeout: 30000 });
-        console.log('Bloques de competencias cargados exitosamente');
-      } catch (e) {
-        console.log('Error esperando bloques de competencias, tomando captura...');
-        await page.screenshot({ path: 'e2e-fail-no-competency-block.png', fullPage: true });
-        
-        // Intentar obtener más información sobre el estado de la página
-        const pageContent = await page.content();
-        console.log('Contenido de la página:', pageContent.substring(0, 1000));
-        
-        throw new Error('No se encontró el bloque de competencias tras login. Captura guardada.');
-      }
+      // Esperar a que cargue la evaluación y los bloques de competencias
+      await page.waitForSelector('[data-testid="competency-block"]', { timeout: 30000 });
+      console.log('Bloques de competencias cargados inicialmente');
       
       // Verificar que aparece al menos un bloque de competencias
       await expect(page.locator('[data-testid="competency-block"]')).toBeVisible();
@@ -127,6 +118,7 @@ test.describe('Navegación Básica', () => {
       console.log('Bloques de competencias cargados inicialmente');
       
       // Navegar a la pestaña de resumen
+      await page.waitForSelector('div.fixed.inset-0', { state: 'detached', timeout: 15000 });
       await page.click('[data-testid="summary-tab"]');
       await expect(page.locator('[data-testid="summary-files"]')).toBeVisible({ timeout: 10000 });
       console.log('Navegación a resumen completada');
@@ -184,7 +176,21 @@ test.describe('Navegación Básica', () => {
       await page.waitForSelector('[data-testid="competency-block"]', { timeout: 30000 });
       console.log('Bloques de competencias cargados inicialmente');
       
+      // Tras login, seleccionar explícitamente la competencia 'B' para asegurar que la vista de competencias está activa
+      await page.waitForSelector('div.fixed.inset-0', { state: 'detached', timeout: 15000 });
+      const competencyButtonB = page.locator('button:has-text("B")').first();
+      if (await competencyButtonB.count() > 0) {
+        await competencyButtonB.click();
+        console.log('Competencia B seleccionada tras login');
+        await page.waitForTimeout(1000); // Dar tiempo a renderizar
+      } else {
+        console.log('No se encontró el botón de competencia B tras login, tomando captura...');
+        await page.screenshot({ path: 'e2e-fail-no-competency-button-after-login.png', fullPage: true });
+        throw new Error('No se encontró el botón de competencia B tras login. Captura guardada.');
+      }
+      
       // Navegar a la pestaña de resumen
+      await page.waitForSelector('div.fixed.inset-0', { state: 'detached', timeout: 15000 });
       await page.click('[data-testid="summary-tab"]');
       await expect(page.locator('[data-testid="summary-files"]')).toBeVisible({ timeout: 10000 });
       console.log('Navegación a resumen completada');
@@ -197,8 +203,17 @@ test.describe('Navegación Básica', () => {
         
         // Esperar a que se carguen los bloques de competencias
         await page.waitForTimeout(2000);
-        await expect(page.locator('[data-testid="competency-block"]')).toBeVisible({ timeout: 15000 });
-        console.log('Bloques de competencias visibles después de navegación de vuelta');
+        try {
+          await expect(page.locator('[data-testid="competency-block"]')).toBeVisible({ timeout: 15000 });
+          console.log('Bloques de competencias visibles después de navegación de vuelta');
+        } catch (e) {
+          console.log('No se encontraron los bloques de competencias tras volver. Guardando screenshot y HTML...');
+          await page.screenshot({ path: 'e2e-fail-no-competency-block-after-back.png', fullPage: true });
+          const pageContent = await page.content();
+          const fs = require('fs');
+          fs.writeFileSync('e2e-fail-no-competency-block-after-back.html', pageContent);
+          throw e;
+        }
       } else {
         console.log('No se encontró el botón de competencia B, tomando captura...');
         await page.screenshot({ path: 'e2e-fail-no-competency-button.png', fullPage: true });

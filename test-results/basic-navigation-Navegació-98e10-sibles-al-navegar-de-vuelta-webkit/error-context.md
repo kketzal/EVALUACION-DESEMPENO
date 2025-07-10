@@ -45,32 +45,464 @@
     - img
     - text: Configuración
 - main:
-  - img
-  - heading "Resumen y Guardado" [level=1]
-  - paragraph: Revisa los archivos de evidencia y guarda la evaluación completa
-  - img
-  - heading "0" [level=3]
-  - paragraph: Archivos de evidencia
-  - img
-  - heading "0" [level=3]
-  - paragraph: Conductas con archivos
-  - img
-  - heading "0" [level=3]
-  - paragraph: Elementos huérfanos
-  - paragraph: 0 archivos, 0 carpetas
-  - img
-  - heading "Archivos de Evidencia" [level=3]
-  - img
-  - heading "No hay archivos de evidencia" [level=3]
-  - paragraph: Aún no se han adjuntado archivos de evidencia a esta evaluación.
-  - img
-  - text: "Última guardado: 09/07/2025, 16:40"
-  - button "Historial de Versiones"
-  - button "Exportar a PDF"
-  - button "Exportar a Excel + Archivos"
-  - button "Guardar Evaluación":
+  - heading "B. DEDICACIÓN Y CALIDAD" [level=2]
+  - paragraph: Consiste en el grado de dedicación y responsabilidad con los que se desarrolla el trabajo, respondiendo con especial implicación a los incrementos de volumen de trabajo, tiempo invertido en la actividad y grado de ajuste a los estándares en la ejecución del trabajo.
+  - button "Expandir Todo":
     - img
-    - text: Guardar Evaluación
+    - text: Expandir Todo
+  - button "Exportar Bloque":
+    - img
+    - text: Exportar Bloque
+  - button "B1. Transmite confianza cuando realiza su trabajo a las personas trabajadoras y usuarias."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox [checked]
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox [checked]
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "7"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "9"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "9"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B2. Reconoce y asume responsabilidad por sus errores, aprendiendo de ellos para mejorar en el futuro."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox [checked]
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "9"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "9"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B3. Su trabajo destaca por los óptimos resultados que obtiene."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B4. Revisa su trabajo para comprobar que los resultados que obtiene cumplen con las tareas que le son asignadas."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B5. Realiza el trabajo de forma metódica y rigurosa, cuidando todos los detalles relacionados con las tareas (forma, presentación, utilidad para el usuario, etc.)."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B6. Cumple las instrucciones y directrices profesionales dictadas por sus superiores."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B7. Establece mecanismos para detectar errores en el trabajo y corregirlos."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B8. Analiza el grado de ajuste a los estándares de calidad en la ejecución de su trabajo y mejora de los mismos."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
+  - button "B9. Contribuye a simplificar procesos y evitar burocracia innecesaria, ayudando a promover la eficiencia."
+  - button "Ver ejemplo de evidencia":
+    - img
+  - button "Abrir":
+    - img
+  - heading "TRAMO 1 (NOTA 5-8)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza la conducta de manera habitual
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta adecuadamente sin alcanzar siempre los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de forma poco frecuente
+      - checkbox
+    - listitem:
+      - text: Manifiesta suficiente autonomía en la realización de la conducta
+      - checkbox
+  - heading "TRAMO 2 (NOTA 9-10)" [level=4]
+  - list:
+    - listitem:
+      - text: Realiza siempre o casi siempre la conducta
+      - checkbox
+    - listitem:
+      - text: Realiza la conducta de manera sobresaliente alcanzando o superando los estándares esperados
+      - checkbox
+    - listitem:
+      - text: Comete errores de manera excepcional
+      - checkbox
+    - listitem:
+      - text: Es totalmente autónoma en la realización de la conducta
+      - checkbox
+    - listitem:
+      - text: Es referente para el resto de integrantes de la unidad
+      - checkbox
+  - text: Nota T1 (Calculada)
+  - textbox "Nota T1 (Calculada)" [disabled]: "-"
+  - text: Nota T2 (Calculada)
+  - textbox "Nota T2 (Calculada)" [disabled]: "-"
+  - text: Nota Final
+  - textbox "Nota Final" [disabled]: "0"
+  - text: Evidencias Reales Observadas
+  - textbox "Evidencias Reales Observadas"
+  - heading "Archivos de Evidencia para esta Conducta" [level=4]
+  - button "Adjuntar Archivos de Evidencia":
+    - img
+    - text: Adjuntar Archivos de Evidencia
+  - paragraph: Arrastra archivos aquí o haz clic para seleccionar
+  - paragraph: PDF, Word, Excel, PowerPoint, imágenes (máx. 10MB por archivo)
 - contentinfo: © 2025 Desarrollado para el Servicio Central de Apoyo a la Investigación (SCAI) - Universidad de Córdoba. Todos los derechos reservados.
 - heading "Seleccionar Trabajador/a" [level=3]
 - button:

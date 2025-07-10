@@ -951,8 +951,12 @@ function App() {
       saveUserEvaluation(evaluation.worker_id, evaluation.period, evaluation.id);
       setShowRevisionModal(false);
       setModalJustClosed(true);
+      console.log('Modal de revisión cerrado tras continuar evaluación');
     } catch (error) {
       console.error('Error al continuar evaluación:', error);
+      setShowRevisionModal(false); // Forzar cierre aunque haya error
+      setModalJustClosed(true);
+      console.log('Modal de revisión forzado a cerrar tras error en continuar evaluación');
     } finally {
       setIsProcessingEvaluation(false);
     }
@@ -965,8 +969,12 @@ function App() {
       saveUserEvaluation(selectedEval.worker_id, selectedEval.period, selectedEval.id);
       setShowRevisionModal(false);
       setModalJustClosed(true);
+      console.log('Modal de revisión cerrado tras seleccionar evaluación');
     } catch (error) {
       console.error('❌ Error al seleccionar evaluación:', error);
+      setShowRevisionModal(false); // Forzar cierre aunque haya error
+      setModalJustClosed(true);
+      console.log('Modal de revisión forzado a cerrar tras error en seleccionar evaluación');
     } finally {
       setIsProcessingEvaluation(false);
     }
@@ -1042,8 +1050,12 @@ function App() {
       localStorage.setItem('activeCompetencyId', 'B');
       
       console.log('Evaluación nueva inicializada en frontend:', newState);
+      console.log('Modal de revisión cerrado tras crear nueva evaluación');
     } catch (error) {
       console.error('Error al preparar nueva evaluación:', error);
+      setShowRevisionModal(false); // Forzar cierre aunque haya error
+      setModalJustClosed(true);
+      console.log('Modal de revisión forzado a cerrar tras error en crear nueva evaluación');
     } finally {
       setIsProcessingEvaluation(false);
     }
@@ -1240,13 +1252,30 @@ function App() {
     }
   }, [evaluation.workerId, evaluation.evaluationId, evaluation.isNewEvaluation, evaluation.workerEvaluations.length, modalJustClosed, showRevisionModal, isProcessingEvaluation, activePage]);
 
-  // Efecto para cerrar automáticamente el modal cuando se cargue una evaluación
+  // Refuerzo del efecto de cierre del modal de selección de evaluación
   useEffect(() => {
     if ((evaluation.evaluationId || evaluation.isNewEvaluation) && showRevisionModal) {
-      console.log('Evaluación cargada o nueva evaluación creada, cerrando modal automáticamente');
       setShowRevisionModal(false);
+      setModalJustClosed(true);
+      console.log('Cierre forzado del modal de revisión porque la evaluación está lista');
     }
-  }, [evaluation.evaluationId, evaluation.isNewEvaluation, showRevisionModal]);
+    // Si la evaluación está lista, asegúrate de que el modal no se reabre
+    if ((evaluation.evaluationId || evaluation.isNewEvaluation) && modalJustClosed) {
+      setShowRevisionModal(false);
+      console.log('Evito reapertura del modal de revisión tras cierre');
+    }
+  }, [evaluation.evaluationId, evaluation.isNewEvaluation, showRevisionModal, modalJustClosed]);
+
+  // Limpieza: resetea modalJustClosed tras un tiempo prudencial para evitar bloqueos
+  useEffect(() => {
+    if (modalJustClosed) {
+      const timeout = setTimeout(() => {
+        setModalJustClosed(false);
+        console.log('modalJustClosed reseteado tras cierre de modal');
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [modalJustClosed]);
 
   // Log para depurar el estado del modal
   useEffect(() => {
