@@ -6,12 +6,15 @@ const fs = require('fs');
 const { db, uploadsDir, evidenceDir } = require('./database');
 
 // Log de la base de datos que está usando el servidor
-console.log('[SERVER] Base de datos del servidor:', db.name);
+if (db && db.name) {
+    console.log('[SERVER] Base de datos del servidor:', db.name);
+}
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const SESSION_MAX_AGE_DAYS = 7;
 const { decodeFileName } = require('./fix_file_names');
+const { makeGetEvaluationById, makeTestDatabaseState } = require('./evalById.route.js');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -170,9 +173,7 @@ function cleanFileName(name) {
 }
 
 // Exportar funciones para pruebas
-if (require.main !== module) {
-    module.exports = { fixCorruptedFileName, cleanFileName };
-}
+module.exports = { fixCorruptedFileName, cleanFileName };
 
 // Aplicar middleware de manejo de errores de multer
 app.use(handleMulterError);
@@ -615,6 +616,7 @@ app.post('/api/evaluations/:evaluationId/files', upload.array('files', 10), asyn
         console.log('Archivos subidos exitosamente:', uploadedFiles.length);
         // Devolver evaluación completa
         req.params.id = evaluationId; // Para compatibilidad con getEvaluationById
+        const getEvaluationById = makeGetEvaluationById(db);
         await getEvaluationById(req, res);
         return;
         
@@ -1066,6 +1068,7 @@ app.patch('/api/evaluations/:evaluationId/settings', async (req, res) => {
         stmt.run(...values);
         // Devolver evaluación completa
         req.params.id = evaluationId;
+        const getEvaluationById = makeGetEvaluationById(db);
         await getEvaluationById(req, res);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1208,7 +1211,6 @@ const { makeCriteriaRoutes } = require('./criteria.route.js');
 const { makeEvidenceRoutes } = require('./evidence.route.js');
 const { makeFilesRoutes } = require('./files.route.js');
 const { makeScoresRoutes } = require('./scores.route.js');
-const { makeGetEvaluationById, makeTestDatabaseState } = require('./evalById.route.js');
 
 // Evaluaciones (listado y creación)
 app.get('/api/evaluations', makeEvaluationsRoutes(db).getEvaluations);
@@ -1694,6 +1696,9 @@ app.post('/api/evaluations/:evaluationId/version', (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-}); 
+// Solo iniciar el servidor si este archivo se ejecuta directamente
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Servidor corriendo en puerto ${PORT}`);
+    });
+} 

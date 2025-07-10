@@ -16,7 +16,14 @@
     "electron:build": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder --publish=never",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:server": "jest --config jest.server.config.cjs",
+    "test:frontend": "jest --testPathIgnorePatterns=server/",
+    "test:all": "npm run test:frontend && npm run test:server",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "setup:e2e": "node server/setup_test_data.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
@@ -36,6 +43,10 @@
     "xlsx": "0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.8",
@@ -43,7 +54,9 @@
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.4",
     "supertest": "^7.1.3",
     "ts-jest": "^29.4.0",
     "typescript": "~5.7.2",

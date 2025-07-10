@@ -426,6 +426,12 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       });
 
       setEvaluationWithLog(prev => {
+        // Verificar que evaluationData.evaluation existe
+        if (!evaluationData.evaluation) {
+          console.error('Error: evaluationData.evaluation es undefined');
+          return prev;
+        }
+        
         // Detectar si la evaluación es nueva
         const isNew = (evaluationData.evaluation as any).is_new || false;
         const hasUpdatedAt = !!evaluationData.evaluation.updated_at;
@@ -545,6 +551,12 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       console.log('loadEvaluationById - Iniciando carga de evaluación:', evaluationId);
       
       const evaluationData = await apiService.getEvaluationById(evaluationId);
+      // Verificar que evaluationData.evaluation existe
+      if (!evaluationData.evaluation) {
+        console.error('Error: evaluationData.evaluation es undefined en loadEvaluationById');
+        throw new Error('Datos de evaluación inválidos');
+      }
+      
       console.log('loadEvaluationById - Datos recibidos del backend:', {
         evaluation: evaluationData.evaluation,
         criteriaChecksCount: evaluationData.criteriaChecks?.length || 0,
@@ -872,19 +884,27 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       isChecked,
     });
 
-    // Actualizar el estado con la evaluación devuelta
-    setEvaluationWithLog(prev => ({
-      ...prev,
-      ...updatedEval.evaluation,
-      criteriaChecks: arrayToCriteriaChecksObj(updatedEval.criteriaChecks),
-      realEvidences: arrayToRealEvidencesObj(updatedEval.realEvidence),
-      files: arrayToEvidenceFilesObj(updatedEval.evidenceFiles),
-      scores: arrayToScoresObj(updatedEval.scores),
-      version: updatedEval.evaluation.version ?? null,
-      lastSavedAt: updatedEval.evaluation.updated_at ?? null,
-      lastSavedAtFull: updatedEval.evaluation.updated_at ?? null,
-      isNewEvaluation: false
-    }));
+    console.log('Respuesta de saveCriteria:', updatedEval);
+
+    // Solo actualizar metadatos de la evaluación, no sobrescribir el estado local
+    setEvaluationWithLog(prev => {
+      console.log('Actualizando solo metadatos, manteniendo estado local:', {
+        conductId,
+        tramo,
+        criterionIndex,
+        isChecked,
+        currentCriteriaChecks: prev.criteriaChecks[conductId],
+        version: updatedEval.evaluation?.version ?? prev.version
+      });
+      
+      return {
+        ...prev,
+        version: updatedEval.evaluation?.version ?? prev.version,
+        lastSavedAt: updatedEval.evaluation?.updated_at ? new Date(updatedEval.evaluation.updated_at).toLocaleDateString('es-ES') : prev.lastSavedAt,
+        lastSavedAtFull: updatedEval.evaluation?.updated_at ? new Date(updatedEval.evaluation.updated_at).toLocaleString('es-ES') : prev.lastSavedAtFull,
+        isNewEvaluation: false
+      };
+    });
 
     // Guardar puntuación actualizada
     const currentConductChecks = evaluation.criteriaChecks[conductId];
@@ -1070,8 +1090,16 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       setEvaluationWithLog(prev => {
         const currentFiles = prev.files[conductId] || [];
         
+        // Validar que uploadedFiles sea un array
+        const filesArray = Array.isArray(uploadedFiles) ? uploadedFiles : [];
+        console.log('Archivos recibidos de la API:', {
+          uploadedFiles,
+          isArray: Array.isArray(uploadedFiles),
+          filesArrayLength: filesArray.length
+        });
+        
         // Convertir del formato de la API al formato interno
-        const newFilesList = uploadedFiles.map((file: any) => ({
+        const newFilesList = filesArray.map((file: any) => ({
           id: file.id.toString(),
           name: file.original_name,
           type: file.file_type || '',
@@ -1124,8 +1152,14 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
       console.log('Archivo eliminado del servidor');
       
       setEvaluationWithLog(prev => {
+        // Eliminar el archivo de la conducta
         const conductFiles = prev.files[conductId] || [];
         const updatedFiles = conductFiles.filter(file => file.id !== fileIdToRemove);
+        // Limpiar archivos huérfanos de todas las conductas
+        const cleanedFiles: Record<string, EvidenceFile[]> = {};
+        Object.entries(prev.files).forEach(([cid, files]) => {
+          cleanedFiles[cid] = files.filter(file => file.id !== fileIdToRemove);
+        });
         
         console.log('Actualizando estado después de eliminar:', {
           conductId,
@@ -1135,10 +1169,7 @@ export const useEvaluationState = (defaultT1SevenPoints: boolean = true) => {
         
         const newState = {
           ...prev,
-          files: {
-            ...prev.files,
-            [conductId]: updatedFiles,
-          },
+          files: cleanedFiles,
         };
 
         // Detectar cambios

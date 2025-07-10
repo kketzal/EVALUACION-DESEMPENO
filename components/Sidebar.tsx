@@ -81,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
       <div className="flex flex-col gap-1 pl-4 lg:pl-0">
         <button
           onClick={() => onCompetencyChange('summary')}
+          data-testid="summary-tab"
           className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'summary'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
@@ -110,6 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </button>
         <button
           onClick={() => onCompetencyChange('manage-users')}
+          data-testid="manage-users-tab"
           className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activeCompetencyId === 'manage-users'
               ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25'
@@ -139,6 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ competencies, activeCompetency
         </button>
         <button
           onClick={() => onSetActivePage && onSetActivePage('evaluation-manager')}
+          data-testid="evaluation-tab"
           className={`group w-full text-left lg:px-3 py-1 rounded-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
             activePage === 'evaluation-manager'
               ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/25'

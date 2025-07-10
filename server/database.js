@@ -263,4 +263,15 @@ createTables();
 checkEvaluationsStatus();
 createSuperAdmin();
 
-module.exports = { db, uploadsDir, evidenceDir }; 
+// Exportar la base de datos y funciones reales
+module.exports = {
+  db,
+  uploadsDir,
+  evidenceDir,
+  getSpanishTimestamp,
+  createTables,
+  migrateUsersDefaultPassword,
+  migrateEvaluationsUpdatedAt,
+  checkEvaluationsStatus,
+  createSuperAdmin
+}; 

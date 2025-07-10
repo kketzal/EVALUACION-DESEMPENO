@@ -2,7 +2,7 @@ const { db } = require('./database');
 
 // Función para decodificar nombres de archivos con problemas de codificación
 function decodeFileName(fileName) {
-    if (!fileName) return fileName;
+    if (!fileName || typeof fileName !== 'string') return fileName;
     try {
         let decoded = fileName;
         // Corregir secuencias específicas de caracteres mal codificados
@@ -85,7 +85,9 @@ function fixAllFileNames() {
     }
 }
 
-// Ejecutar la corrección
-fixAllFileNames(); 
+// Solo ejecutar la corrección si este archivo se ejecuta directamente
+if (require.main === module) {
+    fixAllFileNames();
+}
 
-module.exports = { decodeFileName }; 
+module.exports = { decodeFileName, fixAllFileNames }; 

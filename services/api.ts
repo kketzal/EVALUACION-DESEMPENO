@@ -214,7 +214,14 @@ class ApiService {
     const result = response.data;
     console.log('Upload result:', result);
     console.log('=== uploadFiles EXIT ===');
-    return result;
+    
+    // Asegurar que siempre devolvemos un array
+    if (Array.isArray(result)) {
+      return result;
+    } else {
+      console.warn('La API no devolvió un array, devolviendo array vacío:', result);
+      return [];
+    }
   }
 
   async deleteFile(fileId: number): Promise<void> {

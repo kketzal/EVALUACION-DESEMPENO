@@ -56,11 +56,12 @@ const ConfirmModal: React.FC<{
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
-}> = ({ open, title, message, confirmText = 'Eliminar', cancelText = 'Cancelar', onConfirm, onCancel, loading }) => {
+  'data-testid'?: string;
+}> = ({ open, title, message, confirmText = 'Eliminar', cancelText = 'Cancelar', onConfirm, onCancel, loading, 'data-testid': testId }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center" data-testid={testId}>
         <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
           <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -73,6 +74,7 @@ const ConfirmModal: React.FC<{
             className="px-6 py-3 rounded-lg bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition-colors"
             onClick={onCancel}
             disabled={loading}
+            data-testid="cancel-delete"
           >
             {cancelText}
           </button>
@@ -80,6 +82,7 @@ const ConfirmModal: React.FC<{
             className="px-6 py-3 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors shadow-lg disabled:opacity-60"
             onClick={onConfirm}
             disabled={loading}
+            data-testid="confirm-delete"
           >
             {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto" /> : confirmText}
           </button>
@@ -391,7 +394,7 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
 
               {/* Lista de archivos minimalista */}
               {files.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-3" data-testid="file-list">
                   {/* Header con estadísticas */}
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                     <div className="flex items-center gap-2">
@@ -407,6 +410,7 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
                       <button
                         onClick={() => setConfirmDeleteAll(true)}
                         disabled={deletingAll}
+                        data-testid="delete-all-files-button"
                         className={`p-1.5 rounded-md transition-all duration-200 ${
                           deletingAll
                             ? 'text-gray-400 cursor-not-allowed'
@@ -430,6 +434,7 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
                     {files.map((file: EvidenceFile) => (
                       <div 
                         key={file.id} 
+                        data-testid="file-item"
                         className="group relative flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all duration-200"
                         title={file.name} // Tooltip con nombre completo
                       >
@@ -471,6 +476,7 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
                           <button
                             onClick={() => handleDeleteFile(file.id as number)}
                             disabled={deletingFiles.has(file.id as number)}
+                            data-testid="delete-file-button"
                             className={`p-1 rounded transition-colors ${
                               deletingFiles.has(file.id as number)
                                 ? 'text-gray-300 cursor-not-allowed'
@@ -504,18 +510,43 @@ export const EvidenceUploader: FC<EvidenceUploaderProps> = ({
         loading={confirmDeleteId !== null && deletingFiles.has(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={confirmDelete}
+        data-testid="confirm-delete-modal"
       />
 
       {/* Modal de confirmación para eliminar todos los archivos */}
-      <ConfirmModal
-        open={confirmDeleteAll}
-        title="Eliminar todos los archivos"
-        message={`Se eliminarán ${files.length} archivo${files.length !== 1 ? 's' : ''} de evidencia de esta conducta. Esta acción no se puede deshacer.`}
-        confirmText="Eliminar todos"
-        loading={deletingAll}
-        onCancel={() => setConfirmDeleteAll(false)}
-        onConfirm={handleDeleteAll}
-      />
+      {confirmDeleteAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" data-testid="confirm-delete-all-modal">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h4 className="text-xl font-bold text-gray-800 mb-2">Eliminar todos los archivos</h4>
+            <p className="text-gray-600 mb-6">
+              Se eliminarán {files.length} archivo{files.length !== 1 ? 's' : ''} de evidencia de esta conducta. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                className="px-6 py-3 rounded-lg bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition-colors"
+                onClick={() => setConfirmDeleteAll(false)}
+                disabled={deletingAll}
+                data-testid="cancel-delete-all"
+              >
+                Cancelar
+              </button>
+              <button
+                className="px-6 py-3 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors shadow-lg disabled:opacity-60"
+                onClick={handleDeleteAll}
+                disabled={deletingAll}
+                data-testid="confirm-delete-all"
+              >
+                {deletingAll ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto" /> : 'Eliminar todos'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

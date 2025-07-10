@@ -230,7 +230,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
   };
 
   return (
-    <div>
+    <div data-testid="competency-block">
       <div className="border-b border-gray-200 pb-4 mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">{competency.title}</h2>
@@ -275,6 +275,7 @@ export const CompetencyBlock: React.FC<CompetencyBlockProps> = ({
         {competency.conducts.map((conduct, idx) => (
           <Accordion
             key={conduct.id}
+            data-testid="conduct-accordion"
             title={<span><span className="font-semibold">{conduct.id}.</span> {conduct.description}</span>}
             open={evaluation.openAccordions[conduct.id] || false}
             exampleEvidence={conduct.exampleEvidence}

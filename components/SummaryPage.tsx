@@ -250,7 +250,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
   const orphanFilesOnDisk = filesOnDisk.filter(filePath => !filesInBD.includes(filePath));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="summary-files">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg shadow-sm">
@@ -400,6 +400,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({ evaluation, onSave, on
                                 return (
                                   <div 
                                     key={file.id} 
+                                    data-testid="summary-file-item"
                                     className={`group relative flex items-center gap-2 p-2 rounded-lg border transition-all duration-200 ${
                                       !existsOnDisk 
                                         ? 'bg-red-50 border-red-200 opacity-70' 

@@ -814,6 +814,10 @@ function App() {
 
   const handleSidebarChange = (id: string) => {
     if (isSidebarOpen) closeSidebar();
+    
+    // Guardar la competencia activa actual antes de cambiar de página
+    const currentCompetencyId = activeCompetencyId;
+    
     if (id === 'settings') {
       setActivePage('settings');
       setActiveCompetencyId('settings');
@@ -827,8 +831,28 @@ function App() {
       setActivePage('evaluation-manager');
       setActiveCompetencyId('evaluation-manager');
     } else {
+      // Navegación a competencias
       setActivePage('competency');
-      setActiveCompetencyId(id);
+      
+      // Si el ID es una competencia válida, usarlo
+      // Si no, restaurar la competencia anterior o usar la primera disponible
+      const worker = evaluation.workers.find(w => w.id === evaluation.workerId);
+      if (worker) {
+        const visibleCompetencies = getVisibleCompetenciesFromHook(worker.worker_group ?? null);
+        const isValidCompetency = visibleCompetencies.find(c => c.id === id);
+        
+        if (isValidCompetency) {
+          setActiveCompetencyId(id);
+        } else {
+          // Restaurar competencia anterior si era válida, o usar la primera
+          const wasPreviousValid = visibleCompetencies.find(c => c.id === currentCompetencyId);
+          if (wasPreviousValid && currentCompetencyId !== 'summary' && currentCompetencyId !== 'manage-users' && currentCompetencyId !== 'evaluation-manager' && currentCompetencyId !== 'settings') {
+            setActiveCompetencyId(currentCompetencyId);
+          } else if (visibleCompetencies.length > 0) {
+            setActiveCompetencyId(visibleCompetencies[0].id);
+          }
+        }
+      }
     }
   };
 
@@ -1262,6 +1286,7 @@ function App() {
             <div className="flex flex-col gap-4 w-full">
               <button
                 onClick={() => setIsWorkerSelectorOpen(true)}
+                data-testid="worker-select"
                 className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
               >
                 Seleccionar Trabajador

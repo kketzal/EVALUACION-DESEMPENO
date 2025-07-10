@@ -1,0 +1,95 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - img "Logo UCO"
+  - img "Logo SCAI"
+  - heading "Evaluación de Desempeño" [level=1]
+  - img
+  - text: 09/07/2025, 16:40 Trabajador E2E 1 GRUPO 1-2 • 2023-2024
+  - button "Cambiar trabajador":
+    - img
+    - text: Cambiar trabajador
+  - button "Seleccionar periodo/evaluación":
+    - img
+    - text: Seleccionar periodo/evaluación
+  - button "Salir":
+    - img
+    - text: Salir
+- complementary:
+  - heading "Competencias" [level=2]
+  - navigation:
+    - list:
+      - listitem:
+        - button "B DEDICACIÓN Y CALIDAD"
+      - listitem:
+        - button "C INICIATIVA E INTERÉS"
+      - listitem:
+        - button "D TRABAJO EN EQUIPO"
+      - listitem:
+        - button "F CONOCIMIENTO NORMATIVA"
+      - listitem:
+        - button "G CONOCIMIENTO PROCEDIMIENTOS"
+      - listitem:
+        - button "H COMPETENCIAS DIGITALES"
+  - button "Resumen y Guardado":
+    - img
+    - text: Resumen y Guardado
+  - button "Gestionar usuarios":
+    - img
+    - text: Gestionar usuarios
+  - button "Gestionar Evaluaciones":
+    - img
+    - text: Gestionar Evaluaciones
+  - button "Configuración":
+    - img
+    - text: Configuración
+- main:
+  - img
+  - heading "Resumen y Guardado" [level=1]
+  - paragraph: Revisa los archivos de evidencia y guarda la evaluación completa
+  - img
+  - heading "0" [level=3]
+  - paragraph: Archivos de evidencia
+  - img
+  - heading "0" [level=3]
+  - paragraph: Conductas con archivos
+  - img
+  - heading "0" [level=3]
+  - paragraph: Elementos huérfanos
+  - paragraph: 0 archivos, 0 carpetas
+  - img
+  - heading "Archivos de Evidencia" [level=3]
+  - img
+  - heading "No hay archivos de evidencia" [level=3]
+  - paragraph: Aún no se han adjuntado archivos de evidencia a esta evaluación.
+  - img
+  - text: "Última guardado: 09/07/2025, 16:40"
+  - button "Historial de Versiones"
+  - button "Exportar a PDF"
+  - button "Exportar a Excel + Archivos"
+  - button "Guardar Evaluación":
+    - img
+    - text: Guardar Evaluación
+- contentinfo: © 2025 Desarrollado para el Servicio Central de Apoyo a la Investigación (SCAI) - Universidad de Córdoba. Todos los derechos reservados.
+- heading "Seleccionar Trabajador/a" [level=3]
+- button:
+  - img
+- img
+- textbox "Buscar trabajador/a..."
+- button "JANE DOE GRUPO 3-4":
+  - img
+  - text: JANE DOE GRUPO 3-4
+- button "MANUEL MARTINEZ PEINADO GRUPO 1-2":
+  - img
+  - text: MANUEL MARTINEZ PEINADO GRUPO 1-2
+- button "Super Admin GRUPO 1-2":
+  - img
+  - text: Super Admin GRUPO 1-2
+- button "Trabajador E2E 1 GRUPO 1-2":
+  - img
+  - text: Trabajador E2E 1 GRUPO 1-2
+- button "Trabajador E2E 2 GRUPO 3-4":
+  - img
+  - text: Trabajador E2E 2 GRUPO 3-4
+```
