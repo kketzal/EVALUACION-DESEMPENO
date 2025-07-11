@@ -29,9 +29,9 @@ export default defineConfig({
     /* Record video on failure */
     video: 'retain-on-failure',
 
-    /* Configuraciones para hacer las pruebas más lentas y visibles */
-    actionTimeout: 60000, // 60 segundos para cada acción
-    navigationTimeout: 120000, // 120 segundos para navegación
+    /* Configuraciones optimizadas para ejecución rápida en modo headless */
+    actionTimeout: 30000, // 30 segundos para cada acción
+    navigationTimeout: 60000, // 60 segundos para navegación
   },
 
   /* Configure projects for major browsers */
@@ -40,22 +40,31 @@ export default defineConfig({
       name: 'chromium',
       use: { 
         ...devices['Desktop Chrome'],
-        // Configuraciones específicas para Chromium
+        // Configuraciones optimizadas para Chromium
         launchOptions: {
-          slowMo: 2000, // Pausa de 2 segundos entre acciones
-          headless: false, // Siempre mostrar el navegador
+          headless: true, // Ejecutar sin abrir navegador
         },
       },
     },
 
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: { 
+        ...devices['Desktop Firefox'],
+        launchOptions: {
+          headless: true, // Ejecutar sin abrir navegador
+        },
+      },
     },
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        ...devices['Desktop Safari'],
+        launchOptions: {
+          headless: true, // Ejecutar sin abrir navegador
+        },
+      },
     },
 
     /* Test against mobile viewports. */
